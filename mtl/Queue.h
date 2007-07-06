@@ -24,29 +24,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 //=================================================================================================
 
-#if 0
-template <class T>
-class Queue {
-    vec<T>  elems;
-    int     first;
-
-public:
-    Queue(void) : first(0) { }
-
-    void insert(T x)   { elems.push(x); }
-    T    peek  () const { return elems[first]; }
-    void pop   () { first++; }
-
-    void clear(bool dealloc = false)   { elems.clear(dealloc); first = 0; }
-    int  size(void)    { return elems.size() - first; }
-
-    //bool has(T x) { for (int i = first; i < elems.size(); i++) if (elems[i] == x) return true; return false; }
-
-    const T& operator [] (int index) const  { return elems[first + index]; }
-
-};
-
-#else
 template<class T>
 class Queue {
     vec<T>  buf;
@@ -80,7 +57,6 @@ public:
         }
     }
 };
-#endif
 
 //=================================================================================================
 #endif
