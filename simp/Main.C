@@ -144,7 +144,7 @@ static void readClause(B& in, SimpSolver& S, vec<Lit>& lits) {
 }
 
 template<class B>
-static bool match(B& in, char* str) {
+static bool match(B& in, const char* str) {
     for (; *str != 0; ++str, ++in)
         if (*str != *in)
             return false;

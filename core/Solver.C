@@ -43,8 +43,6 @@ Solver::Solver() :
   , starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
   , clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
 
-    , skipped(0)
-
   , ok               (true)
   , cla_inc          (1)
   , var_inc          (1)
@@ -213,18 +211,6 @@ Lit Solver::pickBranchLit(int polarity_mode, double random_var_freq)
 }
 
 
-inline bool Solver::skipLit(Lit l, const Clause& c, const vec<char>& seen)
-{
-    assert(value(l) == l_True);
-    for (int i = 0; i < c.size(); i++)
-        if (c[i] != l){
-            if (value(c[i]) != l_False || !seen[var(c[i])])
-                return false;
-        }
-
-    return true;
-}
-
 /*_________________________________________________________________________________________________
 |
 |  analyze : (confl : Clause*) (out_learnt : vec<Lit>&) (out_btlevel : int&)  ->  [void]
@@ -252,8 +238,6 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
     out_learnt.push();      // (leave room for the asserting literal)
     int index   = trail.size() - 1;
 
-    //vec<Lit> active;
-
     do{
         assert(confl != NULL);          // (otherwise should be UIP)
         Clause& c = *confl;
@@ -277,11 +261,6 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
             }
         }
         
-        //fprintf(stderr, "last clause:       "); printClause(c); fprintf(stderr, "\n");
-        //fprintf(stderr, "active literals:   "); printClause(active); fprintf(stderr, "\n");
-        //fprintf(stderr, "inactive literals: "); printClause(out_learnt); fprintf(stderr, "\n");
-
-    skip:
         // Select next clause to look at:
         while (!seen[var(trail[index--])]);
         p     = trail[index+1];
@@ -289,27 +268,8 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
         seen[var(p)] = 0;
         pathC--;
 
-        //remove(active, ~p);
-#if 0
-        if (pathC > 0){
-            // Skip literals:
-            for (int i = 0; i < watches[toInt(~p)].size(); i++){
-                Clause& c = *watches[toInt(~p)][i];
-                if (skipLit(p, c, seen)){
-                    if (&c != reason[var(p)])
-                        skipped++;
-                    //fprintf(stderr, "removing literal:  "); printLit(p); fprintf(stderr, "\n");
-                    //fprintf(stderr, "using clause:      "); printClause(c); fprintf(stderr, "\n");
-                    goto skip;
-                }
-            }
-        }
-#endif
-
     }while (pathC > 0);
     out_learnt[0] = ~p;
-
-    //fprintf(stderr, "derived clause: "); printClause(out_learnt); fprintf(stderr, "\n");
 
     // Simplify conflict clause:
     //
