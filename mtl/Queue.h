@@ -38,7 +38,7 @@ public:
     void clear (bool dealloc = false) { buf.clear(dealloc); buf.growTo(1); first = end = 0; }
     int  size  () const { return (end >= first) ? end - first : end - first + buf.size(); }
 
-    const T& operator [] (int index) const  { assert(index >= 0); assert(index < size()); return buf[(first + index) % (buf.size() - 1)]; }
+    const T& operator [] (int index) const  { assert(index >= 0); assert(index < size()); return buf[(first + index) % buf.size()]; }
 
     T    peek  () const { assert(first != end); return buf[first]; }
     void pop   () { assert(first != end); first++; if (first == buf.size()) first = 0; }
