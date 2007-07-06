@@ -24,7 +24,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 //=================================================================================================
 
-
+#if 0
 template <class T>
 class Queue {
     vec<T>  elems;
@@ -46,37 +46,39 @@ public:
 
 };
 
-//template<class T>
-//class Queue {
-//    vec<T>  buf;
-//    int     first;
-//    int     end;
-//
-//public:
-//    typedef T Key;
-//
-//    Queue() : buf(1), first(0), end(0) {}
-//
-//    void clear () { buf.shrinkTo(1); first = end = 0; }
-//    int  size  () { return (end >= first) ? end - first : end - first + buf.size(); }
-//
-//    T    peek  () { assert(first != end); return buf[first]; }
-//    void pop   () { assert(first != end); first++; if (first == buf.size()) first = 0; }
-//    void insert(T elem) {   // INVARIANT: buf[end] is always unused
-//        buf[end++] = elem;
-//        if (end == buf.size()) end = 0;
-//        if (first == end){  // Resize:
-//            vec<T>  tmp((buf.size()*3 + 1) >> 1);
-//            //**/printf("queue alloc: %d elems (%.1f MB)\n", tmp.size(), tmp.size() * sizeof(T) / 1000000.0);
-//            int     i = 0;
-//            for (int j = first; j < buf.size(); j++) tmp[i++] = buf[j];
-//            for (int j = 0    ; j < end       ; j++) tmp[i++] = buf[j];
-//            first = 0;
-//            end   = buf.size();
-//            tmp.moveTo(buf);
-//        }
-//    }
-//};
+#else
+template<class T>
+class Queue {
+    vec<T>  buf;
+    int     first;
+    int     end;
+
+public:
+    typedef T Key;
+
+    Queue() : buf(1), first(0), end(0) {}
+
+    void clear () { buf.shrinkTo(1); first = end = 0; }
+    int  size  () { return (end >= first) ? end - first : end - first + buf.size(); }
+
+    T    peek  () { assert(first != end); return buf[first]; }
+    void pop   () { assert(first != end); first++; if (first == buf.size()) first = 0; }
+    void insert(T elem) {   // INVARIANT: buf[end] is always unused
+        buf[end++] = elem;
+        if (end == buf.size()) end = 0;
+        if (first == end){  // Resize:
+            vec<T>  tmp((buf.size()*3 + 1) >> 1);
+            //**/printf("queue alloc: %d elems (%.1f MB)\n", tmp.size(), tmp.size() * sizeof(T) / 1000000.0);
+            int     i = 0;
+            for (int j = first; j < buf.size(); j++) tmp[i++] = buf[j];
+            for (int j = 0    ; j < end       ; j++) tmp[i++] = buf[j];
+            first = 0;
+            end   = buf.size();
+            tmp.moveTo(buf);
+        }
+    }
+};
+#endif
 
 //=================================================================================================
 #endif
