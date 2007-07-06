@@ -205,7 +205,6 @@ void printStats(Solver& S)
     reportf("decisions             : %-12lld   (%4.2f %% random) (%.0f /sec)\n", S.decisions, (float)S.rnd_decisions*100 / (float)S.decisions, S.decisions   /cpu_time);
     reportf("propagations          : %-12lld   (%.0f /sec)\n", S.propagations, S.propagations/cpu_time);
     reportf("conflict literals     : %-12lld   (%4.2f %% deleted)\n", S.tot_literals, (S.max_literals - S.tot_literals)*100 / (double)S.max_literals);
-    reportf("skipped lits          : %-12d\n", S.skipped);
     if (mem_used != 0) reportf("Memory used           : %.2f MB\n", mem_used / 1048576.0);
     reportf("CPU time              : %g s\n", cpu_time);
 }

@@ -94,8 +94,6 @@ public:
     uint64_t starts, decisions, rnd_decisions, propagations, conflicts;
     uint64_t clauses_literals, learnts_literals, max_literals, tot_literals;
 
-    uint32_t skipped;
-
 protected:
 
     // Helper structures:
