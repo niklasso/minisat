@@ -111,7 +111,7 @@ protected:
     struct VarFilter {
         const Solver& s;
         VarFilter(const Solver& _s) : s(_s) {}
-        bool operator()(Var v) const { return toLbool(s.assigns[v]) == l_Undef && s.decision_var[v]; }
+        bool operator()(Var v) const { return s.assigns[v] == l_Undef && s.decision_var[v]; }
     };
 
     // Solver state:
@@ -123,7 +123,7 @@ protected:
     vec<double>         activity;         // A heuristic measurement of the activity of a variable.
     double              var_inc;          // Amount to bump next variable with.
     vec<vec<Clause*> >  watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
-    vec<char>           assigns;          // The current assignments (lbool:s stored as char:s).
+    vec<lbool>          assigns;          // The current assignments.
     vec<char>           polarity;         // The preferred polarity of each variable.
     vec<float>          var_jwh;
     vec<char>           decision_var;     // Declares if a variable is eligible for selection in the decision heuristic.
@@ -248,8 +248,8 @@ inline void     Solver::newDecisionLevel()                      { trail_lim.push
 
 inline int      Solver::decisionLevel ()      const   { return trail_lim.size(); }
 inline uint32_t Solver::abstractLevel (Var x) const   { return 1 << (level[x] & 31); }
-inline lbool    Solver::value         (Var x) const   { return toLbool(assigns[x]); }
-inline lbool    Solver::value         (Lit p) const   { return toLbool(assigns[var(p)]) ^ sign(p); }
+inline lbool    Solver::value         (Var x) const   { return assigns[x]; }
+inline lbool    Solver::value         (Lit p) const   { return assigns[var(p)] ^ sign(p); }
 inline lbool    Solver::modelValue    (Lit p) const   { return model[var(p)] ^ sign(p); }
 inline int      Solver::nAssigns      ()      const   { return trail.size(); }
 inline int      Solver::nClauses      ()      const   { return clauses.size(); }

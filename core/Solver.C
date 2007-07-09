@@ -81,11 +81,11 @@ Var Solver::newVar(bool sign, bool dvar)
     watches   .push();          // (list for positive literal)
     watches   .push();          // (list for negative literal)
     reason    .push(NULL);
-    assigns   .push(toInt(l_Undef));
+    assigns   .push(l_Undef);
     level     .push(-1);
     activity  .push(0);
     seen      .push(0);
-
+    trail.capacity(v+1);
     polarity    .push((char)sign);
     var_jwh     .push(0);
     decision_var.push((char)dvar);
@@ -172,7 +172,7 @@ void Solver::cancelUntil(int level) {
     if (decisionLevel() > level){
         for (int c = trail.size()-1; c >= trail_lim[level]; c--){
             Var     x  = var(trail[c]);
-            assigns[x] = toInt(l_Undef);
+            assigns[x] = l_Undef;
             insertVarOrder(x); }
         qhead = trail_lim[level];
         trail.shrink(trail.size() - trail_lim[level]);
@@ -191,11 +191,11 @@ Lit Solver::pickBranchLit(int polarity_mode, double random_var_freq)
     // Random decision:
     if (drand(random_seed) < random_var_freq && !order_heap.empty()){
         next = order_heap[irand(random_seed,order_heap.size())];
-        if (toLbool(assigns[next]) == l_Undef && decision_var[next])
+        if (assigns[next] == l_Undef && decision_var[next])
             rnd_decisions++; }
 
     // Activity based decision:
-    while (next == var_Undef || toLbool(assigns[next]) != l_Undef || !decision_var[next])
+    while (next == var_Undef || assigns[next] != l_Undef || !decision_var[next])
         if (order_heap.empty()){
             next = var_Undef;
             break;
@@ -402,7 +402,7 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
 void Solver::uncheckedEnqueue(Lit p, Clause* from)
 {
     assert(value(p) == l_Undef);
-    assigns [var(p)] = toInt(lbool(!sign(p)));  // <<== abstract but not uttermost effecient
+    assigns [var(p)] = lbool(!sign(p));
     level   [var(p)] = decisionLevel();
     reason  [var(p)] = from;
     trail.push(p);
@@ -473,6 +473,7 @@ Clause* Solver::propagate()
 
     return confl;
 }
+
 
 /*_________________________________________________________________________________________________
 |
