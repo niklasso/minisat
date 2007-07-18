@@ -87,6 +87,9 @@ public:
     int       polarity_mode;      // Controls which polarity the decision heuristic chooses. See enum below for allowed modes. (default polarity_false)
     int       verbosity;          // Verbosity level. 0=silent, 1=some progress report                                         (default 0)
 
+    int                 learntsize_adjust_start_confl;
+    double              learntsize_adjust_inc;
+
     enum { polarity_true = 0, polarity_false = 1, polarity_user = 2, polarity_rnd = 3, polarity_jwh = 4 };
 
     // Statistics: (read-only member variable)
@@ -145,6 +148,10 @@ protected:
     vec<Lit>            analyze_toclear;
     vec<Lit>            add_tmp;
 
+    double              max_learnts;
+    double              learntsize_adjust_confl;
+    int                 learntsize_adjust_cnt;
+
     // Main internal methods:
     //
     void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.
@@ -157,7 +164,7 @@ protected:
     void     analyze          (Clause* confl, vec<Lit>& out_learnt, int& out_btlevel); // (bt = backtrack)
     void     analyzeFinal     (Lit p, vec<Lit>& out_conflict);                         // COULD THIS BE IMPLEMENTED BY THE ORDINARIY "analyze" BY SOME REASONABLE GENERALIZATION?
     bool     litRedundant     (Lit p, uint32_t abstract_levels);                       // (helper method for 'analyze()')
-    lbool    search           (int nof_conflicts, int nof_learnts);                    // Search for a given number of conflicts.
+    lbool    search           (int nof_conflicts);                                     // Search for a given number of conflicts.
     void     reduceDB         ();                                                      // Reduce the set of learnt clauses.
     void     removeSatisfied  (vec<Clause*>& cs);                                      // Shrink 'cs' to contain only non-satisfied clauses.
 

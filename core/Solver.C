@@ -38,6 +38,11 @@ Solver::Solver() :
   , polarity_mode    (polarity_false)
   , verbosity        (0)
 
+    // Experimental parameteres:
+    //
+  , learntsize_adjust_start_confl (100)
+  , learntsize_adjust_inc         (1.5)
+
     // Statistics: (formerly in 'SolverStats')
     //
   , starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
@@ -548,19 +553,18 @@ bool Solver::simplify()
 
 /*_________________________________________________________________________________________________
 |
-|  search : (nof_conflicts : int) (nof_learnts : int) (params : const SearchParams&)  ->  [lbool]
+|  search : (nof_conflicts : int) (params : const SearchParams&)  ->  [lbool]
 |  
 |  Description:
-|    Search for a model the specified number of conflicts, keeping the number of learnt clauses
-|    below the provided limit. NOTE! Use negative value for 'nof_conflicts' or 'nof_learnts' to
-|    indicate infinity.
+|    Search for a model the specified number of conflicts. 
+|    NOTE! Use negative value for 'nof_conflicts' indicate infinity.
 |  
 |  Output:
 |    'l_True' if a partial assigment that is consistent with respect to the clauseset is found. If
 |    all variables are decision variables, this means that the clause set is satisfiable. 'l_False'
 |    if the clause set is unsatisfiable. 'l_Undef' if the bound on number of conflicts is reached.
 |________________________________________________________________________________________________@*/
-lbool Solver::search(int nof_conflicts, int nof_learnts)
+lbool Solver::search(int nof_conflicts)
 {
     assert(ok);
     int         backtrack_level;
@@ -598,6 +602,13 @@ lbool Solver::search(int nof_conflicts, int nof_learnts)
             varDecayActivity();
             claDecayActivity();
 
+            if (--learntsize_adjust_cnt == 0){
+                learntsize_adjust_confl *= learntsize_adjust_inc;
+                learntsize_adjust_cnt    = learntsize_adjust_confl;
+                max_learnts             *= learntsize_inc;
+                fprintf(stderr, "learntsize adjusted, next = %d\n", learntsize_adjust_cnt);
+            }
+
         }else{
             // NO CONFLICT
 
@@ -611,7 +622,7 @@ lbool Solver::search(int nof_conflicts, int nof_learnts)
             if (decisionLevel() == 0 && !simplify())
                 return l_False;
 
-            if (nof_learnts >= 0 && learnts.size()-nAssigns() >= nof_learnts)
+            if (learnts.size()-nAssigns() >= max_learnts)
                 // Reduce the set of learnt clauses:
                 reduceDB();
 
@@ -674,9 +685,11 @@ bool Solver::solve(const vec<Lit>& assumps)
 
     assumps.copyTo(assumptions);
 
-    double  nof_conflicts = restart_first;
-    double  nof_learnts   = nClauses() * learntsize_factor;
-    lbool   status        = l_Undef;
+    double  nof_conflicts    = restart_first;
+    max_learnts              = nClauses() * learntsize_factor;
+    learntsize_adjust_confl  = learntsize_adjust_start_confl;
+    learntsize_adjust_cnt    = learntsize_adjust_confl;
+    lbool   status           = l_Undef;
 
     if (verbosity >= 1){
         reportf("============================[ Search Statistics ]==============================\n");
@@ -688,10 +701,9 @@ bool Solver::solve(const vec<Lit>& assumps)
     // Search:
     while (status == l_Undef){
         if (verbosity >= 1)
-            reportf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)nof_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100), fflush(stdout);
-        status = search((int)nof_conflicts, (int)nof_learnts);
+            reportf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100), fflush(stdout);
+        status = search((int)nof_conflicts);
         nof_conflicts *= restart_inc;
-        nof_learnts   *= learntsize_inc;
     }
 
     if (verbosity >= 1)
