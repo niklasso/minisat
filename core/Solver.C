@@ -606,7 +606,7 @@ lbool Solver::search(int nof_conflicts)
                 learntsize_adjust_confl *= learntsize_adjust_inc;
                 learntsize_adjust_cnt    = learntsize_adjust_confl;
                 max_learnts             *= learntsize_inc;
-                fprintf(stderr, "learntsize adjusted, next = %d\n", learntsize_adjust_cnt);
+                //fprintf(stderr, "learntsize adjusted, next = %d\n", learntsize_adjust_cnt);
             }
 
         }else{
@@ -685,11 +685,12 @@ bool Solver::solve(const vec<Lit>& assumps)
 
     assumps.copyTo(assumptions);
 
-    double  nof_conflicts    = restart_first;
-    max_learnts              = nClauses() * learntsize_factor;
-    learntsize_adjust_confl  = learntsize_adjust_start_confl;
-    learntsize_adjust_cnt    = learntsize_adjust_confl;
-    lbool   status           = l_Undef;
+    double  nof_conflicts     = restart_first;
+    double  nof_conflicts_cap = restart_first;
+    max_learnts               = nClauses() * learntsize_factor;
+    learntsize_adjust_confl   = learntsize_adjust_start_confl;
+    learntsize_adjust_cnt     = learntsize_adjust_confl;
+    lbool   status            = l_Undef;
 
     if (verbosity >= 1){
         reportf("============================[ Search Statistics ]==============================\n");
@@ -701,9 +702,14 @@ bool Solver::solve(const vec<Lit>& assumps)
     // Search:
     while (status == l_Undef){
         if (verbosity >= 1)
-            reportf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100), fflush(stdout);
+            reportf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% | %d\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100, (int)nof_conflicts), fflush(stdout);
         status = search((int)nof_conflicts);
         nof_conflicts *= restart_inc;
+
+        if (nof_conflicts > nof_conflicts_cap){
+            nof_conflicts_cap *= restart_inc;
+            nof_conflicts      = restart_first;
+        }
     }
 
     if (verbosity >= 1)
