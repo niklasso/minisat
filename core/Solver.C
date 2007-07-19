@@ -604,7 +604,7 @@ lbool Solver::search(int nof_conflicts)
 
             if (--learntsize_adjust_cnt == 0){
                 learntsize_adjust_confl *= learntsize_adjust_inc;
-                learntsize_adjust_cnt    = learntsize_adjust_confl;
+                learntsize_adjust_cnt    = (int)learntsize_adjust_confl;
                 max_learnts             *= learntsize_inc;
                 //fprintf(stderr, "learntsize adjusted, next = %d\n", learntsize_adjust_cnt);
             }
@@ -689,7 +689,7 @@ bool Solver::solve(const vec<Lit>& assumps)
     double  nof_conflicts_cap = restart_first;
     max_learnts               = nClauses() * learntsize_factor;
     learntsize_adjust_confl   = learntsize_adjust_start_confl;
-    learntsize_adjust_cnt     = learntsize_adjust_confl;
+    learntsize_adjust_cnt     = (int)learntsize_adjust_confl;
     lbool   status            = l_Undef;
 
     if (verbosity >= 1){
