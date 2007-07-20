@@ -711,7 +711,7 @@ void SimpSolver::toDimacs(const char* file)
         // to deallocate them at this point. Could be improved.
         int cnt = 0;
         for (int i = 0; i < clauses.size(); i++)
-            if (satisfied(*clauses[i]))
+            if (!satisfied(*clauses[i]))
                 cnt++;
 
         fprintf(f, "p cnf %d %d\n", nVars(), cnt);
