@@ -41,6 +41,7 @@ SimpSolver::SimpSolver() :
     vec<Lit> dummy(1,lit_Undef);
     bwdsub_tmpunit   = Clause_new(dummy);
     remove_satisfied = false;
+    extra_clause_field = true;
 }
 
 
@@ -493,7 +494,7 @@ bool SimpSolver::eliminateVar(Var v, bool fail)
     elimtable[v].order = elimorder++;
     assert(elimtable[v].eliminated.size() == 0);
     for (int i = 0; i < cls.size(); i++){
-        elimtable[v].eliminated.push(Clause_new(*cls[i]));
+        elimtable[v].eliminated.push(Clause_new(*cls[i], false, false));
         removeClause(*cls[i]); }
 
     // Produce clauses in cross product:
@@ -653,6 +654,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         subsumption_queue.clear(true);
         elim_heap.clear(true);
         remove_satisfied = true;
+        extra_clause_field = false;
     }
 
 

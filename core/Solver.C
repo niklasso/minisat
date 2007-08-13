@@ -48,16 +48,17 @@ Solver::Solver() :
   , starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
   , clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
 
-  , ok               (true)
-  , cla_inc          (1)
-  , var_inc          (1)
-  , qhead            (0)
-  , simpDB_assigns   (-1)
-  , simpDB_props     (0)
-  , order_heap       (VarOrderLt(activity))
-  , random_seed      (91648253)
-  , progress_estimate(0)
-  , remove_satisfied (true)
+  , ok                 (true)
+  , cla_inc            (1)
+  , var_inc            (1)
+  , qhead              (0)
+  , simpDB_assigns     (-1)
+  , simpDB_props       (0)
+  , order_heap         (VarOrderLt(activity))
+  , random_seed        (91648253)
+  , progress_estimate  (0)
+  , remove_satisfied   (true)
+  , extra_clause_field (false)
 {}
 
 
@@ -120,7 +121,7 @@ bool Solver::addClause(vec<Lit>& ps)
         uncheckedEnqueue(ps[0]);
         return ok = (propagate() == NULL);
     }else{
-        Clause* c = Clause_new(ps, false);
+        Clause* c = Clause_new(ps, false, extra_clause_field);
         clauses.push(c);
         attachClause(*c);
 

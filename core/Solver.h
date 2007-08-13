@@ -152,6 +152,8 @@ protected:
     double              learntsize_adjust_confl;
     int                 learntsize_adjust_cnt;
 
+    bool                extra_clause_field;
+
     // Main internal methods:
     //
     void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.

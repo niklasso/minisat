@@ -38,8 +38,8 @@ typedef int Var;
 class Lit {
     int     x;
  public:
-    //Lit() : x(2*var_Undef)                                              { }   // (lit_Undef)
-    //explicit Lit(Var var, bool sign = false) : x((var+var) + (int)sign) { }
+    // Constructor:
+    friend Lit mkLit(Var var, bool sign = false);
 
     // Don't use these for constructing/deconstructing literals. Use the normal constructors instead.
     friend int  toInt       (Lit p);  // Guarantees small, positive integers suitable for array indexing.
@@ -54,11 +54,9 @@ class Lit {
     bool operator != (Lit p) const { return x != p.x; }
     bool operator <  (Lit p) const { return x < p.x;  } // '<' guarantees that p, ~p are adjacent in the ordering.
 
-    friend Lit mkLit(Var var, bool sign = false);
 };
 
 inline  Lit  mkLit       (Var var, bool sign) { Lit p; p.x = var + var + (int)sign; return p; }
-
 inline  int  toInt       (Lit p)           { return p.x; }
 inline  Lit  toLit       (int i)           { Lit p; p.x = i; return p; }
 inline  Lit  operator   ~(Lit p)           { Lit q; q.x = p.x ^ 1; return q; }
@@ -103,7 +101,6 @@ const lbool l_Undef = toLbool( 0);
 
 
 class Clause {
-    //uint32_t size_etc;
     unsigned _mark      : 2;
     unsigned _learnt    : 1;
     unsigned _has_extra : 1;
@@ -120,25 +117,30 @@ public:
 
     // NOTE: This constructor cannot be used directly (doesn't allocate enough memory).
     template<class V>
-    Clause(const V& ps, bool has_extra, bool learnt) {
-        _size = ps.size();
-        _learnt = learnt;
-        _mark   = 0;
-        for (int i = 0; i < ps.size(); i++) data[i].lit = ps[i];
-        if (has_extra)
-            if (learnt) 
+    Clause(const V& ps, bool use_extra, bool learnt) {
+        _size      = ps.size();
+        _learnt    = learnt;
+        _mark      = 0;
+        _has_extra = use_extra;
+
+        for (int i = 0; i < ps.size(); i++) 
+            data[i].lit = ps[i];
+
+        if (_has_extra){
+            if (_learnt)
                 data[_size].act = 0; 
             else 
-                calcAbstraction(); 
+                calcAbstraction(); }
     }
 
     // -- use this function instead:
     template<class V>
-    friend Clause* Clause_new(const V& ps, bool learnt = false) {
+    friend Clause* Clause_new(const V& ps, bool learnt = false, bool use_extra = true) {
         assert(sizeof(Lit)      == sizeof(uint32_t));
         assert(sizeof(float)    == sizeof(uint32_t));
-        void* mem = malloc(sizeof(Clause) + sizeof(uint32_t)*(ps.size() + 1));
-        return new (mem) Clause(ps, true, learnt); }
+        use_extra |= learnt;
+        void* mem = malloc(sizeof(Clause) + sizeof(uint32_t)*(ps.size() + (int)use_extra));
+        return new (mem) Clause(ps, use_extra, learnt); }
 
     int          size        ()      const   { return _size; }
     void         shrink      (int i)         { assert(i <= size()); if (_has_extra) data[_size-i] = data[_size]; _size -= i; }
@@ -179,12 +181,14 @@ inline Lit Clause::subsumes(const Clause& other) const
 {
     //if (other.size() < size() || (extra.abst & ~other.extra.abst) != 0)
     //if (other.size() < size() || (!learnt() && !other.learnt() && (extra.abst & ~other.extra.abst) != 0))
-    if (other.size() < size() || (!_learnt && _has_extra &&  !other._learnt && other._has_extra && (data[_size].abs & ~other.data[_size].abs) != 0))
+    assert(!_learnt);   assert(!other._learnt);
+    assert(_has_extra); assert(other._has_extra);
+    if (other.size() < size() || (data[_size].abs & ~other.data[other._size].abs) != 0)
         return lit_Error;
 
     Lit        ret = lit_Undef;
-    const Lit* c  = (const Lit*)(*this);
-    const Lit* d  = (const Lit*)other;
+    const Lit* c   = (const Lit*)(*this);
+    const Lit* d   = (const Lit*)other;
 
     for (int i = 0; i < size(); i++) {
         // search for c[i] or ~c[i]
@@ -203,7 +207,6 @@ inline Lit Clause::subsumes(const Clause& other) const
 
     return ret;
 }
-
 
 inline void Clause::strengthen(Lit p)
 {
