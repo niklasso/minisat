@@ -77,12 +77,12 @@ class lbool {
 
 public:
     lbool()       : value(0) { }
-    lbool(bool x) : value((int)x*2-1) { }
+    lbool(bool x) : value(2|(int)!x) { }
     int toInt(void) const { return value; }
 
     bool  operator == (lbool b) const { return value == b.value; }
     bool  operator != (lbool b) const { return value != b.value; }
-    lbool operator ^ (bool b) const { return b ? lbool(-value) : lbool(value); }
+    lbool operator ^ (bool b)   const { return lbool(value ^ ((char)b & (value >> 1))); }
 
     friend int   toInt  (lbool l);
     friend lbool toLbool(int   v);
@@ -90,8 +90,8 @@ public:
 inline int   toInt  (lbool l) { return l.toInt(); }
 inline lbool toLbool(int   v) { return lbool(v);  }
 
-const lbool l_True  = toLbool( 1);
-const lbool l_False = toLbool(-1);
+const lbool l_True  = toLbool( 2);
+const lbool l_False = toLbool( 3);
 const lbool l_Undef = toLbool( 0);
 
 //=================================================================================================
@@ -99,7 +99,11 @@ const lbool l_Undef = toLbool( 0);
 
 
 class Clause {
-    uint32_t size_etc;
+    //uint32_t size_etc;
+    unsigned _size : 29;
+    unsigned _learnt : 1;
+    unsigned _mark   : 2;
+
     union { float act; uint32_t abst; } extra;
     Lit     data[0];
 
@@ -113,7 +117,9 @@ public:
     // NOTE: This constructor cannot be used directly (doesn't allocate enough memory).
     template<class V>
     Clause(const V& ps, bool learnt) {
-        size_etc = (ps.size() << 3) | (uint32_t)learnt;
+        _size = ps.size();
+        _learnt = learnt;
+        _mark   = 0;
         for (int i = 0; i < ps.size(); i++) data[i] = ps[i];
         if (learnt) extra.act = 0; else calcAbstraction(); }
 
@@ -125,12 +131,12 @@ public:
         void* mem = malloc(sizeof(Clause) + sizeof(uint32_t)*(ps.size()));
         return new (mem) Clause(ps, learnt); }
 
-    int          size        ()      const   { return size_etc >> 3; }
-    void         shrink      (int i)         { assert(i <= size()); size_etc = (((size_etc >> 3) - i) << 3) | (size_etc & 7); }
+    int          size        ()      const   { return _size; }
+    void         shrink      (int i)         { assert(i <= size()); _size -= i; }
     void         pop         ()              { shrink(1); }
-    bool         learnt      ()      const   { return size_etc & 1; }
-    uint32_t     mark        ()      const   { return (size_etc >> 1) & 3; }
-    void         mark        (uint32_t m)    { size_etc = (size_etc & ~6) | ((m & 3) << 1); }
+    bool         learnt      ()      const   { return _learnt; }
+    uint32_t     mark        ()      const   { return _mark; }
+    void         mark        (uint32_t m)    { _mark = m; }
     const Lit&   last        ()      const   { return data[size()-1]; }
 
     // NOTE: somewhat unsafe to change the clause in-place! Must manually call 'calcAbstraction' afterwards for
