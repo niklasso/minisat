@@ -462,7 +462,7 @@ bool SimpSolver::eliminateVar(Var v, bool fail)
     // Split the occurrences into positive and negative:
     vec<Clause*>  pos, neg;
     for (int i = 0; i < cls.size(); i++)
-        (find(*cls[i], Lit(v)) ? pos : neg).push(cls[i]);
+        (find(*cls[i], mkLit(v)) ? pos : neg).push(cls[i]);
 
     // Check if number of clauses decreases:
     int      cnt  = 0;

@@ -139,7 +139,7 @@ static void readClause(B& in, SimpSolver& S, vec<Lit>& lits) {
         if (parsed_lit == 0) break;
         var = abs(parsed_lit)-1;
         while (var >= S.nVars()) S.newVar();
-        lits.push( (parsed_lit > 0) ? Lit(var) : ~Lit(var) );
+        lits.push( (parsed_lit > 0) ? mkLit(var) : ~mkLit(var) );
     }
 }
 
@@ -382,7 +382,7 @@ int main(int argc, char** argv)
             if (x == 0) break;
             x--;
 
-            /**/assert(S.n_occ[toInt(Lit(x))] + S.n_occ[toInt(~Lit(x))] != 0);
+            /**/assert(S.n_occ[toInt(mkLit(x))] + S.n_occ[toInt(~mkLit(x))] != 0);
             /**/assert(S.value(x) == l_Undef);
             S.setFrozen(x, true);
             count++;

@@ -212,7 +212,7 @@ Lit Solver::pickBranchLit(int polarity_mode, double random_var_freq)
         //case polarity_jwh:   sign = var_jwh[next] > 0; break;
     default: assert(false); }
 
-    return next == var_Undef ? lit_Undef : Lit(next, sign);
+    return next == var_Undef ? lit_Undef : mkLit(next, sign);
 }
 
 

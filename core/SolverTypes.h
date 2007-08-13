@@ -38,8 +38,8 @@ typedef int Var;
 class Lit {
     int     x;
  public:
-    Lit() : x(2*var_Undef)                                              { }   // (lit_Undef)
-    explicit Lit(Var var, bool sign = false) : x((var+var) + (int)sign) { }
+    //Lit() : x(2*var_Undef)                                              { }   // (lit_Undef)
+    //explicit Lit(Var var, bool sign = false) : x((var+var) + (int)sign) { }
 
     // Don't use these for constructing/deconstructing literals. Use the normal constructors instead.
     friend int  toInt       (Lit p);  // Guarantees small, positive integers suitable for array indexing.
@@ -53,7 +53,11 @@ class Lit {
     bool operator == (Lit p) const { return x == p.x; }
     bool operator != (Lit p) const { return x != p.x; }
     bool operator <  (Lit p) const { return x < p.x;  } // '<' guarantees that p, ~p are adjacent in the ordering.
+
+    friend Lit mkLit(Var var, bool sign = false);
 };
+
+inline  Lit  mkLit       (Var var, bool sign) { Lit p; p.x = var + var + (int)sign; return p; }
 
 inline  int  toInt       (Lit p)           { return p.x; }
 inline  Lit  toLit       (int i)           { Lit p; p.x = i; return p; }
@@ -63,8 +67,8 @@ inline  int  var         (Lit p)           { return p.x >> 1; }
 inline  Lit  unsign      (Lit p)           { Lit q; q.x = p.x & ~1; return q; }
 inline  Lit  id          (Lit p, bool sgn) { Lit q; q.x = p.x ^ (int)sgn; return q; }
 
-const Lit lit_Undef(var_Undef, false);  // }- Useful special constants.
-const Lit lit_Error(var_Undef, true );  // }
+const Lit lit_Undef = mkLit(var_Undef, false);  // }- Useful special constants.
+const Lit lit_Error = mkLit(var_Undef, true );  // }
 
 
 //=================================================================================================
@@ -100,53 +104,58 @@ const lbool l_Undef = toLbool( 0);
 
 class Clause {
     //uint32_t size_etc;
-    unsigned _size : 29;
-    unsigned _learnt : 1;
-    unsigned _mark   : 2;
+    unsigned _mark      : 2;
+    unsigned _learnt    : 1;
+    unsigned _has_extra : 1;
+    unsigned _size      : 28;
 
-    union { float act; uint32_t abst; } extra;
-    Lit     data[0];
+    union { Lit lit; float act; uint32_t abs; } data[0];
 
 public:
     void calcAbstraction() {
         uint32_t abstraction = 0;
         for (int i = 0; i < size(); i++)
-            abstraction |= 1 << (var(data[i]) & 31);
-        extra.abst = abstraction;  }
+            abstraction |= 1 << (var(data[i].lit) & 31);
+        data[_size].abs = abstraction;  }
 
     // NOTE: This constructor cannot be used directly (doesn't allocate enough memory).
     template<class V>
-    Clause(const V& ps, bool learnt) {
+    Clause(const V& ps, bool has_extra, bool learnt) {
         _size = ps.size();
         _learnt = learnt;
         _mark   = 0;
-        for (int i = 0; i < ps.size(); i++) data[i] = ps[i];
-        if (learnt) extra.act = 0; else calcAbstraction(); }
+        for (int i = 0; i < ps.size(); i++) data[i].lit = ps[i];
+        if (has_extra)
+            if (learnt) 
+                data[_size].act = 0; 
+            else 
+                calcAbstraction(); 
+    }
 
     // -- use this function instead:
     template<class V>
     friend Clause* Clause_new(const V& ps, bool learnt = false) {
         assert(sizeof(Lit)      == sizeof(uint32_t));
         assert(sizeof(float)    == sizeof(uint32_t));
-        void* mem = malloc(sizeof(Clause) + sizeof(uint32_t)*(ps.size()));
-        return new (mem) Clause(ps, learnt); }
+        void* mem = malloc(sizeof(Clause) + sizeof(uint32_t)*(ps.size() + 1));
+        return new (mem) Clause(ps, true, learnt); }
 
     int          size        ()      const   { return _size; }
-    void         shrink      (int i)         { assert(i <= size()); _size -= i; }
+    void         shrink      (int i)         { assert(i <= size()); if (_has_extra) data[_size-i] = data[_size]; _size -= i; }
     void         pop         ()              { shrink(1); }
     bool         learnt      ()      const   { return _learnt; }
     uint32_t     mark        ()      const   { return _mark; }
     void         mark        (uint32_t m)    { _mark = m; }
-    const Lit&   last        ()      const   { return data[size()-1]; }
+    const Lit&   last        ()      const   { return data[size()-1].lit; }
 
     // NOTE: somewhat unsafe to change the clause in-place! Must manually call 'calcAbstraction' afterwards for
     //       subsumption operations to behave correctly.
-    Lit&         operator [] (int i)         { return data[i]; }
-    Lit          operator [] (int i) const   { return data[i]; }
-    operator const Lit* (void) const         { return data; }
+    Lit&         operator [] (int i)         { return data[i].lit; }
+    Lit          operator [] (int i) const   { return data[i].lit; }
+    operator const Lit* (void) const         { return (Lit*)data; }
 
-    float&       activity    ()              { return extra.act; }
-    uint32_t     abstraction () const { return extra.abst; }
+    float&       activity    ()              { return data[_size].act; }
+    uint32_t     abstraction () const        { return data[_size].abs; }
 
     Lit          subsumes    (const Clause& other) const;
     void         strengthen  (Lit p);
@@ -169,7 +178,8 @@ public:
 inline Lit Clause::subsumes(const Clause& other) const
 {
     //if (other.size() < size() || (extra.abst & ~other.extra.abst) != 0)
-    if (other.size() < size() || (!learnt() && !other.learnt() && (extra.abst & ~other.extra.abst) != 0))
+    //if (other.size() < size() || (!learnt() && !other.learnt() && (extra.abst & ~other.extra.abst) != 0))
+    if (other.size() < size() || (!_learnt && _has_extra &&  !other._learnt && other._has_extra && (data[_size].abs & ~other.data[_size].abs) != 0))
         return lit_Error;
 
     Lit        ret = lit_Undef;
