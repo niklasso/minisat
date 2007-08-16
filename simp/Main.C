@@ -170,7 +170,7 @@ static void parse_DIMACS_main(B& in, SimpSolver& S) {
                 clauses = parseInt(in);
                 reportf("|  Number of variables:  %12d                                         |\n", vars);
                 reportf("|  Number of clauses:    %12d                                         |\n", clauses);
-
+                
                 // SATRACE'06 hack
                 if (clauses > 4000000)
                     S.eliminate(true);

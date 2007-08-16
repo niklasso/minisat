@@ -125,7 +125,8 @@ class SimpSolver : public Solver {
     bool          strengthenClause         (Clause& c, Lit l);
     void          cleanUpClauses           ();
     bool          implied                  (const vec<Lit>& c);
-    void          toDimacs                 (FILE* f, Clause& c);
+    //void          toDimacs                 (FILE* f, Clause& c);
+    void          toDimacs                 (FILE* f, Clause& c, vec<Var>& map, Var& max);
     bool          isEliminated             (Var v) const;
 
 };

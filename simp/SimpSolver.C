@@ -675,13 +675,23 @@ void SimpSolver::cleanUpClauses()
 // Convert to DIMACS:
 
 
-void SimpSolver::toDimacs(FILE* f, Clause& c)
+static Var mapVar(Var x, vec<Var>& map, Var& max)
+{
+    if (map.size() <= x || map[x] == -1){
+        map.growTo(x+1, -1);
+        map[x] = max++;
+    }
+    return map[x];
+}
+
+
+void SimpSolver::toDimacs(FILE* f, Clause& c, vec<Var>& map, Var& max)
 {
     if (satisfied(c)) return;
 
     for (int i = 0; i < c.size(); i++)
         if (value(c[i]) != l_False)
-            fprintf(f, "%s%d ", sign(c[i]) ? "-" : "", var(c[i])+1);
+            fprintf(f, "%s%d ", sign(c[i]) ? "-" : "", mapVar(var(c[i]), map, max)+1);
     fprintf(f, "0\n");
 }
 
@@ -691,6 +701,7 @@ void SimpSolver::toDimacs(const char* file)
     assert(decisionLevel() == 0);
     FILE* f = fopen(file, "wr");
     if (f != NULL){
+        vec<Var> map; Var max = 0;
 
         // Cannot use removeClauses here because it is not safe
         // to deallocate them at this point. Could be improved.
@@ -698,13 +709,21 @@ void SimpSolver::toDimacs(const char* file)
         for (int i = 0; i < clauses.size(); i++)
             if (!satisfied(*clauses[i]))
                 cnt++;
+        
+        for (int i = 0; i < clauses.size(); i++)
+            if (!satisfied(*clauses[i])){
+                Clause& c = *clauses[i];
+                for (int j = 0; j < c.size(); j++)
+                    if (value(c[j]) != l_False)
+                        mapVar(var(c[j]), map, max);
+            }
 
-        fprintf(f, "p cnf %d %d\n", nVars(), cnt);
+        fprintf(f, "p cnf %d %d\n", max, cnt);
 
         for (int i = 0; i < clauses.size(); i++)
-            toDimacs(f, *clauses[i]);
+            toDimacs(f, *clauses[i], map, max);
 
-        fprintf(stderr, "Wrote %d clauses...\n", clauses.size());
+        fprintf(stderr, "Wrote %d clauses with %d variables.\n", cnt, max);
     }else
         fprintf(stderr, "could not open file %s\n", file);
 }
