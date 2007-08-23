@@ -35,9 +35,9 @@ typedef int Var;
 #define var_Undef (-1)
 
 
-class Lit {
+struct Lit {
     int     x;
- public:
+
     // Constructor:
     friend Lit mkLit(Var var, bool sign = false);
 
@@ -65,8 +65,11 @@ inline  int  var         (Lit p)           { return p.x >> 1; }
 inline  Lit  unsign      (Lit p)           { Lit q; q.x = p.x & ~1; return q; }
 inline  Lit  id          (Lit p, bool sgn) { Lit q; q.x = p.x ^ (int)sgn; return q; }
 
-const Lit lit_Undef = mkLit(var_Undef, false);  // }- Useful special constants.
-const Lit lit_Error = mkLit(var_Undef, true );  // }
+//const Lit lit_Undef = mkLit(var_Undef, false);  // }- Useful special constants.
+//const Lit lit_Error = mkLit(var_Undef, true );  // }
+
+const Lit lit_Undef = { -2 };  // }- Useful special constants.
+const Lit lit_Error = { -1 };  // }
 
 
 //=================================================================================================
