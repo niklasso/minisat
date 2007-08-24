@@ -70,6 +70,16 @@ static inline uint64_t memUsed(void) {
     return ru.ru_maxrss*1024; }
 
 
+#elif defined(__APPLE__)
+#include <malloc/malloc.h>
+
+static inline uint64_t memUsed(void) {
+    malloc_statistics_t t;
+    malloc_zone_statistics(NULL, &t);
+    printf("got here...\n");
+    return t.max_size_in_use; }
+
+
 #else
 static inline uint64_t memUsed() { return 0; }
 #endif
