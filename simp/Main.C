@@ -268,7 +268,6 @@ int main(int argc, char** argv)
 #endif
     preprocessMode pre    = pre_once;
     const char*    dimacs = NULL;
-    const char*    freeze = NULL;
     SimpSolver     S;
     S.verbosity = 1;
 
@@ -341,8 +340,6 @@ int main(int argc, char** argv)
             S.clause_lim = lim;
         }else if ((value = hasPrefix(argv[i], "-dimacs="))){
             dimacs = value;
-        }else if ((value = hasPrefix(argv[i], "-freeze="))){
-            freeze = value;
         }else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-help") == 0){
             printUsage(argv);
             exit(0);
@@ -380,26 +377,6 @@ int main(int argc, char** argv)
 
     double parsed_time = cpuTime();
     reportf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
-
-    /*HACK: Freeze variables*/
-    if (freeze != NULL && pre != pre_none){
-        int   count = 0;
-        FILE* in = fopen(freeze, "rb");
-        for(;;){
-            Var x;
-            fscanf(in, "%d", &x);
-            if (x == 0) break;
-            x--;
-
-            /**/assert(S.n_occ[toInt(mkLit(x))] + S.n_occ[toInt(~mkLit(x))] != 0);
-            /**/assert(S.value(x) == l_Undef);
-            S.setFrozen(x, true);
-            count++;
-        }
-        fclose(in);
-        reportf("|  Frozen vars :         %12.0f                                         |\n", (double)count);
-    }
-    /*END*/
 
     S.eliminate(true);
     double simplified_time = cpuTime();

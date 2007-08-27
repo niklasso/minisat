@@ -436,38 +436,25 @@ void SimpSolver::verifyModel()
 
 bool SimpSolver::eliminateVar(Var v, bool fail)
 {
-    if (!fail && asymm_mode && !asymmVar(v))    return false;
-
-    const vec<Clause*>& cls = getOccurs(v);
-
-//  if (value(v) != l_Undef || cls.size() == 0) return true;
-    if (value(v) != l_Undef) return true;
+    assert(!frozen[v]);
+    assert(!isEliminated(v));
+    assert(value(v) == l_Undef);
 
     // Split the occurrences into positive and negative:
+    //
+    const vec<Clause*>& cls = getOccurs(v);
     vec<Clause*>  pos, neg;
     for (int i = 0; i < cls.size(); i++)
         (find(*cls[i], mkLit(v)) ? pos : neg).push(cls[i]);
 
-    // Check if number of clauses decreases:
-    int      cnt  = 0;
-
-    //int      lits = 0;
-    //int      prev_lits = 0;
-    //for (int i = 0; i < cls.size(); i++)
-    //    prev_lits += cls[i]->size();
-    
+    // Check wether the increase in number of clauses stays within the allowed ('grow'). Moreover, no
+    // clause must exceed the limit on the maximal clause size (if it is set):
+    //
+    int cnt         = 0;
     int clause_size = 0;
 
     for (int i = 0; i < pos.size(); i++)
         for (int j = 0; j < neg.size(); j++)
-            //if (merge(*pos[i], *neg[j], v) && ++cnt > cls.size() + grow)
-            //if (merge(*pos[i], *neg[j], v, resolvent) && 
-            //   (++cnt > cls.size() + grow || (lits += resolvent.size(), lits > prev_lits + 8)))
-            //if (merge(*pos[i], *neg[j], v, resolvent) && 
-            //    (lits += resolvent.size(), (++cnt > cls.size() + grow && lits > prev_lits)))
-            //if (merge(*pos[i], *neg[j], v, resolvent) && ++cnt > cls.size() + grow)
-            //if (merge(*pos[i], *neg[j], v, resolvent) && 
-            //    (++cnt > cls.size() + grow || resolvent.size() > 20))
             if (merge(*pos[i], *neg[j], v, clause_size) && 
                 (++cnt > cls.size() + grow || (clause_lim != -1 && clause_size > clause_lim)))
                 return true;
@@ -592,10 +579,17 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         for (int cnt = 0; !elim_heap.empty(); cnt++){
             Var elim = elim_heap.removeMin();
 
+            assert(!isEliminated(elim));
+
+            if (frozen[elim] || value(elim) != l_Undef) continue;
+
             if (verbosity >= 2 && cnt % 100 == 0)
                 reportf("elimination left: %10d\r", elim_heap.size());
 
-            if (!frozen[elim] && !eliminateVar(elim))
+            if (asymm_mode && !asymmVar(elim))
+                return ok = false;
+
+            if (value(elim) == l_Undef && !eliminateVar(elim))
                 return ok = false;
         }
 

@@ -66,8 +66,7 @@ class SimpSolver : public Solver {
     int     asymm_lits;
     int     remembered_clauses;
 
-// protected:
-  public:
+ protected:
 
     // Helper structures:
     //
@@ -85,7 +84,8 @@ class SimpSolver : public Solver {
         const vec<int>& n_occ;
         ElimLt(const vec<int>& no) : n_occ(no) {}
         int  cost      (Var x)        const { return n_occ[toInt(mkLit(x))] * n_occ[toInt(~mkLit(x))]; }
-        bool operator()(Var x, Var y) const { return cost(x) < cost(y); } };
+        bool operator()(Var x, Var y) const { return cost(x) < cost(y); }
+    };
 
 
     // Solver state:
