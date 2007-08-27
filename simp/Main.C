@@ -76,7 +76,6 @@ static inline uint64_t memUsed(void) {
 static inline uint64_t memUsed(void) {
     malloc_statistics_t t;
     malloc_zone_statistics(NULL, &t);
-    printf("got here...\n");
     return t.max_size_in_use; }
 
 
