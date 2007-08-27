@@ -168,7 +168,7 @@ static void parse_DIMACS_main(B& in, SimpSolver& S) {
     int clauses = 0;
     int cnt     = 0;
     for (;;){
-        if (S.verbosity == 2 && S.redundancy_check && S.nClauses() % 100 == 0)
+        if (S.verbosity == 2 && S.use_rcheck && S.nClauses() % 100 == 0)
             printf("Redundancy check: %10d/%10d (%10d)\r", S.nClauses(), clauses, cnt - S.nClauses());
 
         skipWhitespace(in);
@@ -229,24 +229,24 @@ static void SIGINT_handler(int signum) {
 //=================================================================================================
 // Main:
 
-void printUsage(char** argv)
+void printUsage(char** argv, SimpSolver& S)
 {
     reportf("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n\n", argv[0]);
     reportf("OPTIONS:\n\n");
-    reportf("  -pre           = {none,once}\n");
-    reportf("  -asymm\n");
-    reportf("  -rcheck\n");
-    reportf("  -grow          = <num> [ >0 ]\n");
-    reportf("  -lim           = <num> [ >2 ]\n");
-    reportf("  -polarity-mode = {true,false,rnd,jwh}\n");
-    reportf("  -decay         = <num> [ 0 - 1 ]\n");
-    reportf("  -rnd-freq      = <num> [ 0 - 1 ]\n");
-    reportf("  -dimacs        = <output-file>\n");
-    reportf("  -verbosity     = {0,1,2}\n");
+    reportf("  -pre,    -no-pre                     (default: on)\n");
+    reportf("  -elim,   -no-elim                    (default: %s)\n", S.use_elim           ? "on" : "off");
+    reportf("  -asymm,  -no-asymm                   (default: %s)\n", S.use_asymm          ? "on" : "off");
+    reportf("  -rcheck, -no-rcheck                  (default: %s)\n", S.use_rcheck         ? "on" : "off");
+    reportf("\n");
+    reportf("  -grow          = <integer> [ >= 0  ] (default: %d)\n", S.grow);
+    reportf("  -lim           = <integer> [ >= -1 ] (default: %d)\n", S.clause_lim);
+    reportf("  -decay         = <double>  [ 0 - 1 ] (default: %g)\n", S.var_decay);
+    reportf("  -rnd-freq      = <double>  [ 0 - 1 ] (default: %g)\n", S.random_var_freq);
+    reportf("\n");
+    reportf("  -dimacs        = <output-file>.\n");
+    reportf("  -verbosity     = {0,1,2}             (default: %d)\n", S.verbosity);
     reportf("\n");
 }
-
-typedef enum { pre_none, pre_once, pre_repeat } preprocessMode;
 
 const char* hasPrefix(const char* str, const char* prefix)
 {
@@ -266,30 +266,23 @@ int main(int argc, char** argv)
     _FPU_GETCW(oldcw); newcw = (oldcw & ~_FPU_EXTENDED) | _FPU_DOUBLE; _FPU_SETCW(newcw);
     reportf("WARNING: for repeatability, setting FPU to use double precision\n");
 #endif
-    preprocessMode pre    = pre_once;
+    bool           pre    = true;
     const char*    dimacs = NULL;
     SimpSolver     S;
     S.verbosity = 1;
+
+    // Check for help flag:
+    for (int i = 0; i < argc; i++)
+        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-help") == 0){
+            printUsage(argv, S);
+            exit(0); }
 
     // This just grew and grew, and I didn't have time to do sensible argument parsing yet :)
     //
     int         i, j;
     const char* value;
     for (i = j = 0; i < argc; i++){
-        if ((value = hasPrefix(argv[i], "-polarity-mode="))){
-            if (strcmp(value, "true") == 0)
-                S.polarity_mode = Solver::polarity_true;
-            else if (strcmp(value, "false") == 0)
-                S.polarity_mode = Solver::polarity_false;
-            else if (strcmp(value, "rnd") == 0)
-                S.polarity_mode = Solver::polarity_rnd;
-            else if (strcmp(value, "jwh") == 0)
-                S.polarity_mode = Solver::polarity_jwh;
-            else{
-                reportf("ERROR! unknown polarity-mode %s\n", value);
-                exit(0); }
-
-        }else if ((value = hasPrefix(argv[i], "-rnd-freq="))){
+        if ((value = hasPrefix(argv[i], "-rnd-freq="))){
             double rnd;
             if (sscanf(value, "%lf", &rnd) <= 0 || rnd < 0 || rnd > 1){
                 reportf("ERROR! illegal rnd-freq constant %s\n", value);
@@ -310,25 +303,27 @@ int main(int argc, char** argv)
                 exit(0); }
             S.verbosity = verbosity;
 
-        }else if ((value = hasPrefix(argv[i], "-pre="))){
-            if (strcmp(value, "none") == 0)
-                pre = pre_none;
-            else if (strcmp(value, "once") == 0)
-                pre = pre_once;
-            else if (strcmp(value, "repeat") == 0){
-                pre = pre_repeat;
-                reportf("ERROR! preprocessing mode \"repeat\" is not supported at the moment.\n");
-                exit(0);
-            }else{
-                reportf("ERROR! unknown preprocessing mode %s\n", value);
-                exit(0); }
+        // Boolean flags:
+        //
+        }else if (strcmp(argv[i], "-pre") == 0){
+            pre = true;
+        }else if (strcmp(argv[i], "-no-pre") == 0){
+            pre = false;
         }else if (strcmp(argv[i], "-asymm") == 0){
-            S.asymm_mode = true;
+            S.use_asymm = true;
+        }else if (strcmp(argv[i], "-no-asymm") == 0){
+            S.use_asymm = false;
         }else if (strcmp(argv[i], "-rcheck") == 0){
-            S.redundancy_check = true;
+            S.use_rcheck = true;
+        }else if (strcmp(argv[i], "-no-rcheck") == 0){
+            S.use_rcheck = false;
+        }else if (strcmp(argv[i], "-elim") == 0){
+            S.use_elim = true;
+        }else if (strcmp(argv[i], "-no-elim") == 0){
+            S.use_elim = false;
         }else if ((value = hasPrefix(argv[i], "-grow="))){
             int grow = (int)strtol(value, NULL, 10);
-            if (grow < 1){
+            if (grow < 0){
                 reportf("ERROR! illegal grow constant %s\n", &argv[i][6]);
                 exit(0); }
             S.grow = grow;
@@ -340,11 +335,8 @@ int main(int argc, char** argv)
             S.clause_lim = lim;
         }else if ((value = hasPrefix(argv[i], "-dimacs="))){
             dimacs = value;
-        }else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-help") == 0){
-            printUsage(argv);
-            exit(0);
         }else if (strncmp(argv[i], "-", 1) == 0){
-            reportf("ERROR! unknown flag %s\n", argv[i]);
+            reportf("ERROR! unknown flag %s\nUse -help for more information.\n", argv[i]);
             exit(0);
         }else
             argv[j++] = argv[i];
@@ -353,8 +345,7 @@ int main(int argc, char** argv)
 
     double initial_time = cpuTime();
 
-    if (pre == pre_none)
-        S.eliminate(true);
+    if (!pre) S.eliminate(true);
 
     solver = &S;
     signal(SIGINT,SIGINT_handler);

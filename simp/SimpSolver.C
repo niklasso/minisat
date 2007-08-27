@@ -28,8 +28,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 SimpSolver::SimpSolver() :
     grow               (0)
   , clause_lim         (-1)
-  , asymm_mode         (false)
-  , redundancy_check   (false)
+  , use_asymm          (false)
+  , use_rcheck         (false)
+  , use_elim           (true)
   , merges             (0)
   , asymm_lits         (0)
   , remembered_clauses (0)
@@ -39,8 +40,8 @@ SimpSolver::SimpSolver() :
   , bwdsub_assigns     (0)
 {
     vec<Lit> dummy(1,lit_Undef);
-    bwdsub_tmpunit   = Clause_new(dummy);
-    remove_satisfied = false;
+    bwdsub_tmpunit     = Clause_new(dummy);
+    remove_satisfied   = false;
     extra_clause_field = true;
 }
 
@@ -126,7 +127,7 @@ bool SimpSolver::addClause(vec<Lit>& ps)
 
     int nclauses = clauses.size();
 
-    if (redundancy_check && implied(ps))
+    if (use_rcheck && implied(ps))
         return true;
 
     if (!Solver::addClause(ps))
@@ -391,10 +392,8 @@ bool SimpSolver::asymm(Var v, Clause& c)
 
 bool SimpSolver::asymmVar(Var v)
 {
-    assert(!frozen[v]);
     assert(use_simplification);
 
-    vec<Clause*>  pos, neg;
     const vec<Clause*>& cls = getOccurs(v);
 
     if (value(v) != l_Undef || cls.size() == 0)
@@ -571,13 +570,14 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     //gatherTouchedClauses();
     while (subsumption_queue.size() > 0 || elim_heap.size() > 0){
 
-        //fprintf(stderr, "subsumption phase: (%d)\n", subsumption_queue.size());
         if (!backwardSubsumptionCheck(true))
             return ok = false;
 
-        //fprintf(stderr, "elimination phase:\n (%d)", elim_heap.size());
         for (int cnt = 0; !elim_heap.empty(); cnt++){
             Var elim = elim_heap.removeMin();
+
+            if (isEliminated(elim))
+                fprintf(stderr, "\nAlready eliminated: %d\n", elim+1);
 
             assert(!isEliminated(elim));
 
@@ -586,10 +586,15 @@ bool SimpSolver::eliminate(bool turn_off_elim)
             if (verbosity >= 2 && cnt % 100 == 0)
                 reportf("elimination left: %10d\r", elim_heap.size());
 
-            if (asymm_mode && !asymmVar(elim))
-                return ok = false;
+            //fprintf(stderr, "\nTrying to eliminate: %d\n", elim+1);
+            if (use_asymm){
+                bool was_frozen = frozen[elim];
+                frozen[elim] = true;
+                if (!asymmVar(elim))
+                    return ok = false;
+                frozen[elim] = was_frozen; }
 
-            if (value(elim) == l_Undef && !eliminateVar(elim))
+            if (use_elim && value(elim) == l_Undef && !eliminateVar(elim))
                 return ok = false;
         }
 
