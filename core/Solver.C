@@ -685,7 +685,6 @@ bool Solver::solve(const vec<Lit>& assumps)
     assumps.copyTo(assumptions);
 
     double  nof_conflicts     = restart_first;
-    double  nof_conflicts_cap = restart_first;
     max_learnts               = nClauses() * learntsize_factor;
     learntsize_adjust_confl   = learntsize_adjust_start_confl;
     learntsize_adjust_cnt     = (int)learntsize_adjust_confl;
@@ -704,11 +703,6 @@ bool Solver::solve(const vec<Lit>& assumps)
             reportf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% | %d\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100, (int)nof_conflicts), fflush(stdout);
         status = search((int)nof_conflicts);
         nof_conflicts *= restart_inc;
-
-        if (nof_conflicts > nof_conflicts_cap){
-            nof_conflicts_cap *= restart_inc;
-            nof_conflicts      = restart_first;
-        }
     }
 
     if (verbosity >= 1)
