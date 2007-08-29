@@ -258,10 +258,7 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
                 varBumpActivity(var(q));
                 seen[var(q)] = 1;
                 if (level[var(q)] >= decisionLevel())
-                    {
-                        //active.push(q);
                     pathC++;
-                }
                 else
                     out_learnt.push(q);
             }
