@@ -40,14 +40,17 @@ class Heap {
 
     inline void percolateUp(int i)
     {
-        int x = heap[i];
-        while (i != 0 && lt(x, heap[parent(i)])){
-            heap[i]          = heap[parent(i)];
-            indices[heap[i]] = i;
-            i                = parent(i);
+        int x  = heap[i];
+        int p  = parent(i);
+        
+        while (i != 0 && lt(x, heap[p])){
+            heap[i]          = heap[p];
+            indices[heap[p]] = i;
+            i                = p;
+            p                = parent(p);
         }
-        heap   [i] = x;
-        indices[x] = i;
+         heap   [i] = x;
+         indices[x] = i;
     }
 
 
