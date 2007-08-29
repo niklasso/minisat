@@ -176,36 +176,19 @@ bool SimpSolver::strengthenClause(Clause& c, Lit l)
     assert(!c.learnt());
     assert(find(watches[toInt(~c[0])], &c));
     assert(find(watches[toInt(~c[1])], &c));
+    assert(use_simplification);
 
     // FIX: this is too inefficient but would be nice to have (properly implemented)
     // if (!find(subsumption_queue, &c))
     subsumption_queue.insert(&c);
 
-    // If l is watched, delete it from watcher list and watch a new literal
-    if (c[0] == l || c[1] == l){
-        Lit other = c[0] == l ? c[1] : c[0];
-        if (c.size() == 2){
-            removeClause(c);
-            c.strengthen(l);
-        }else{
-            c.strengthen(l);
-            remove(watches[toInt(~l)], &c);
-
-            // Add a watch for the correct literal
-            watches[toInt(~(c[1] == other ? c[0] : c[1]))].push(&c);
-
-            // !! this version assumes that remove does not change the order !!
-            //watches[toInt(~c[1])].push(&c);
-            clauses_literals -= 1;
-        }
-    }
-    else{
+    if (c.size() == 2){
+        removeClause(c);
         c.strengthen(l);
-        clauses_literals -= 1;
-    }
-
-    // if subsumption-indexing is active perform the necessary updates
-    if (use_simplification){
+    }else{
+        detachClause(c);
+        c.strengthen(l);
+        attachClause(c);
         remove(occurs[var(l)], &c);
         n_occ[toInt(l)]--;
         updateElimHeap(var(l));
