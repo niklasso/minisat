@@ -223,7 +223,6 @@ void printUsage(char** argv)
 {
     reportf("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n\n", argv[0]);
     reportf("OPTIONS:\n\n");
-    reportf("  -polarity-mode = {true,false,rnd, jwh}\n");
     reportf("  -decay         = <num> [ 0 - 1 ]\n");
     reportf("  -rnd-freq      = <num> [ 0 - 1 ]\n");
     reportf("  -verbosity     = {0,1,2}\n");
@@ -250,20 +249,7 @@ int main(int argc, char** argv)
     int         i, j;
     const char* value;
     for (i = j = 0; i < argc; i++){
-        if ((value = hasPrefix(argv[i], "-polarity-mode="))){
-            if (strcmp(value, "true") == 0)
-                S.polarity_mode = Solver::polarity_true;
-            else if (strcmp(value, "false") == 0)
-                S.polarity_mode = Solver::polarity_false;
-            else if (strcmp(value, "rnd") == 0)
-                S.polarity_mode = Solver::polarity_rnd;
-            else if (strcmp(value, "jwh") == 0)
-                S.polarity_mode = Solver::polarity_jwh;
-            else{
-                reportf("ERROR! unknown polarity-mode %s\n", value);
-                exit(0); }
-
-        }else if ((value = hasPrefix(argv[i], "-rnd-freq="))){
+        if ((value = hasPrefix(argv[i], "-rnd-freq="))){
             double rnd;
             if (sscanf(value, "%lf", &rnd) <= 0 || rnd < 0 || rnd > 1){
                 reportf("ERROR! illegal rnd-freq constant %s\n", value);
