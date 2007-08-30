@@ -84,13 +84,10 @@ public:
     double    learntsize_factor;  // The intitial limit for learnt clauses is a factor of the original clauses.                (default 1 / 3)
     double    learntsize_inc;     // The limit for learnt clauses is multiplied with this factor each restart.                 (default 1.1)
     bool      expensive_ccmin;    // Controls conflict clause minimization.                                                    (default TRUE)
-    int       polarity_mode;      // Controls which polarity the decision heuristic chooses. See enum below for allowed modes. (default polarity_false)
     int       verbosity;          // Verbosity level. 0=silent, 1=some progress report                                         (default 0)
 
     int                 learntsize_adjust_start_confl;
     double              learntsize_adjust_inc;
-
-    enum { polarity_true = 0, polarity_false = 1, polarity_user = 2, polarity_rnd = 3, polarity_jwh = 4 };
 
     // Statistics: (read-only member variable)
     //
@@ -111,7 +108,7 @@ protected:
     struct VarFilter {
         const Solver& s;
         VarFilter(const Solver& _s) : s(_s) {}
-        bool operator()(Var v) const { return s.assigns[v] == l_Undef && s.decision_var[v]; }
+        bool operator()(Var v) const { return s.assigns[v] == l_Undef && s.decision[v]; }
     };
 
     // Solver state:
@@ -125,8 +122,7 @@ protected:
     vec<vec<Clause*> >  watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
     vec<lbool>          assigns;          // The current assignments.
     vec<char>           polarity;         // The preferred polarity of each variable.
-    vec<float>          var_jwh;
-    vec<char>           decision_var;     // Declares if a variable is eligible for selection in the decision heuristic.
+    vec<char>           decision;         // Declares if a variable is eligible for selection in the decision heuristic.
     vec<Lit>            trail;            // Assignment stack; stores all assigments made in the order they were made.
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
     vec<Clause*>        reason;           // 'reason[var]' is the clause that implied the variables current value, or 'NULL' if none.
@@ -157,7 +153,7 @@ protected:
     // Main internal methods:
     //
     void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.
-    Lit      pickBranchLit    (int polarity_mode, double random_var_freq);             // Return the next decision variable.
+    Lit      pickBranchLit    ();                                                      // Return the next decision variable.
     void     newDecisionLevel ();                                                      // Begins a new decision level.
     void     uncheckedEnqueue (Lit p, Clause* from = NULL);                            // Enqueue a literal. Assumes value of literal is undefined.
     bool     enqueue          (Lit p, Clause* from = NULL);                            // Test if fact 'p' contradicts current state, enqueue otherwise.
@@ -222,7 +218,7 @@ protected:
 
 
 inline void Solver::insertVarOrder(Var x) {
-    if (!order_heap.inHeap(x) && decision_var[x]) order_heap.insert(x); }
+    if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x); }
 
 inline void Solver::varDecayActivity() { var_inc *= var_decay; }
 inline void Solver::varBumpActivity(Var v) {
@@ -258,7 +254,7 @@ inline int      Solver::nClauses      ()      const   { return clauses.size(); }
 inline int      Solver::nLearnts      ()      const   { return learnts.size(); }
 inline int      Solver::nVars         ()      const   { return assigns.size(); }
 inline void     Solver::setPolarity   (Var v, bool b) { polarity    [v] = (char)b; }
-inline void     Solver::setDecisionVar(Var v, bool b) { decision_var[v] = (char)b; if (b) { insertVarOrder(v); } }
+inline void     Solver::setDecisionVar(Var v, bool b) { decision[v] = (char)b; if (b) { insertVarOrder(v); } }
 inline bool     Solver::solve         ()              { vec<Lit> tmp; return solve(tmp); }
 inline bool     Solver::okay          ()      const   { return ok; }
 

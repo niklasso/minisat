@@ -35,7 +35,6 @@ Solver::Solver() :
     // More parameters:
     //
   , expensive_ccmin  (true)
-  , polarity_mode    (polarity_false)
   , verbosity        (0)
 
     // Experimental parameteres:
@@ -73,24 +72,23 @@ Solver::~Solver()
 // Minor methods:
 
 
-// Creates a new SAT variable in the solver. If 'decision_var' is cleared, variable will not be
+// Creates a new SAT variable in the solver. If 'decision' is cleared, variable will not be
 // used as a decision variable (NOTE! This has effects on the meaning of a SATISFIABLE result).
 //
 Var Solver::newVar(bool sign, bool dvar)
 {
     int v = nVars();
-    watches   .push();          // (list for positive literal)
-    watches   .push();          // (list for negative literal)
-    reason    .push(NULL);
-    assigns   .push(l_Undef);
-    level     .push(-1);
-    activity  .push(0);
-    seen      .push(0);
-    trail.capacity(v+1);
-    polarity    .push((char)sign);
-    var_jwh     .push(0);
-    decision_var.push((char)dvar);
+    watches  .push();          // (list for positive literal)
+    watches  .push();          // (list for negative literal)
+    reason   .push(NULL);
+    assigns  .push(l_Undef);
+    level    .push(-1);
+    activity .push(0);
+    seen     .push(0);
+    polarity .push((char)sign);
+    decision .push((char)dvar);
 
+    trail.capacity(v+1);
     insertVarOrder(v);
     return v;
 }
@@ -124,9 +122,6 @@ bool Solver::addClause(vec<Lit>& ps)
         Clause* c = Clause_new(ps, false, extra_clause_field);
         clauses.push(c);
         attachClause(*c);
-
-        for (int i = 0; i < ps.size(); i++)
-            var_jwh[var(ps[i])] += (sign(ps[i]) ? -1 : 1) * powf(1, -ps.size());
     }
 
     return true;
@@ -152,10 +147,6 @@ void Solver::detachClause(Clause& c) {
 
 
 void Solver::removeClause(Clause& c) {
-    if (!c.learnt())
-        for (int i = 0; i < c.size(); i++)
-            var_jwh[var(c[i])] -= (sign(c[i]) ? -1 : 1) * powf(1, -c.size());
-
     detachClause(c);
     free(&c); }
 
@@ -185,35 +176,25 @@ void Solver::cancelUntil(int level) {
 // Major methods:
 
 
-Lit Solver::pickBranchLit(int polarity_mode, double random_var_freq)
+Lit Solver::pickBranchLit()
 {
     Var next = var_Undef;
 
     // Random decision:
     if (drand(random_seed) < random_var_freq && !order_heap.empty()){
         next = order_heap[irand(random_seed,order_heap.size())];
-        if (assigns[next] == l_Undef && decision_var[next])
+        if (assigns[next] == l_Undef && decision[next])
             rnd_decisions++; }
 
     // Activity based decision:
-    while (next == var_Undef || assigns[next] != l_Undef || !decision_var[next])
+    while (next == var_Undef || assigns[next] != l_Undef || !decision[next])
         if (order_heap.empty()){
             next = var_Undef;
             break;
         }else
             next = order_heap.removeMin();
 
-    bool sign = false;
-    switch (polarity_mode){
-    case polarity_true:  sign = false; break;
-    case polarity_false: sign = true;  break;
-    case polarity_user:  sign = polarity[next]; break;
-    case polarity_rnd:   sign = irand(random_seed, 2); break;
-    case polarity_jwh:   sign = var_jwh[next] <= 0; break;
-        //case polarity_jwh:   sign = var_jwh[next] > 0; break;
-    default: assert(false); }
-
-    return next == var_Undef ? lit_Undef : mkLit(next, sign);
+    return next == var_Undef ? lit_Undef : mkLit(next, polarity[next]);
 }
 
 
@@ -644,7 +625,7 @@ lbool Solver::search(int nof_conflicts)
             if (next == lit_Undef){
                 // New variable decision:
                 decisions++;
-                next = pickBranchLit(polarity_mode, random_var_freq);
+                next = pickBranchLit();
 
                 if (next == lit_Undef)
                     // Model found:
