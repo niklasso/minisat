@@ -27,7 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 SimpSolver::SimpSolver() :
     grow               (0)
-  , clause_lim         (-1)
+  , clause_lim         (20)
   , use_asymm          (false)
   , use_rcheck         (false)
   , use_elim           (true)
