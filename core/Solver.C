@@ -180,8 +180,9 @@ bool Solver::satisfied(const Clause& c) const {
 void Solver::cancelUntil(int level) {
     if (decisionLevel() > level){
         for (int c = trail.size()-1; c >= trail_lim[level]; c--){
-            Var     x  = var(trail[c]);
-            assigns[x] = l_Undef;
+            Var      x  = var(trail[c]);
+            assigns [x] = l_Undef;
+            polarity[x] = sign(trail[c]);
             insertVarOrder(x); }
         qhead = trail_lim[level];
         trail.shrink(trail.size() - trail_lim[level]);
