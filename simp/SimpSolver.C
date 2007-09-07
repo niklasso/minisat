@@ -102,12 +102,8 @@ bool SimpSolver::solve(const vec<Lit>& assumps, bool do_simp, bool turn_off_simp
     else if (verbosity >= 1)
         reportf("===============================================================================\n");
 
-    if (result) {
+    if (result) 
         extendModel();
-#ifndef NDEBUG
-        verifyModel();
-#endif
-    }
 
     if (do_simp)
         // Unfreeze the assumptions that were frozen:
@@ -139,13 +135,9 @@ bool SimpSolver::addClause(vec<Lit>& ps)
         subsumption_queue.insert(&c);
 
         for (int i = 0; i < c.size(); i++){
-            assert(occurs.size() > var(c[i]));
-            assert(!find(occurs[var(c[i])], &c));
-
             occurs[var(c[i])].push(&c);
             n_occ[toInt(c[i])]++;
             touched[var(c[i])] = 1;
-            assert(elimtable[var(c[i])].order == 0);
             if (elim_heap.inHeap(var(c[i])))
                 elim_heap.increase_(var(c[i]));
         }
@@ -157,8 +149,6 @@ bool SimpSolver::addClause(vec<Lit>& ps)
 
 void SimpSolver::removeClause(Clause& c)
 {
-    assert(!c.learnt());
-
     if (use_simplification)
         for (int i = 0; i < c.size(); i++){
             n_occ[toInt(c[i])]--;
@@ -173,10 +163,6 @@ void SimpSolver::removeClause(Clause& c)
 bool SimpSolver::strengthenClause(Clause& c, Lit l)
 {
     assert(decisionLevel() == 0);
-    assert(c.mark() == 0);
-    assert(!c.learnt());
-    assert(find(watches[toInt(~c[0])], &c));
-    assert(find(watches[toInt(~c[1])], &c));
     assert(use_simplification);
 
     // FIX: this is too inefficient but would be nice to have (properly implemented)
@@ -317,7 +303,6 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
             Lit l = trail[bwdsub_assigns++];
             (*bwdsub_tmpunit)[0] = l;
             bwdsub_tmpunit->calcAbstraction();
-            assert(bwdsub_tmpunit->mark() == 0);
             subsumption_queue.insert(bwdsub_tmpunit); }
 
         Clause&  c = *subsumption_queue.peek(); subsumption_queue.pop();
@@ -407,33 +392,7 @@ bool SimpSolver::asymmVar(Var v)
 }
 
 
-void SimpSolver::verifyModel()
-{
-    bool failed = false;
-    int  cnt    = 0;
-    // NOTE: elimtable.size() might be lower than nVars() at the moment
-    for (int i = 0; i < elimtable.size(); i++)
-        if (elimtable[i].order > 0)
-            for (int j = 0; j < elimtable[i].eliminated.size(); j++){
-                cnt++;
-                Clause& c = *elimtable[i].eliminated[j];
-                for (int k = 0; k < c.size(); k++)
-                    if (modelValue(c[k]) == l_True)
-                        goto next;
-
-                reportf("unsatisfied clause: ");
-                printClause(*elimtable[i].eliminated[j]);
-                reportf("\n");
-                failed = true;
-            next:;
-            }
-
-    assert(!failed);
-    reportf("Verified %d eliminated clauses.\n", cnt);
-}
-
-
-bool SimpSolver::eliminateVar(Var v, bool fail)
+bool SimpSolver::eliminateVar(Var v)
 {
     assert(!frozen[v]);
     assert(!isEliminated(v));
@@ -473,19 +432,6 @@ bool SimpSolver::eliminateVar(Var v, bool fail)
         for (int j = 0; j < neg.size(); j++)
             if (merge(*pos[i], *neg[j], v, resolvent) && !addClause(resolvent))
                 return false;
-
-    // DEBUG: For checking that a clause set is saturated with respect to variable elimination.
-    //        If the clause set is expected to be saturated at this point, this constitutes an
-    //        error.
-    if (fail){
-        reportf("eliminated var %d, %d <= %d\n", v+1, cnt, cls.size());
-        reportf("previous clauses:\n");
-        for (int i = 0; i < cls.size(); i++){
-            printClause(*cls[i]); reportf("\n"); }
-        reportf("new clauses:\n");
-        for (int i = top; i < clauses.size(); i++){
-            printClause(*clauses[i]); reportf("\n"); }
-        assert(0); }
 
     return backwardSubsumptionCheck();
 }
@@ -605,27 +551,6 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     // Cleanup:
     cleanUpClauses();
     order_heap.filter(VarFilter(*this));
-
-#ifdef INVARIANTS
-    // Check that no more subsumption is possible:
-    reportf("Checking that no more subsumption is possible\n");
-    for (int i = 0; i < clauses.size(); i++){
-        if (i % 1000 == 0)
-            reportf("left %10d\r", clauses.size() - i);
-
-        assert(clauses[i]->mark() == 0);
-        for (int j = 0; j < i; j++)
-            assert(clauses[i]->subsumes(*clauses[j]) == lit_Error);
-    }
-    reportf("done.\n");
-
-    // Check that no more elimination is possible:
-    reportf("Checking that no more elimination is possible\n");
-    for (int i = 0; i < nVars(); i++)
-        if (!frozen[i]) eliminateVar(i, true);
-    reportf("done.\n");
-    checkLiteralCount();
-#endif
 
     // If no more simplification is needed, free all simplification-related data structures:
     if (turn_off_elim){

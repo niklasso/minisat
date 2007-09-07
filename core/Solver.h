@@ -190,13 +190,6 @@ protected:
     uint32_t abstractLevel    (Var x) const; // Used to represent an abstraction of sets of decision levels.
     double   progressEstimate ()      const; // DELETE THIS ?? IT'S NOT VERY USEFUL ...
 
-    // Debug:
-    void     printLit         (Lit l);
-    template<class C>
-    void     printClause      (const C& c);
-    void     verifyModel      ();
-    void     checkLiteralCount();
-
     // Static helpers:
     //
 
@@ -266,42 +259,9 @@ inline bool     Solver::okay          ()      const   { return ok; }
 
 #define reportf(format, args...) ( fflush(stdout), fprintf(stderr, format, ## args), fflush(stderr) )
 
-static inline void logLit(FILE* f, Lit l) {
-    fprintf(f, "%sx%d", sign(l) ? "~" : "", var(l)+1); }
-
-static inline void logLits(FILE* f, const vec<Lit>& ls)
-{
-    fprintf(f, "[ ");
-    if (ls.size() > 0){
-        logLit(f, ls[0]);
-        for (int i = 1; i < ls.size(); i++){
-            fprintf(f, ", ");
-            logLit(f, ls[i]);
-        }
-    }
-    fprintf(f, "] ");
-}
-
-static inline const char* showBool(bool b) {
-    return b ? "true" : "false"; }
-
 // Just like 'assert()' but expression will be evaluated in the release version as well.
 static inline void check(bool expr) {
     assert(expr); }
-
-
-inline void Solver::printLit(Lit l) {
-    reportf("%s%d:%c", sign(l) ? "-" : "", var(l)+1, value(l) == l_True ? '1' : (value(l) == l_False ? '0' : 'X')); }
-
-
-template<class C>
-inline void Solver::printClause(const C& c)
-{
-    for (int i = 0; i < c.size(); i++){
-        printLit(c[i]);
-        fprintf(stderr, " ");
-    }
-}
 
 
 //=================================================================================================

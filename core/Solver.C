@@ -115,7 +115,6 @@ bool Solver::addClause(vec<Lit>& ps)
     if (ps.size() == 0)
         return ok = false;
     else if (ps.size() == 1){
-        assert(value(ps[0]) == l_Undef);
         uncheckedEnqueue(ps[0]);
         return ok = (propagate() == NULL);
     }else{
@@ -138,8 +137,6 @@ void Solver::attachClause(Clause& c) {
 
 void Solver::detachClause(Clause& c) {
     assert(c.size() > 1);
-    assert(find(watches[toInt(~c[0])], &c));
-    assert(find(watches[toInt(~c[1])], &c));
     remove(watches[toInt(~c[0])], &c);
     remove(watches[toInt(~c[1])], &c);
     if (c.learnt()) learnts_literals -= c.size();
@@ -567,7 +564,6 @@ lbool Solver::search(int nof_conflicts)
             learnt_clause.clear();
             analyze(confl, learnt_clause, backtrack_level);
             cancelUntil(backtrack_level);
-            assert(value(learnt_clause[0]) == l_Undef);
 
             if (learnt_clause.size() == 1){
                 uncheckedEnqueue(learnt_clause[0]);
@@ -633,7 +629,6 @@ lbool Solver::search(int nof_conflicts)
             }
 
             // Increase decision level and enqueue 'next'
-            assert(value(next) == l_Undef);
             newDecisionLevel();
             uncheckedEnqueue(next);
         }
@@ -694,9 +689,6 @@ bool Solver::solve(const vec<Lit>& assumps)
         // Extend & copy model:
         model.growTo(nVars());
         for (int i = 0; i < nVars(); i++) model[i] = value(i);
-#ifndef NDEBUG
-        verifyModel();
-#endif
     }else{
         assert(status == l_False);
         if (conflict.size() == 0)
@@ -705,45 +697,4 @@ bool Solver::solve(const vec<Lit>& assumps)
 
     cancelUntil(0);
     return status == l_True;
-}
-
-//=================================================================================================
-// Debug methods:
-
-
-void Solver::verifyModel()
-{
-    bool failed = false;
-    for (int i = 0; i < clauses.size(); i++){
-        assert(clauses[i]->mark() == 0);
-        Clause& c = *clauses[i];
-        for (int j = 0; j < c.size(); j++)
-            if (modelValue(c[j]) == l_True)
-                goto next;
-
-        reportf("unsatisfied clause: ");
-        printClause(*clauses[i]);
-        reportf("\n");
-        failed = true;
-    next:;
-    }
-
-    assert(!failed);
-
-    reportf("Verified %d original clauses.\n", clauses.size());
-}
-
-
-void Solver::checkLiteralCount()
-{
-    // Check that sizes are calculated correctly:
-    int cnt = 0;
-    for (int i = 0; i < clauses.size(); i++)
-        if (clauses[i]->mark() == 0)
-            cnt += clauses[i]->size();
-
-    if ((int)clauses_literals != cnt){
-        fprintf(stderr, "literal count: %d, real value = %d\n", (int)clauses_literals, cnt);
-        assert((int)clauses_literals == cnt);
-    }
 }
