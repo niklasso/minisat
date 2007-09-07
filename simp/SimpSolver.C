@@ -427,7 +427,6 @@ bool SimpSolver::eliminateVar(Var v)
 
     // Produce clauses in cross product:
     vec<Lit> resolvent;
-    int      top = clauses.size();
     for (int i = 0; i < pos.size(); i++)
         for (int j = 0; j < neg.size(); j++)
             if (merge(*pos[i], *neg[j], v, resolvent) && !addClause(resolvent))
