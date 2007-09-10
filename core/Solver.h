@@ -44,7 +44,7 @@ public:
     // Problem specification:
     //
     Var     newVar    (bool polarity = true, bool dvar = true); // Add a new variable with parameters specifying variable mode.
-    bool    addClause (vec<Lit>& ps);                           // Add a clause to the solver. NOTE! 'ps' may be shrunk by this method!
+    bool    addClause (const vec<Lit>& ps);                     // Add a clause to the solver. 
 
     // Solving:
     //

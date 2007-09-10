@@ -36,7 +36,7 @@ class SimpSolver : public Solver {
     // Problem specification:
     //
     Var     newVar    (bool polarity = true, bool dvar = true);
-    bool    addClause (vec<Lit>& ps);
+    bool    addClause (const vec<Lit>& ps);
 
     // Variable mode:
     // 

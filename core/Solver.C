@@ -94,9 +94,10 @@ Var Solver::newVar(bool sign, bool dvar)
 }
 
 
-bool Solver::addClause(vec<Lit>& ps)
+bool Solver::addClause(const vec<Lit>& ps_)
 {
     assert(decisionLevel() == 0);
+    vec<Lit>& ps = add_tmp; ps_.copyTo(ps);
 
     if (!ok)
         return false;

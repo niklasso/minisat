@@ -115,7 +115,7 @@ bool SimpSolver::solve(const vec<Lit>& assumps, bool do_simp, bool turn_off_simp
 
 
 
-bool SimpSolver::addClause(vec<Lit>& ps)
+bool SimpSolver::addClause(const vec<Lit>& ps)
 {
     for (int i = 0; i < ps.size(); i++)
         if (isEliminated(var(ps[i])))
