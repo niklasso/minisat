@@ -1,5 +1,5 @@
 /****************************************************************************************[Solver.C]
-MiniSat -- Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
+MiniSat -- Copyright (c) 2003-2007, Niklas Een, Niklas Sorensson
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -497,17 +497,13 @@ void Solver::removeSatisfied(vec<Clause*>& cs)
 
 void Solver::rebuildOrderHeap()
 {
-#if 0
-    // Remove fixed variables from the variable heap:
-    order_heap.filter(VarFilter(*this));
-#else
     vec<Var> vs;
     for (Var v = 0; v < nVars(); v++)
         if (decision[v] && value(v) == l_Undef)
             vs.push(v);
     order_heap.build(vs);
-#endif
 }
+
 
 /*_________________________________________________________________________________________________
 |
