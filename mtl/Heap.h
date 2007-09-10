@@ -28,9 +28,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 template<class Comp>
 class Heap {
-    Comp     lt;
-    vec<int> heap;     // heap of ints
-    vec<int> indices;  // int -> index in heap
+    Comp     lt;       // The heap is a minimum-heap with respect to this comparator
+    vec<int> heap;     // Heap of integers
+    vec<int> indices;  // Each integers position (index) in the Heap
 
     // Index "traversal" functions
     static inline int left  (int i) { return i*2+1; }
@@ -38,7 +38,7 @@ class Heap {
     static inline int parent(int i) { return (i-1) >> 1; }
 
 
-    inline void percolateUp(int i)
+    void percolateUp(int i)
     {
         int x  = heap[i];
         int p  = parent(i);
@@ -49,12 +49,12 @@ class Heap {
             i                = p;
             p                = parent(p);
         }
-         heap   [i] = x;
-         indices[x] = i;
+        heap   [i] = x;
+        indices[x] = i;
     }
 
 
-    inline void percolateDown(int i)
+    void percolateDown(int i)
     {
         int x = heap[i];
         while (left(i) < heap.size()){
@@ -82,13 +82,23 @@ class Heap {
     bool inHeap    (int n)     const { return n < indices.size() && indices[n] >= 0; }
     int  operator[](int index) const { assert(index < heap.size()); return heap[index]; }
 
-    void decrease  (int n) { assert(inHeap(n)); percolateUp(indices[n]); }
 
-    // RENAME WHEN THE DEPRECATED INCREASE IS REMOVED.
-    void increase_ (int n) { assert(inHeap(n)); percolateDown(indices[n]); }
+    void decrease  (int n) { assert(inHeap(n)); percolateUp  (indices[n]); }
+    void increase  (int n) { assert(inHeap(n)); percolateDown(indices[n]); }
 
 
-    void insert(int n)
+    // Safe variant of insert/decrease/increase:
+    void update (int n)
+    {
+        if (!inHeap(n))
+            insert(n);
+        else {
+            percolateUp(indices[n]);
+            percolateDown(indices[n]); }
+    }
+
+
+    void insert    (int n)
     {
         indices.growTo(n+1, -1);
         assert(!inHeap(n));
@@ -123,18 +133,6 @@ class Heap {
     }
 
 
-    // Fool proof variant of insert/decrease/increase
-    void update (int n)
-    {
-        if (!inHeap(n))
-            insert(n);
-        else {
-            percolateUp(indices[n]);
-            percolateDown(indices[n]);
-        }
-    }
-
-
     // Delete elements from the heap using a given filter function (-object).
     // *** this could probaly be replaced with a more general "buildHeap(vec<int>&)" method ***
     template <class F>
@@ -155,16 +153,25 @@ class Heap {
     }
 
 
+    void build(vec<int>& ns) {
+        for (int i = 0; i < heap.size(); i++)
+            indices[heap[i]] = -1;
+        heap.clear();
+
+        for (int i = 0; i < ns.size(); i++){
+            indices[ns[i]] = i;
+            heap.push(ns[i]);
+        }
+
+        for (int i = heap.size() / 2 - 1; i >= 0; i--)
+            percolateDown(i);
+
+        assert(heapProperty());
+    }
+
     // DEBUG: consistency checking
     bool heapProperty() const {
         return heapProperty(1); }
-
-
-    // COMPAT: should be removed
-    void setBounds (int n) { }
-    void increase  (int n) { decrease(n); }
-    int  getmin    ()      { return removeMin(); }
-
 };
 
 

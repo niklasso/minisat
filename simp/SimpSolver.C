@@ -139,7 +139,7 @@ bool SimpSolver::addClause(vec<Lit>& ps)
             n_occ[toInt(c[i])]++;
             touched[var(c[i])] = 1;
             if (elim_heap.inHeap(var(c[i])))
-                elim_heap.increase_(var(c[i]));
+                elim_heap.increase(var(c[i]));
         }
     }
 
