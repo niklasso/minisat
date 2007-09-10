@@ -208,9 +208,9 @@ Lit Solver::pickBranchLit()
 |  
 |    Post-conditions:
 |      * 'out_learnt[0]' is the asserting literal at level 'out_btlevel'.
+|      * If out_learnt.size() > 1 then 'out_learnt[1]' has the greatest decision level of the 
+|        rest of literals. There may be others from the same level though.
 |  
-|  Effect:
-|    Will undo part of the trail, upto but not beyond the assumption of the current decision level.
 |________________________________________________________________________________________________@*/
 void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
 {
@@ -291,9 +291,11 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
         out_btlevel = 0;
     else{
         int max_i = 1;
+        // Find the first literal assigned at the next-highest level:
         for (int i = 2; i < out_learnt.size(); i++)
             if (level[var(out_learnt[i])] > level[var(out_learnt[max_i])])
                 max_i = i;
+        // Swap-in this literal at index 1:
         Lit p             = out_learnt[max_i];
         out_learnt[max_i] = out_learnt[1];
         out_learnt[1]     = p;
