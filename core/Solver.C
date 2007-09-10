@@ -495,6 +495,20 @@ void Solver::removeSatisfied(vec<Clause*>& cs)
 }
 
 
+void Solver::rebuildOrderHeap()
+{
+#if 0
+    // Remove fixed variables from the variable heap:
+    order_heap.filter(VarFilter(*this));
+#else
+    vec<Var> vs;
+    for (Var v = 0; v < nVars(); v++)
+        if (decision[v] && value(v) == l_Undef)
+            vs.push(v);
+    order_heap.build(vs);
+#endif
+}
+
 /*_________________________________________________________________________________________________
 |
 |  simplify : [void]  ->  [bool]
@@ -518,8 +532,7 @@ bool Solver::simplify()
     if (remove_satisfied)        // Can be turned off.
         removeSatisfied(clauses);
 
-    // Remove fixed variables from the variable heap:
-    order_heap.filter(VarFilter(*this));
+    rebuildOrderHeap();
 
     simpDB_assigns = nAssigns();
     simpDB_props   = clauses_literals + learnts_literals;   // (shouldn't depend on stats really, but it will do for now)

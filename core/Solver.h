@@ -104,13 +104,6 @@ protected:
         VarOrderLt(const vec<double>&  act) : activity(act) { }
     };
 
-    friend class VarFilter;
-    struct VarFilter {
-        const Solver& s;
-        VarFilter(const Solver& _s) : s(_s) {}
-        bool operator()(Var v) const { return s.assigns[v] == l_Undef && s.decision[v]; }
-    };
-
     // Solver state:
     //
     bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
@@ -165,9 +158,7 @@ protected:
     lbool    search           (int nof_conflicts);                                     // Search for a given number of conflicts.
     void     reduceDB         ();                                                      // Reduce the set of learnt clauses.
     void     removeSatisfied  (vec<Clause*>& cs);                                      // Shrink 'cs' to contain only non-satisfied clauses.
-
-
-    bool     skipLit          (Lit l, const Clause& c, const vec<char>& seen);
+    void     rebuildOrderHeap ();
 
     // Maintaining Variable/Clause activity:
     //

@@ -69,11 +69,6 @@ class Heap {
     }
 
 
-    bool heapProperty (int i) const {
-        return i >= heap.size()
-            || ((i == 0 || !lt(heap[i], heap[parent(i)])) && heapProperty(left(i)) && heapProperty(right(i))); }
-
-
   public:
     Heap(const Comp& c) : lt(c) { }
 
@@ -88,7 +83,7 @@ class Heap {
 
 
     // Safe variant of insert/decrease/increase:
-    void update (int n)
+    void update(int n)
     {
         if (!inHeap(n))
             insert(n);
@@ -98,7 +93,7 @@ class Heap {
     }
 
 
-    void insert    (int n)
+    void insert(int n)
     {
         indices.growTo(n+1, -1);
         assert(!inHeap(n));
@@ -121,38 +116,7 @@ class Heap {
     }
 
 
-    void clear(bool dealloc = false) 
-    { 
-        for (int i = 0; i < heap.size(); i++)
-            indices[heap[i]] = -1;
-#ifdef NDEBUG
-        for (int i = 0; i < indices.size(); i++)
-            assert(indices[i] == -1);
-#endif
-        heap.clear(dealloc); 
-    }
-
-
-    // Delete elements from the heap using a given filter function (-object).
-    // *** this could probaly be replaced with a more general "buildHeap(vec<int>&)" method ***
-    template <class F>
-    void filter(const F& filt) {
-        int i,j;
-        for (i = j = 0; i < heap.size(); i++)
-            if (filt(heap[i])){
-                heap[j]          = heap[i];
-                indices[heap[i]] = j++;
-            }else
-                indices[heap[i]] = -1;
-
-        heap.shrink(i - j);
-        for (int i = heap.size() / 2 - 1; i >= 0; i--)
-            percolateDown(i);
-
-        assert(heapProperty());
-    }
-
-
+    // Rebuild the heap from scratch, using the elements in 'ns':
     void build(vec<int>& ns) {
         for (int i = 0; i < heap.size(); i++)
             indices[heap[i]] = -1;
@@ -160,18 +124,18 @@ class Heap {
 
         for (int i = 0; i < ns.size(); i++){
             indices[ns[i]] = i;
-            heap.push(ns[i]);
-        }
+            heap.push(ns[i]); }
 
         for (int i = heap.size() / 2 - 1; i >= 0; i--)
             percolateDown(i);
-
-        assert(heapProperty());
     }
 
-    // DEBUG: consistency checking
-    bool heapProperty() const {
-        return heapProperty(1); }
+    void clear(bool dealloc = false) 
+    { 
+        for (int i = 0; i < heap.size(); i++)
+            indices[heap[i]] = -1;
+        heap.clear(dealloc); 
+    }
 };
 
 

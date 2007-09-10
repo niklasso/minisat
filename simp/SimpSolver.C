@@ -549,7 +549,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
 
     // Cleanup:
     cleanUpClauses();
-    order_heap.filter(VarFilter(*this));
+    rebuildOrderHeap();
 
     // If no more simplification is needed, free all simplification-related data structures:
     if (turn_off_elim){
