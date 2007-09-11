@@ -97,21 +97,20 @@ Var Solver::newVar(bool sign, bool dvar)
 bool Solver::addClause(const vec<Lit>& ps_)
 {
     assert(decisionLevel() == 0);
+    if (!ok) return false;
+
+    // Copy clause:
     vec<Lit>& ps = add_tmp; ps_.copyTo(ps);
 
-    if (!ok)
-        return false;
-    else{
-        // Check if clause is satisfied and remove false/duplicate literals:
-        sort(ps);
-        Lit p; int i, j;
-        for (i = j = 0, p = lit_Undef; i < ps.size(); i++)
-            if (value(ps[i]) == l_True || ps[i] == ~p)
-                return true;
-            else if (value(ps[i]) != l_False && ps[i] != p)
-                ps[j++] = p = ps[i];
-        ps.shrink(i - j);
-    }
+    // Check if clause is satisfied and remove false/duplicate literals:
+    sort(ps);
+    Lit p; int i, j;
+    for (i = j = 0, p = lit_Undef; i < ps.size(); i++)
+        if (value(ps[i]) == l_True || ps[i] == ~p)
+            return true;
+        else if (value(ps[i]) != l_False && ps[i] != p)
+            ps[j++] = p = ps[i];
+    ps.shrink(i - j);
 
     if (ps.size() == 0)
         return ok = false;
