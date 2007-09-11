@@ -38,32 +38,23 @@ typedef int Var;
 struct Lit {
     int     x;
 
-    // Constructor:
+    // Use this as a constructor:
     friend Lit mkLit(Var var, bool sign = false);
-
-    // Don't use these for constructing/deconstructing literals. Use the normal constructors instead.
-    friend int  toInt       (Lit p);  // Guarantees small, positive integers suitable for array indexing.
-    friend Lit  toLit       (int i);  // Inverse of 'toInt()'
-    friend Lit  operator   ~(Lit p);
-    friend bool sign        (Lit p);
-    friend int  var         (Lit p);
-    friend Lit  unsign      (Lit p);
-    friend Lit  id          (Lit p, bool sgn);
 
     bool operator == (Lit p) const { return x == p.x; }
     bool operator != (Lit p) const { return x != p.x; }
-    bool operator <  (Lit p) const { return x < p.x;  } // '<' guarantees that p, ~p are adjacent in the ordering.
-
+    bool operator <  (Lit p) const { return x < p.x;  } // '<' makes p, ~p adjacent in the ordering.
 };
 
-inline  Lit  mkLit       (Var var, bool sign) { Lit p; p.x = var + var + (int)sign; return p; }
-inline  int  toInt       (Lit p)           { return p.x; }
-inline  Lit  toLit       (int i)           { Lit p; p.x = i; return p; }
-inline  Lit  operator   ~(Lit p)           { Lit q; q.x = p.x ^ 1; return q; }
-inline  bool sign        (Lit p)           { return p.x & 1; }
-inline  int  var         (Lit p)           { return p.x >> 1; }
-inline  Lit  unsign      (Lit p)           { Lit q; q.x = p.x & ~1; return q; }
-inline  Lit  id          (Lit p, bool sgn) { Lit q; q.x = p.x ^ (int)sgn; return q; }
+
+inline  Lit  mkLit     (Var var, bool sign) { Lit p; p.x = var + var + (int)sign; return p; }
+inline  Lit  operator ~(Lit p)              { Lit q; q.x = p.x ^ 1; return q; }
+inline  bool sign      (Lit p)              { return p.x & 1; }
+inline  int  var       (Lit p)              { return p.x >> 1; }
+
+// Mapping Literals to and from compact integers suitable for array indexing:
+inline  int  toInt     (Lit p)              { return p.x; } 
+inline  Lit  toLit     (int i)              { Lit p; p.x = i; return p; } 
 
 //const Lit lit_Undef = mkLit(var_Undef, false);  // }- Useful special constants.
 //const Lit lit_Error = mkLit(var_Undef, true );  // }
@@ -78,22 +69,22 @@ const Lit lit_Error = { -1 };  // }
 
 class lbool {
     char     value;
-    explicit lbool(int v) : value(v) { }
+    explicit lbool(char v) : value(v) { }
 
 public:
     lbool()       : value(0) { }
-    lbool(bool x) : value(2|(int)!x) { }
+    lbool(bool x) : value(2|(char)!x) { }
     int toInt(void) const { return value; }
 
     bool  operator == (lbool b) const { return value == b.value; }
     bool  operator != (lbool b) const { return value != b.value; }
-    lbool operator ^ (bool b)   const { return lbool(value ^ ((char)b & (value >> 1))); }
+    lbool operator ^  (bool b)  const { return lbool((char)(value ^ ((char)b & (value >> 1)))); }
 
     friend int   toInt  (lbool l);
     friend lbool toLbool(int   v);
 };
 inline int   toInt  (lbool l) { return l.toInt(); }
-inline lbool toLbool(int   v) { return lbool(v);  }
+inline lbool toLbool(int   v) { return lbool((char)v);  }
 
 const lbool l_True  = toLbool( 2);
 const lbool l_False = toLbool( 3);
