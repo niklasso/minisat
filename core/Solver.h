@@ -36,6 +36,14 @@ namespace Minisat {
 // Solver -- the main class:
 
 
+struct Watcher {
+    Clause*  c;
+    Lit      other;
+    Watcher(Clause* _c, Lit p) : c(_c), other(p) {}
+    bool operator==(const Watcher& w) const { return c == w.c; }
+    bool operator!=(const Watcher& w) const { return c != w.c; }
+};
+
 class Solver {
 public:
 
@@ -117,7 +125,7 @@ protected:
     double              cla_inc;          // Amount to bump next clause with.
     vec<double>         activity;         // A heuristic measurement of the activity of a variable.
     double              var_inc;          // Amount to bump next variable with.
-    vec<vec<Clause*> >  watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
+    vec<vec<Watcher> >  watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
     vec<lbool>          assigns;          // The current assignments.
     vec<char>           polarity;         // The preferred polarity of each variable.
     vec<char>           decision;         // Declares if a variable is eligible for selection in the decision heuristic.
