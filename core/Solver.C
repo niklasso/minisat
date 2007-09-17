@@ -679,6 +679,34 @@ double Solver::progressEstimate() const
     return progress / nVars();
 }
 
+/*
+  Finite subsequences of the Luby-sequence:
+
+  0: 1
+  1: 1 1 2
+  2: 1 1 2 1 1 2 4
+  3: 1 1 2 1 1 2 4 1 1 2 1 1 2 4 8
+  ...
+
+
+ */
+
+static int luby(int x){
+
+    // Find the finite subsequence that contains index 'x', and the
+    // size of that subsequence:
+    int size, seq;
+    for (size = 1, seq = 0; size < x+1; seq++, size = 2*size+1);
+
+    while (size-1 != x){
+        size = (size-1)>>1;
+        seq--;
+        x = x % size;
+    }
+
+    return 1 << seq;
+}
+
 
 bool Solver::solve(const vec<Lit>& assumps)
 {
@@ -689,7 +717,6 @@ bool Solver::solve(const vec<Lit>& assumps)
 
     assumps.copyTo(assumptions);
 
-    double  nof_conflicts     = restart_first;
     max_learnts               = nClauses() * learntsize_factor;
     learntsize_adjust_confl   = learntsize_adjust_start_confl;
     learntsize_adjust_cnt     = (int)learntsize_adjust_confl;
@@ -703,11 +730,13 @@ bool Solver::solve(const vec<Lit>& assumps)
     }
 
     // Search:
+    int curr_restarts = 0;
     while (status == l_Undef){
+        int nof_conflicts = luby(curr_restarts) * 100;
         if (verbosity >= 1)
-            reportf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% | %d\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100, (int)nof_conflicts), fflush(stdout);
-        status = search((int)nof_conflicts);
-        nof_conflicts *= restart_inc;
+            reportf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% | %d\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100, nof_conflicts), fflush(stdout);
+        status = search(nof_conflicts);
+        curr_restarts++;
     }
 
     if (verbosity >= 1)
