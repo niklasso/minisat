@@ -73,8 +73,7 @@ clean:
 depend.mk: $(CSRCS) $(CHDRS)
 	@echo Making dependencies
 	@$(CXX) $(foreach dir, $(DEPDIR), -I$(MROOT)/$(dir)) \
-	   $(CSRCS) -MM | sed 's|\(.*\):|$(PWD)/\1 $(PWD)/\1r $(PWD)/\1d $(PWD)/\1p: \\\
-|' > depend.mk
+	   $(CSRCS) -MM | sed 's|\(.*\):|$(PWD)/\1 $(PWD)/\1r $(PWD)/\1d $(PWD)/\1p:|' > depend.mk
 	@for dir in $(DEPDIR); do \
 	      if [ -r $(MROOT)/$${dir}/depend.mk ]; then \
 		  echo Depends on: $${dir}; \
