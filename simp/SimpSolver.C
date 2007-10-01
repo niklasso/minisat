@@ -648,6 +648,7 @@ void SimpSolver::toDimacs(const char* file)
             toDimacs(f, *clauses[i], map, max);
 
         fprintf(stderr, "Wrote %d clauses with %d variables.\n", cnt, max);
+        fclose(f);
     }else
         fprintf(stderr, "could not open file %s\n", file);
 }
