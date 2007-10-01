@@ -63,19 +63,19 @@ class Set {
     void    rehash () {
         const vec<T>* old = table;
 
-        int newsize = primes[0];
-        for (int i = 1; newsize <= cap && i < nprimes; i++)
-           newsize = primes[i];
+        int oldsize = cap;
+        cap = primes[0];
+        for (int i = 1; cap <= oldsize && i < nprimes; i++)
+            cap = primes[i];
 
-        table = new vec<T>[newsize];
+        table = new vec<T>[cap];
 
-        for (int i = 0; i < cap; i++){
+        for (int i = 0; i < oldsize; i++){
             for (int j = 0; j < old[i].size(); j++){
                 _insert(old[i][j]); }}
 
         delete [] old;
 
-        cap = newsize;
     }
 
     
