@@ -95,10 +95,10 @@ static inline uint64_t memUsed() { return 0; }
 #define CHUNK_LIMIT 1048576
 
 class StreamBuffer {
-    gzFile  in;
-    char    buf[CHUNK_LIMIT];
-    int     pos;
-    int     size;
+    unsigned char buf[CHUNK_LIMIT];
+    gzFile        in;
+    int           pos;
+    int           size;
 
     void assureLookahead() {
         if (pos >= size) {
