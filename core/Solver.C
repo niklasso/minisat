@@ -136,10 +136,11 @@ void Solver::attachClause(Clause& c) {
     else            clauses_literals += c.size(); }
 
 
-void Solver::detachClause(Clause& c) {
+void Solver::detachClause(Clause& c, bool lazy) {
     assert(c.size() > 1);
-    remove(watches[toInt(~c[0])], &c);
-    remove(watches[toInt(~c[1])], &c);
+    if (!lazy){
+        remove(watches[toInt(~c[0])], &c);
+        remove(watches[toInt(~c[1])], &c); }
     if (c.learnt()) learnts_literals -= c.size();
     else            clauses_literals -= c.size(); }
 

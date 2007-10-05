@@ -29,6 +29,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 SimpSolver::SimpSolver() :
     grow               (0)
   , clause_lim         (20)
+  , subsumption_lim    (1000)
   , use_asymm          (false)
   , use_rcheck         (false)
   , use_elim           (true)
@@ -156,7 +157,7 @@ void SimpSolver::removeClause(Clause& c)
             updateElimHeap(var(c[i]));
         }
 
-    detachClause(c);
+    detachClause(c, true);
     c.mark(1);
 }
 
@@ -328,7 +329,7 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
         for (int j = 0; j < _cs.size(); j++)
             if (c.mark())
                 break;
-            else if (!cs[j]->mark() && cs[j] != &c){
+            else if (!cs[j]->mark() &&  cs[j] != &c && (subsumption_lim == -1 || cs[j]->size() < subsumption_lim)){
                 Lit l = c.subsumes(*cs[j]);
 
                 if (l == lit_Undef)
@@ -585,6 +586,13 @@ void SimpSolver::cleanUpClauses()
     for (i = 0; i < dirty.size(); i++){
         cleanOcc(dirty[i]);
         seen[dirty[i]] = 0; }
+
+    for (i = 0; i < watches.size(); i++){
+        for (int k = j = 0; k < watches[i].size(); k++)
+            if (watches[i][k]->mark() == 0)
+                watches[i][j++] = watches[i][k];
+        watches[i].shrink(watches[i].size() - j);
+    }
 
     for (i = j = 0; i < clauses.size(); i++)
         if (clauses[i]->mark() == 1)
