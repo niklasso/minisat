@@ -63,6 +63,9 @@ class SimpSolver : public Solver {
     bool    use_asymm;        // Shrink clauses by asymmetric branching.
     bool    use_rcheck;       // Check if a clause is already implied. Prett costly, and subsumes subsumptions :)
     bool    use_elim;         // Perform variable elimination.
+    bool    oblivious_mode;   // When true, does not store eliminated clauses, when a variable has been eliminated it
+                              // can not be refered to later. Moreover, values for eliminated variables will likely be
+                              // equal to 'l_Undef'.
 
     // Statistics:
     //

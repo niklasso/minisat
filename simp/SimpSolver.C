@@ -33,6 +33,7 @@ SimpSolver::SimpSolver() :
   , use_asymm          (false)
   , use_rcheck         (false)
   , use_elim           (true)
+  , oblivious_mode     (false)
   , merges             (0)
   , asymm_lits         (0)
   , remembered_clauses (0)
@@ -69,6 +70,7 @@ Var SimpSolver::newVar(bool sign, bool dvar) {
         frozen   .push((char)false);
         touched  .push(0);
         elim_heap.insert(v);
+        //if (!oblivious_mode)
         elimtable.push();
     }
     return v; }
@@ -422,10 +424,13 @@ bool SimpSolver::eliminateVar(Var v)
     // Delete and store old clauses:
     setDecisionVar(v, false);
     elimtable[v].order = elimorder++;
-    assert(elimtable[v].eliminated.size() == 0);
-    for (int i = 0; i < cls.size(); i++){
-        elimtable[v].eliminated.push(Clause_new(*cls[i], false, false));
-        removeClause(*cls[i]); }
+    if (!oblivious_mode){
+        assert(elimtable[v].eliminated.size() == 0);
+        for (int i = 0; i < cls.size(); i++)
+            elimtable[v].eliminated.push(Clause_new(*cls[i], false, false));
+    }
+    for (int i = 0; i < cls.size(); i++)
+        removeClause(*cls[i]); 
 
     // Produce clauses in cross product:
     vec<Lit> resolvent;
@@ -442,6 +447,7 @@ void SimpSolver::remember(Var v)
 {
     assert(decisionLevel() == 0);
     assert(isEliminated(v));
+    assert(!oblivious_mode);
 
     vec<Lit> clause;
 
@@ -470,6 +476,8 @@ void SimpSolver::remember(Var v)
 
 void SimpSolver::extendModel()
 {
+    if (oblivious_mode) return;
+
     vec<Var> vs;
 
     // NOTE: elimtable.size() might be lower than nVars() at the moment
