@@ -92,7 +92,8 @@ public:
     double    clause_decay;
     double    random_var_freq;
     double    random_seed;
-    int       restart_luby_fact;  // The factor with which the values of the luby sequence is multiplied to get the restart    (default 100)
+    double    restart_luby_start; // The factor with which the values of the luby sequence is multiplied to get the restart    (default 100)
+    double    restart_luby_inc;   // The constant that the luby sequence uses powers of                                        (default 2)
     bool      expensive_ccmin;
 
     int       restart_first;      // The initial restart limit.                                                                (default 100)
