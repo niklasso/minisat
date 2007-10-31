@@ -243,9 +243,10 @@ void printUsage(char** argv, SimpSolver& S)
     reportf("  -lim           = <integer> [ >= -1 ] (default: %d)\n", S.clause_lim);
     reportf("  -decay         = <double>  [ 0 - 1 ] (default: %g)\n", S.var_decay);
     reportf("  -rnd-freq      = <double>  [ 0 - 1 ] (default: %g)\n", S.random_var_freq);
+    reportf("  -seed          = <double>  [ >0    ] (default: %g)\n", S.random_seed);
     reportf("\n");
     reportf("  -dimacs        = <output-file>.\n");
-    reportf("  -verbosity     = {0,1,2}             (default: %d)\n", S.verbosity);
+    reportf("  -verb          = {0,1,2}             (default: %d)\n", S.verbosity);
     reportf("\n");
 }
 
@@ -296,6 +297,13 @@ int main(int argc, char** argv)
                 reportf("ERROR! illegal decay constant %s\n", value);
                 exit(0); }
             S.var_decay = 1 / decay;
+
+        }if ((value = hasPrefix(argv[i], "-seed="))){
+            double seed;
+            if (sscanf(value, "%lf", &seed) <= 0 || seed <= 0){
+                reportf("ERROR! illegal random seed constant %s\n", value);
+                exit(0); }
+            S.random_seed = seed;
 
         }else if ((value = hasPrefix(argv[i], "-verbosity="))){
             int verbosity = (int)strtol(value, NULL, 10);

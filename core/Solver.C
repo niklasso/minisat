@@ -30,7 +30,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 Solver::Solver() :
 
     // Parameters: (formerly in 'SearchParams')
-    var_decay(1 / 0.95), clause_decay(1 / 0.999), random_var_freq(0.02)
+    var_decay(1 / 0.95), clause_decay(1 / 0.999), random_var_freq(0.02), random_seed(91648253)
   , restart_first(100), restart_inc(1.5), learntsize_factor((double)1/(double)3), learntsize_inc(1.1)
 
     // More parameters:
@@ -55,7 +55,6 @@ Solver::Solver() :
   , simpDB_assigns     (-1)
   , simpDB_props       (0)
   , order_heap         (VarOrderLt(activity))
-  , random_seed        (91648253)
   , progress_estimate  (0)
   , remove_satisfied   (true)
   , extra_clause_field (false)

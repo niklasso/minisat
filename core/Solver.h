@@ -80,6 +80,7 @@ public:
     double    var_decay;          // Inverse of the variable activity decay factor.                                            (default 1 / 0.95)
     double    clause_decay;       // Inverse of the clause activity decay factor.                                              (1 / 0.999)
     double    random_var_freq;    // The frequency with which the decision heuristic tries to choose a random variable.        (default 0.02)
+    double    random_seed;        // Used by the random variable selection.                                                    (default 91648253)
     int       restart_first;      // The initial restart limit.                                                                (default 100)
     double    restart_inc;        // The factor with which the restart limit is multiplied in each restart.                    (default 1.5)
     double    learntsize_factor;  // The intitial limit for learnt clauses is a factor of the original clauses.                (default 1 / 3)
@@ -126,7 +127,6 @@ protected:
     int64_t             simpDB_props;     // Remaining number of propagations that must be made before next execution of 'simplify()'.
     vec<Lit>            assumptions;      // Current set of assumptions provided to solve by the user.
     Heap<VarOrderLt>    order_heap;       // A priority queue of variables ordered with respect to the variable activity.
-    double              random_seed;      // Used by the random variable selection.
     double              progress_estimate;// Set by 'search()'.
     bool                remove_satisfied; // Indicates whether possibly inefficient linear scan for satisfied clauses should be performed in 'simplify'.
 

@@ -220,13 +220,14 @@ static void SIGINT_handler(int signum) {
 //=================================================================================================
 // Main:
 
-void printUsage(char** argv)
+void printUsage(char** argv, Solver& S)
 {
     reportf("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n\n", argv[0]);
     reportf("OPTIONS:\n\n");
-    reportf("  -decay         = <num> [ 0 - 1 ]\n");
-    reportf("  -rnd-freq      = <num> [ 0 - 1 ]\n");
-    reportf("  -verbosity     = {0,1,2}\n");
+    reportf("  -decay         = <double>  [ 0 - 1 ] (default: %g)\n", S.var_decay);
+    reportf("  -rnd-freq      = <double>  [ 0 - 1 ] (default: %g)\n", S.random_var_freq);
+    reportf("  -seed          = <double>  [ >0    ] (default: %g)\n", S.random_seed);
+    reportf("  -verb          = {0,1,2}             (default: %d)\n", S.verbosity);
     reportf("\n");
 }
 
@@ -264,6 +265,13 @@ int main(int argc, char** argv)
                 exit(0); }
             S.var_decay = 1 / decay;
 
+        }if ((value = hasPrefix(argv[i], "-seed="))){
+            double seed;
+            if (sscanf(value, "%lf", &seed) <= 0 || seed <= 0){
+                reportf("ERROR! illegal random seed constant %s\n", value);
+                exit(0); }
+            S.random_seed = seed;
+
         }else if ((value = hasPrefix(argv[i], "-verbosity="))){
             int verbosity = (int)strtol(value, NULL, 10);
             if (verbosity == 0 && errno == EINVAL){
@@ -272,7 +280,7 @@ int main(int argc, char** argv)
             S.verbosity = verbosity;
 
         }else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-help") == 0 || strcmp(argv[i], "--help") == 0){
-            printUsage(argv);
+            printUsage(argv, S);
             exit(0);
 
         }else if (strncmp(argv[i], "-", 1) == 0){
