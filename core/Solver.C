@@ -37,6 +37,7 @@ static DoubleOption  opt_clause_decay     (_cat, "cla-decay","The clause activit
 static DoubleOption  opt_random_var_freq  (_cat, "rnd-freq", "The frequency with which the decision heuristic tries to choose a random variable", 0.02, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed      (_cat, "rnd-seed", "Used by the random variable selection",         91648253, DoubleRange(0, false, INFINITY, false));
 static BoolOption    opt_expensive_ccmin  (_cat, "exp-ccmin", "Controls conflict clause minimization", true);
+static IntOption     opt_restart_luby_fact(_cat, "luby", "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT64_MAX));
 
 
 //=================================================================================================
@@ -52,6 +53,7 @@ Solver::Solver() :
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
   , random_seed      (opt_random_seed)
+  , restart_luby_fact(opt_restart_luby_fact)
   , expensive_ccmin  (opt_expensive_ccmin)
 
     // Parameters (the rest):
@@ -732,7 +734,7 @@ bool Solver::solve(const vec<Lit>& assumps)
     // Search:
     int curr_restarts = 0;
     while (status == l_Undef){
-        int nof_conflicts = luby(curr_restarts) * 100;
+        int nof_conflicts = luby(curr_restarts) * restart_luby_fact;
         if (verbosity >= 1)
             reportf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% | %d\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100, nof_conflicts), fflush(stdout);
         status = search(nof_conflicts);
