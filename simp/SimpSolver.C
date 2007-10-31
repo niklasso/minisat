@@ -159,7 +159,7 @@ void SimpSolver::removeClause(Clause& c)
             updateElimHeap(var(c[i]));
         }
 
-    detachClause(c, true);
+    detachClause(c);
     c.mark(1);
 }
 
@@ -594,13 +594,6 @@ void SimpSolver::cleanUpClauses()
     for (i = 0; i < dirty.size(); i++){
         cleanOcc(dirty[i]);
         seen[dirty[i]] = 0; }
-
-    for (i = 0; i < watches.size(); i++){
-        for (int k = j = 0; k < watches[i].size(); k++)
-            if (watches[i][k]->mark() == 0)
-                watches[i][j++] = watches[i][k];
-        watches[i].shrink(watches[i].size() - j);
-    }
 
     for (i = j = 0; i < clauses.size(); i++)
         if (clauses[i]->mark() == 1)

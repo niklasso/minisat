@@ -170,11 +170,11 @@ protected:
 
     // Operations on clauses:
     //
-    void     attachClause     (Clause& c);                    // Attach a clause to watcher lists.
-    void     detachClause     (Clause& c, bool lazy = false); // Detach a clause to watcher lists.
-    void     removeClause     (Clause& c);                    // Detach and free a clause.
-    bool     locked           (const Clause& c) const;        // Returns TRUE if a clause is a reason for some implication in the current state.
-    bool     satisfied        (const Clause& c) const;        // Returns TRUE if a clause is satisfied in the current state.
+    void     attachClause     (Clause& c);             // Attach a clause to watcher lists.
+    void     detachClause     (Clause& c);             // Detach a clause to watcher lists.
+    void     removeClause     (Clause& c);             // Detach and free a clause.
+    bool     locked           (const Clause& c) const; // Returns TRUE if a clause is a reason for some implication in the current state.
+    bool     satisfied        (const Clause& c) const; // Returns TRUE if a clause is satisfied in the current state.
 
     // Misc:
     //
