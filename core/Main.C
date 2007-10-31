@@ -265,14 +265,14 @@ int main(int argc, char** argv)
                 exit(0); }
             S.var_decay = 1 / decay;
 
-        }if ((value = hasPrefix(argv[i], "-seed="))){
+        }else if ((value = hasPrefix(argv[i], "-seed="))){
             double seed;
             if (sscanf(value, "%lf", &seed) <= 0 || seed <= 0){
                 reportf("ERROR! illegal random seed constant %s\n", value);
                 exit(0); }
             S.random_seed = seed;
 
-        }else if ((value = hasPrefix(argv[i], "-verbosity="))){
+        }else if ((value = hasPrefix(argv[i], "-verb="))){
             int verbosity = (int)strtol(value, NULL, 10);
             if (verbosity == 0 && errno == EINVAL){
                 reportf("ERROR! illegal verbosity level %s\n", value);
