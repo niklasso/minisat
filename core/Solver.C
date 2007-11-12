@@ -107,9 +107,8 @@ Var Solver::newVar(bool sign, bool dvar)
     int v = nVars();
     watches  .push();          // (list for positive literal)
     watches  .push();          // (list for negative literal)
-    _reason  .push(NULL);
     assigns  .push(l_Undef);
-    _level   .push(-1);
+    vardata  .push(mkVarData(NULL, 0));
     activity .push(0);
     seen     .push(0);
     polarity .push(sign);
@@ -205,11 +204,11 @@ Lit Solver::pickBranchLit()
     // Random decision:
     if (drand(random_seed) < random_var_freq && !order_heap.empty()){
         next = order_heap[irand(random_seed,order_heap.size())];
-        if (assigns[next] == l_Undef && decision[next])
+        if (value(next) == l_Undef && decision[next])
             rnd_decisions++; }
 
     // Activity based decision:
-    while (next == var_Undef || assigns[next] != l_Undef || !decision[next])
+    while (next == var_Undef || value(next) != l_Undef || !decision[next])
         if (order_heap.empty()){
             next = var_Undef;
             break;
@@ -405,8 +404,7 @@ void Solver::uncheckedEnqueue(Lit p, Clause* from)
 {
     assert(value(p) == l_Undef);
     assigns[var(p)] = lbool(!sign(p));
-    _level [var(p)] = decisionLevel();
-    _reason[var(p)] = from;
+    vardata[var(p)] = mkVarData(from, decisionLevel());
     trail.push_(p);
 }
 

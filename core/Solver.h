@@ -35,6 +35,8 @@ namespace Minisat {
 //=================================================================================================
 // Solver -- the main class:
 
+struct VarData { Clause* ptr; int level; };
+inline VarData mkVarData(Clause* reason, int lev){ VarData d; d.ptr = reason; d.level = lev; return d; }
 
 struct Watcher {
     Clause*  c;
@@ -138,8 +140,12 @@ protected:
     vec<char>           decision;         // Declares if a variable is eligible for selection in the decision heuristic.
     vec<Lit>            trail;            // Assignment stack; stores all assigments made in the order they were made.
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
-    vec<Clause*>        _reason;          // '_reason[var]' is the clause that implied the variables current value, or 'NULL' if none.
-    vec<int>            _level;           // '_level[var]' contains the level at which the assignment was made.
+    vec<VarData>        vardata;
+    // Contains:
+    // 
+    // vec<Clause*>        reason;           // 'reason[var]' is the clause that implied the variables current value, or 'NULL' if none.
+    // vec<int>            level;            // 'level[var]' contains the level at which the assignment was made.
+
     int                 qhead;            // Head of queue (as index into the trail -- no more explicit propagation queue in MiniSat).
     int                 simpDB_assigns;   // Number of top-level assignments since last execution of 'simplify()'.
     int64_t             simpDB_props;     // Remaining number of propagations that must be made before next execution of 'simplify()'.
@@ -222,8 +228,8 @@ protected:
 //=================================================================================================
 // Implementation of inline methods:
 
-inline Clause* Solver::reason(Var x) const { return _reason[x]; }
-inline int     Solver::level (Var x) const { return _level[x]; }
+inline Clause* Solver::reason(Var x) const { return vardata[x].ptr; }
+inline int     Solver::level (Var x) const { return vardata[x].level; }
 
 inline void Solver::insertVarOrder(Var x) {
     if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x); }
@@ -262,7 +268,7 @@ inline lbool    Solver::modelValue    (Lit p) const   { return model[var(p)] ^ s
 inline int      Solver::nAssigns      ()      const   { return trail.size(); }
 inline int      Solver::nClauses      ()      const   { return clauses.size(); }
 inline int      Solver::nLearnts      ()      const   { return learnts.size(); }
-inline int      Solver::nVars         ()      const   { return assigns.size(); }
+inline int      Solver::nVars         ()      const   { return vardata.size(); }
 inline int      Solver::nFreeVars     ()      const   { return (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]); }
 inline void     Solver::setPolarity   (Var v, bool b) { polarity[v] = b; }
 inline void     Solver::setDecisionVar(Var v, bool b) 
