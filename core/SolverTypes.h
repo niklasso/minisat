@@ -71,30 +71,34 @@ const Lit lit_Error = { -1 };  // }
 
 //=================================================================================================
 // Lifted booleans:
-
+//
+// NOTE: this implementation is optimized for the case when comparisons between values are mostly
+//       between one variable and one constant. Some care had to be taken to make sure that gcc 
+//       does enough constant propagation to produce sensible code, and this appears to be somewhat
+//       fragile unfortunately.
 
 class lbool {
-    char     value;
-    explicit lbool(char v) : value(v) { }
+    uint8_t value;
 
 public:
-    lbool()       : value(0) { }
-    lbool(bool x) : value(2|(char)!x) { }
-    int toInt(void) const { return value; }
+    explicit lbool(uint8_t v) : value(v) { }
 
-    bool  operator == (lbool b) const { return value == b.value; }
-    bool  operator != (lbool b) const { return value != b.value; }
-    lbool operator ^  (bool b)  const { return lbool((char)(value ^ ((char)b & (value >> 1)))); }
+    lbool()       : value(0) { }
+    lbool(bool x) : value(!x) { }
+
+    bool  operator == (lbool b) const { return ((b.value&2) & (value&2)) | (!(b.value&2)&(value == b.value)); }
+    bool  operator != (lbool b) const { return !(*this == b); }
+    lbool operator ^  (bool  b) const { return lbool((uint8_t)(value^(uint8_t)b)); }
 
     friend int   toInt  (lbool l);
     friend lbool toLbool(int   v);
 };
-inline int   toInt  (lbool l) { return l.toInt(); }
-inline lbool toLbool(int   v) { return lbool((char)v);  }
+inline int   toInt  (lbool l) { return l.value; }
+inline lbool toLbool(int   v) { return lbool((uint8_t)v);  }
 
-const lbool l_True  = toLbool( 2);
-const lbool l_False = toLbool( 3);
-const lbool l_Undef = toLbool( 0);
+#define l_True  (lbool((uint8_t)0)) // gcc does not do constant propagation if these are real constants.
+#define l_False (lbool((uint8_t)1)) 
+#define l_Undef (lbool((uint8_t)2))
 
 //=================================================================================================
 // Clause -- a simple class for representing a clause:
