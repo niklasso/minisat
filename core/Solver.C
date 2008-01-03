@@ -484,13 +484,13 @@ void Solver::reduceDB()
 
 void Solver::removeSatisfied(vec<Clause*>& cs)
 {
-    int i,j;
-    for (i = j = 0; i < cs.size(); i++){
+    int i, j;
+    for (i = j = 0; i < cs.size(); i++)
         if (satisfied(*cs[i]))
             removeClause(*cs[i]);
         else
             cs[j++] = cs[i];
-    }
+
     cs.shrink(i - j);
 }
 
