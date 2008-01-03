@@ -41,7 +41,7 @@ public:
     // Constructor/Destructor:
     //
     Solver();
-    ~Solver();
+    virtual ~Solver();
 
     // Problem specification:
     //
@@ -89,6 +89,10 @@ public:
     void    setPropBudget(int x);
     void    budgetOff();
 
+    // Memory managment:
+    //
+    virtual void garbageCollect();
+
     // Extra results: (read-only member variable)
     //
     vec<lbool> model;             // If problem is satisfiable, this vector contains the model (if any).
@@ -125,13 +129,13 @@ protected:
 
     // Helper structures:
     //
-    struct VarData { Clause* reason; int level; };
-    static inline VarData mkVarData(Clause* r, int l){ VarData d; d.reason = r; d.level = l; return d; }
+    struct VarData { ClauseId reason; int level; };
+    static inline VarData mkVarData(ClauseId r, int l){ VarData d = {r, l}; return d; }
 
     struct Watcher {
-        Clause*  cref;
+        ClauseId cref;
         Lit      blocker;
-        Watcher(Clause* c, Lit p) : cref(c), blocker(p) {}
+        Watcher(ClauseId c, Lit p) : cref(c), blocker(p) {}
         bool operator==(const Watcher& w) const { return cref == w.cref; }
         bool operator!=(const Watcher& w) const { return cref != w.cref; }
     };
@@ -145,8 +149,8 @@ protected:
     // Solver state:
     //
     bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
-    vec<Clause*>        clauses;          // List of problem clauses.
-    vec<Clause*>        learnts;          // List of learnt clauses.
+    vec<ClauseId>       clauses;          // List of problem clauses.
+    vec<ClauseId>       learnts;          // List of learnt clauses.
     double              cla_inc;          // Amount to bump next clause with.
     vec<double>         activity;         // A heuristic measurement of the activity of a variable.
     double              var_inc;          // Amount to bump next variable with.
@@ -157,7 +161,6 @@ protected:
     vec<Lit>            trail;            // Assignment stack; stores all assigments made in the order they were made.
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
     vec<VarData>        vardata;          // Stores reason and level for each variable.
-
     int                 qhead;            // Head of queue (as index into the trail -- no more explicit propagation queue in MiniSat).
     int                 simpDB_assigns;   // Number of top-level assignments since last execution of 'simplify()'.
     int64_t             simpDB_props;     // Remaining number of propagations that must be made before next execution of 'simplify()'.
@@ -165,6 +168,8 @@ protected:
     Heap<VarOrderLt>    order_heap;       // A priority queue of variables ordered with respect to the variable activity.
     double              progress_estimate;// Set by 'search()'.
     bool                remove_satisfied; // Indicates whether possibly inefficient linear scan for satisfied clauses should be performed in 'simplify'.
+
+    ClauseAllocator     ca;
 
     // Temporaries (to reduce allocation overhead). Each variable is prefixed by the method in which it is
     // used, exept 'seen' wich is used in several places.
@@ -190,8 +195,8 @@ protected:
     void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.
     Lit      pickBranchLit    ();                                                      // Return the next decision variable.
     void     newDecisionLevel ();                                                      // Begins a new decision level.
-    void     uncheckedEnqueue (Lit p, Clause* from = NULL);                            // Enqueue a literal. Assumes value of literal is undefined.
-    bool     enqueue          (Lit p, Clause* from = NULL);                            // Test if fact 'p' contradicts current state, enqueue otherwise.
+    void     uncheckedEnqueue (Lit p, ClauseId from = Clause_NULL);                    // Enqueue a literal. Assumes value of literal is undefined.
+    bool     enqueue          (Lit p, ClauseId from = Clause_NULL);                    // Test if fact 'p' contradicts current state, enqueue otherwise.
     Clause*  propagate        ();                                                      // Perform unit propagation. Returns possibly conflicting clause.
     void     cancelUntil      (int level);                                             // Backtrack until a certain level.
     void     analyze          (Clause* confl, vec<Lit>& out_learnt, int& out_btlevel); // (bt = backtrack)
@@ -200,7 +205,7 @@ protected:
     lbool    search           (int nof_conflicts);                                     // Search for a given number of conflicts.
     lbool    solve_           ();                                                      // Main solve method (assumptions given in 'assumptions').
     void     reduceDB         ();                                                      // Reduce the set of learnt clauses.
-    void     removeSatisfied  (vec<Clause*>& cs);                                      // Shrink 'cs' to contain only non-satisfied clauses.
+    void     removeSatisfied  (vec<ClauseId>& cs);                                     // Shrink 'cs' to contain only non-satisfied clauses.
     void     rebuildOrderHeap ();
 
     // Maintaining Variable/Clause activity:
@@ -213,17 +218,20 @@ protected:
 
     // Operations on clauses:
     //
-    void     attachClause     (Clause& c);             // Attach a clause to watcher lists.
-    void     detachClause     (Clause& c);             // Detach a clause to watcher lists.
-    void     removeClause     (Clause& c);             // Detach and free a clause.
+    void     attachClause     (ClauseId c);            // Attach a clause to watcher lists.
+    void     detachClause     (ClauseId c);            // Detach a clause to watcher lists.
+    void     removeClause     (ClauseId c);            // Detach and free a clause.
     bool     locked           (const Clause& c) const; // Returns TRUE if a clause is a reason for some implication in the current state.
     bool     satisfied        (const Clause& c) const; // Returns TRUE if a clause is satisfied in the current state.
+
+    void     reloc            (ClauseId& c, ClauseAllocator& to);
+    void     relocAll         (ClauseAllocator& to);
 
     // Misc:
     //
     int      decisionLevel    ()      const; // Gives the current decisionlevel.
     uint32_t abstractLevel    (Var x) const; // Used to represent an abstraction of sets of decision levels.
-    Clause*  reason           (Var x) const;
+    ClauseId reason           (Var x) const;
     int      level            (Var x) const;
     double   progressEstimate ()      const; // DELETE THIS ?? IT'S NOT VERY USEFUL ...
     bool     withinBudget     ()      const;
@@ -247,8 +255,8 @@ protected:
 //=================================================================================================
 // Implementation of inline methods:
 
-inline Clause* Solver::reason(Var x) const { return vardata[x].reason; }
-inline int     Solver::level (Var x) const { return vardata[x].level; }
+inline ClauseId Solver::reason(Var x) const { return vardata[x].reason; }
+inline int      Solver::level (Var x) const { return vardata[x].level; }
 
 inline void Solver::insertVarOrder(Var x) {
     if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x); }
@@ -271,17 +279,17 @@ inline void Solver::claBumpActivity (Clause& c) {
         if ( (c.activity() += cla_inc) > 1e20 ) {
             // Rescale:
             for (int i = 0; i < learnts.size(); i++)
-                learnts[i]->activity() *= 1e-20;
+                ca.deref(learnts[i]).activity() *= 1e-20;
             cla_inc *= 1e-20; } }
 
 // NOTE: enqueue does not set the ok flag! (only public methods do)
-inline bool     Solver::enqueue         (Lit p, Clause* from)   { return value(p) != l_Undef ? value(p) != l_False : (uncheckedEnqueue(p, from), true); }
+inline bool     Solver::enqueue         (Lit p, ClauseId from)  { return value(p) != l_Undef ? value(p) != l_False : (uncheckedEnqueue(p, from), true); }
 inline bool     Solver::addClause       (const vec<Lit>& ps)    { ps.copyTo(add_tmp); return addClause_(add_tmp); }
 inline bool     Solver::addEmptyClause  ()                      { add_tmp.clear(); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p)                 { add_tmp.clear(); add_tmp.push(p); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q)          { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
-inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && reason(var(c[0])) == &c; }
+inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && &ca.deref(reason(var(c[0]))) == &c; }
 inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }
 
 inline int      Solver::decisionLevel ()      const   { return trail_lim.size(); }

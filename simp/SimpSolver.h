@@ -65,6 +65,11 @@ class SimpSolver : public Solver {
     bool    solve       (Lit p, Lit q, Lit r, bool do_simp = true, bool turn_off_simp = false);
     bool    eliminate   (bool turn_off_elim = false);  // Perform variable elimination based simplification. 
 
+    // Memory managment:
+    //
+    virtual void garbageCollect();
+
+
     // Generate a (possibly simplified) DIMACS file:
     //
     void    toDimacs  (const char* file);
@@ -104,10 +109,10 @@ class SimpSolver : public Solver {
     bool                use_simplification;
     vec<uint32_t>       elimclauses;
     vec<char>           touched;
-    vec<vec<Clause*> >  occurs;
+    vec<vec<ClauseId> > occurs;
     vec<int>            n_occ;
     Heap<ElimLt>        elim_heap;
-    Queue<Clause*>      subsumption_queue;
+    Queue<ClauseId>     subsumption_queue;
     vec<char>           frozen;
     vec<char>           eliminated;
 
@@ -115,16 +120,16 @@ class SimpSolver : public Solver {
 
     // Temporaries:
     //
-    Clause*             bwdsub_tmpunit;
+    ClauseId            bwdsub_tmpunit;
 
     // Main internal methods:
     //
     lbool         solve_                   (bool do_simp = true, bool turn_off_simp = false);
-    bool          asymm                    (Var v, Clause& c);
+    bool          asymm                    (Var v, ClauseId c);
     bool          asymmVar                 (Var v);
     void          updateElimHeap           (Var v);
     void          cleanOcc                 (Var v);
-    vec<Clause*>& getOccurs                (Var x);
+    vec<ClauseId>&getOccurs                (Var x);
     void          gatherTouchedClauses     ();
     bool          merge                    (const Clause& _ps, const Clause& _qs, Var v, vec<Lit>& out_clause);
     bool          merge                    (const Clause& _ps, const Clause& _qs, Var v, int& size);
@@ -132,12 +137,13 @@ class SimpSolver : public Solver {
     bool          eliminateVar             (Var v);
     void          extendModel              ();
 
-    void          removeClause             (Clause& c);
-    bool          strengthenClause         (Clause& c, Lit l);
+    void          removeClause             (ClauseId cid);
+    bool          strengthenClause         (ClauseId cid, Lit l);
     void          cleanUpClauses           ();
     bool          implied                  (const vec<Lit>& c);
     //void          toDimacs                 (FILE* f, Clause& c);
     void          toDimacs                 (FILE* f, Clause& c, vec<Var>& map, Var& max);
+    void          relocAll                 (ClauseAllocator& to);
 };
 
 
@@ -154,11 +160,11 @@ inline void SimpSolver::updateElimHeap(Var v) {
 
 inline void SimpSolver::cleanOcc(Var v) {
     assert(use_simplification);
-    Clause **begin = (Clause**)occurs[v];
-    Clause **end = begin + occurs[v].size();
-    Clause **i, **j;
+    ClauseId *begin = (ClauseId*)occurs[v];
+    ClauseId *end = begin + occurs[v].size();
+    ClauseId *i, *j;
     for (i = begin, j = end; i < j; i++)
-        if ((*i)->mark() == 1){
+        if (ca.deref(*i).mark() == 1){
             *i = *(--j);
             i--;
         }
@@ -166,7 +172,7 @@ inline void SimpSolver::cleanOcc(Var v) {
     occurs[v].shrink(end - j);
 }
 
-inline vec<Clause*>& SimpSolver::getOccurs(Var x) {
+inline vec<ClauseId>& SimpSolver::getOccurs(Var x) {
     cleanOcc(x); return occurs[x]; }
 
 inline bool SimpSolver::addClause    (const vec<Lit>& ps)    { ps.copyTo(add_tmp); return addClause_(add_tmp); }

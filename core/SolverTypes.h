@@ -110,58 +110,90 @@ inline int   toInt  (lbool l) { return l.value; }
 inline lbool toLbool(int   v) { return lbool((uint8_t)v);  }
 
 //=================================================================================================
+// ClauseAllocator -- a simple class for allocating memory for clauses:
+
+typedef int32_t ClauseId;
+
+const ClauseId Clause_NULL = -1;
+
+class Clause;
+class ClauseAllocator {
+    vec<char> memory;
+    int       wasted;
+
+ public:
+    ClauseAllocator() : wasted(0) { memory.capacity(1024*1024*4); }
+
+    int            size () const { return memory.size(); }
+    int            wastedBytes() const { return wasted; }
+
+    ClauseId       alloc(int size, bool has_extra);
+    void           free (int size, bool has_extra);
+
+    Clause&        deref(ClauseId cid) { return *(Clause*)&memory[cid]; }
+    const Clause&  deref(ClauseId cid) const { return *(Clause*)&memory[cid]; }
+
+    void           moveTo(ClauseAllocator& to) { 
+        memory.moveTo(to.memory); 
+        to.wasted = wasted;
+    }
+};
+
+
+//=================================================================================================
 // Clause -- a simple class for representing a clause:
 
 
 class Clause {
-    unsigned _mark      : 2;
-    unsigned _learnt    : 1;
-    unsigned _has_extra : 1;
-    unsigned _size      : 28;
-
-    union { Lit lit; float act; uint32_t abs; } data[0];
+    struct {
+        unsigned mark      : 2;
+        unsigned learnt    : 1;
+        unsigned has_extra : 1;
+        unsigned reloced   : 1;
+        unsigned size      : 27; }                            header;
+    union { Lit lit; float act; uint32_t abs; ClauseId rel; } data[0];
 
 public:
     void calcAbstraction() {
         uint32_t abstraction = 0;
         for (int i = 0; i < size(); i++)
             abstraction |= 1 << (var(data[i].lit) & 31);
-        data[_size].abs = abstraction;  }
+        data[header.size].abs = abstraction;  }
 
     // NOTE: This constructor cannot be used directly (doesn't allocate enough memory).
     template<class V>
     Clause(const V& ps, bool use_extra, bool learnt) {
-        _size      = ps.size();
-        _learnt    = learnt;
-        _mark      = 0;
-        _has_extra = use_extra;
+        header.mark      = 0;
+        header.learnt    = learnt;
+        header.has_extra = use_extra;
+        header.reloced   = 0;
+        header.size      = ps.size();
 
         for (int i = 0; i < ps.size(); i++) 
             data[i].lit = ps[i];
 
-        if (_has_extra){
-            if (_learnt)
-                data[_size].act = 0; 
+        if (header.has_extra){
+            if (header.learnt)
+                data[header.size].act = 0; 
             else 
                 calcAbstraction(); }
     }
 
     // -- use this function instead:
-    template<class V>
-    friend Clause* Clause_new(const V& ps, bool learnt = false, bool use_extra = true) {
-        assert(sizeof(Lit)      == sizeof(uint32_t));
-        assert(sizeof(float)    == sizeof(uint32_t));
-        use_extra |= learnt;
-        void* mem = malloc(sizeof(Clause) + sizeof(uint32_t)*(ps.size() + (int)use_extra));
-        return new (mem) Clause(ps, use_extra, learnt); }
+    inline friend ClauseId Clause_new(ClauseAllocator& ca, const vec<Lit>& ps, bool learnt = false, bool use_extra = true);
 
-    int          size        ()      const   { return _size; }
-    void         shrink      (int i)         { assert(i <= size()); if (_has_extra) data[_size-i] = data[_size]; _size -= i; }
+    int          size        ()      const   { return header.size; }
+    void         shrink      (int i)         { assert(i <= size()); if (header.has_extra) data[header.size-i] = data[header.size]; header.size -= i; }
     void         pop         ()              { shrink(1); }
-    bool         learnt      ()      const   { return _learnt; }
-    uint32_t     mark        ()      const   { return _mark; }
-    void         mark        (uint32_t m)    { _mark = m; }
-    const Lit&   last        ()      const   { return data[size()-1].lit; }
+    bool         learnt      ()      const   { return header.learnt; }
+    bool         has_extra   ()      const   { return header.has_extra; }
+    uint32_t     mark        ()      const   { return header.mark; }
+    void         mark        (uint32_t m)    { header.mark = m; }
+    const Lit&   last        ()      const   { return data[header.size-1].lit; }
+
+    bool         reloced     ()      const   { return header.reloced; }
+    ClauseId     relocation  ()      const   { return data[0].rel; }
+    void         relocate    (ClauseId c)    { header.reloced = 1; data[0].rel = c; }
 
     // NOTE: somewhat unsafe to change the clause in-place! Must manually call 'calcAbstraction' afterwards for
     //       subsumption operations to behave correctly.
@@ -169,12 +201,44 @@ public:
     Lit          operator [] (int i) const   { return data[i].lit; }
     operator const Lit* (void) const         { return (Lit*)data; }
 
-    float&       activity    ()              { return data[_size].act; }
-    uint32_t     abstraction () const        { return data[_size].abs; }
+    float&       activity    ()              { return data[header.size].act; }
+    uint32_t     abstraction () const        { return data[header.size].abs; }
 
     Lit          subsumes    (const Clause& other) const;
     void         strengthen  (Lit p);
 };
+
+inline ClauseId Clause_new(ClauseAllocator& ca, const vec<Lit>& ps, bool learnt, bool use_extra) {
+    assert(sizeof(Lit)      == sizeof(uint32_t));
+    assert(sizeof(float)    == sizeof(uint32_t));
+    use_extra |= learnt;
+    
+    ClauseId cid = ca.alloc(ps.size(), use_extra);
+    new (&ca.deref(cid)) Clause(ps, use_extra, learnt); 
+    return cid; }
+
+
+inline void Clause_free(ClauseAllocator& ca, ClauseId cid) {
+    Clause& c = ca.deref(cid);
+    ca.free(c.size(), c.has_extra()); }
+
+
+inline void ClauseAllocator::free(int size, bool has_extra){ 
+    wasted += sizeof(Clause) + (size + (int)has_extra) * sizeof(Lit); }
+
+inline ClauseId ClauseAllocator::alloc(int size, bool has_extra) { 
+    int end   = memory.size();
+    
+    //int cap = memory.capacity();
+
+    int bsize = sizeof(Clause) + (size + (int)has_extra) * sizeof(Lit);
+    memory.growTo(memory.size() + bsize);
+
+    //if (cap < memory.capacity())
+    //    fprintf(stderr, "new capacity: %8d (%p)\n", memory.capacity(), (char*)memory);
+
+    return end;
+}
 
 
 /*_________________________________________________________________________________________________
@@ -194,18 +258,18 @@ inline Lit Clause::subsumes(const Clause& other) const
 {
     //if (other.size() < size() || (extra.abst & ~other.extra.abst) != 0)
     //if (other.size() < size() || (!learnt() && !other.learnt() && (extra.abst & ~other.extra.abst) != 0))
-    assert(!_learnt);   assert(!other._learnt);
-    assert(_has_extra); assert(other._has_extra);
-    if (other.size() < size() || (data[_size].abs & ~other.data[other._size].abs) != 0)
+    assert(!header.learnt);   assert(!other.header.learnt);
+    assert(header.has_extra); assert(other.header.has_extra);
+    if (other.header.size < header.size || (data[header.size].abs & ~other.data[other.header.size].abs) != 0)
         return lit_Error;
 
     Lit        ret = lit_Undef;
     const Lit* c   = (const Lit*)(*this);
     const Lit* d   = (const Lit*)other;
 
-    for (int i = 0; i < size(); i++) {
+    for (unsigned i = 0; i < header.size; i++) {
         // search for c[i] or ~c[i]
-        for (int j = 0; j < other.size(); j++)
+        for (unsigned j = 0; j < other.header.size; j++)
             if (c[i] == d[j])
                 goto ok;
             else if (ret == lit_Undef && c[i] == ~d[j]){

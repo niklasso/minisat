@@ -57,7 +57,7 @@ SimpSolver::SimpSolver() :
   , bwdsub_assigns     (0)
 {
     vec<Lit> dummy(1,lit_Undef);
-    bwdsub_tmpunit     = Clause_new(dummy);
+    bwdsub_tmpunit     = Clause_new(ca, dummy);
     remove_satisfied   = false;
     extra_clause_field = true;
 }
@@ -65,7 +65,6 @@ SimpSolver::SimpSolver() :
 
 SimpSolver::~SimpSolver()
 {
-    free(bwdsub_tmpunit);
 }
 
 
@@ -144,12 +143,13 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
         return false;
 
     if (use_simplification && clauses.size() == nclauses + 1){
-        Clause& c = *clauses.last();
+        ClauseId      cid = clauses.last();
+        const Clause& c   = ca.deref(cid);
 
-        subsumption_queue.insert(&c);
+        subsumption_queue.insert(cid);
 
         for (int i = 0; i < c.size(); i++){
-            occurs[var(c[i])].push(&c);
+            occurs[var(c[i])].push(cid);
             n_occ[toInt(c[i])]++;
             touched[var(c[i])] = 1;
             if (elim_heap.inHeap(var(c[i])))
@@ -161,36 +161,38 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
 }
 
 
-void SimpSolver::removeClause(Clause& c)
+void SimpSolver::removeClause(ClauseId cid)
 {
+    const Clause& c = ca.deref(cid);
+
     if (use_simplification)
         for (int i = 0; i < c.size(); i++){
             n_occ[toInt(c[i])]--;
             updateElimHeap(var(c[i]));
         }
 
-    detachClause(c);
-    c.mark(1);
+    Solver::removeClause(cid);
 }
 
 
-bool SimpSolver::strengthenClause(Clause& c, Lit l)
+bool SimpSolver::strengthenClause(ClauseId cid, Lit l)
 {
+    Clause& c = ca.deref(cid);
     assert(decisionLevel() == 0);
     assert(use_simplification);
 
     // FIX: this is too inefficient but would be nice to have (properly implemented)
     // if (!find(subsumption_queue, &c))
-    subsumption_queue.insert(&c);
+    subsumption_queue.insert(cid);
 
     if (c.size() == 2){
-        removeClause(c);
+        removeClause(cid);
         c.strengthen(l);
     }else{
-        detachClause(c);
+        detachClause(cid);
         c.strengthen(l);
-        attachClause(c);
-        remove(occurs[var(l)], &c);
+        attachClause(cid);
+        remove(occurs[var(l)], cid);
         n_occ[toInt(l)]--;
         updateElimHeap(var(l));
     }
@@ -266,19 +268,19 @@ void SimpSolver::gatherTouchedClauses()
     int ntouched = 0;
     for (int i = 0; i < touched.size(); i++)
         if (touched[i]){
-            const vec<Clause*>& cs = getOccurs(i);
+            const vec<ClauseId>& cs = getOccurs(i);
             ntouched++;
             for (int j = 0; j < cs.size(); j++)
-                if (cs[j]->mark() == 0){
+                if (ca.deref(cs[j]).mark() == 0){
                     subsumption_queue.insert(cs[j]);
-                    cs[j]->mark(2);
+                    ca.deref(cs[j]).mark(2);
                 }
             touched[i] = 0;
         }
 
     //fprintf(stderr, "Touched variables %d of %d yields %d clauses to check\n", ntouched, touched.size(), clauses.size());
     for (int i = 0; i < subsumption_queue.size(); i++)
-        subsumption_queue[i]->mark(0);
+        ca.deref(subsumption_queue[i]).mark(0);
 }
 
 
@@ -315,11 +317,12 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
         // Check top-level assignments by creating a dummy clause and placing it in the queue:
         if (subsumption_queue.size() == 0 && bwdsub_assigns < trail.size()){
             Lit l = trail[bwdsub_assigns++];
-            (*bwdsub_tmpunit)[0] = l;
-            bwdsub_tmpunit->calcAbstraction();
+            ca.deref(bwdsub_tmpunit)[0] = l;
+            ca.deref(bwdsub_tmpunit).calcAbstraction();
             subsumption_queue.insert(bwdsub_tmpunit); }
 
-        Clause&  c = *subsumption_queue.peek(); subsumption_queue.pop();
+        ClauseId cid = subsumption_queue.peek(); subsumption_queue.pop();
+        Clause&  c   = ca.deref(cid);
 
         if (c.mark()) continue;
 
@@ -335,21 +338,21 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
                 best = var(c[i]);
 
         // Search all candidates:
-        vec<Clause*>& _cs = getOccurs(best);
-        Clause**       cs = (Clause**)_cs;
+        vec<ClauseId>& _cs = getOccurs(best);
+        ClauseId*       cs = (ClauseId*)_cs;
 
         for (int j = 0; j < _cs.size(); j++)
             if (c.mark())
                 break;
-            else if (!cs[j]->mark() &&  cs[j] != &c && (subsumption_lim == -1 || cs[j]->size() < subsumption_lim)){
-                Lit l = c.subsumes(*cs[j]);
+            else if (!ca.deref(cs[j]).mark() &&  cs[j] != cid && (subsumption_lim == -1 || ca.deref(cs[j]).size() < subsumption_lim)){
+                Lit l = c.subsumes(ca.deref(cs[j]));
 
                 if (l == lit_Undef)
-                    subsumed++, removeClause(*cs[j]);
+                    subsumed++, removeClause(cs[j]);
                 else if (l != lit_Error){
                     deleted_literals++;
 
-                    if (!strengthenClause(*cs[j], ~l))
+                    if (!strengthenClause(cs[j], ~l))
                         return false;
 
                     // Did current candidate get deleted from cs? Then check candidate at index j again:
@@ -363,8 +366,9 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
 }
 
 
-bool SimpSolver::asymm(Var v, Clause& c)
+bool SimpSolver::asymm(Var v, ClauseId cid)
 {
+    Clause& c = ca.deref(cid);
     assert(decisionLevel() == 0);
 
     if (c.mark() || satisfied(c)) return true;
@@ -380,7 +384,7 @@ bool SimpSolver::asymm(Var v, Clause& c)
     if (propagate() != NULL){
         cancelUntil(0);
         asymm_lits++;
-        if (!strengthenClause(c, l))
+        if (!strengthenClause(cid, l))
             return false;
     }else
         cancelUntil(0);
@@ -393,13 +397,13 @@ bool SimpSolver::asymmVar(Var v)
 {
     assert(use_simplification);
 
-    const vec<Clause*>& cls = getOccurs(v);
+    const vec<ClauseId>& cls = getOccurs(v);
 
     if (value(v) != l_Undef || cls.size() == 0)
         return true;
 
     for (int i = 0; i < cls.size(); i++)
-        if (!asymm(v, *cls[i]))
+        if (!asymm(v, cls[i]))
             return false;
 
     return backwardSubsumptionCheck();
@@ -447,10 +451,10 @@ bool SimpSolver::eliminateVar(Var v)
 
     // Split the occurrences into positive and negative:
     //
-    const vec<Clause*>& cls = getOccurs(v);
-    vec<Clause*>  pos, neg;
+    const vec<ClauseId>& cls = getOccurs(v);
+    vec<ClauseId>  pos, neg;
     for (int i = 0; i < cls.size(); i++)
-        (find(*cls[i], mkLit(v)) ? pos : neg).push(cls[i]);
+        (find(ca.deref(cls[i]), mkLit(v)) ? pos : neg).push(cls[i]);
 
     // Check wether the increase in number of clauses stays within the allowed ('grow'). Moreover, no
     // clause must exceed the limit on the maximal clause size (if it is set):
@@ -460,7 +464,7 @@ bool SimpSolver::eliminateVar(Var v)
 
     for (int i = 0; i < pos.size(); i++)
         for (int j = 0; j < neg.size(); j++)
-            if (merge(*pos[i], *neg[j], v, clause_size) && 
+            if (merge(ca.deref(pos[i]), ca.deref(neg[j]), v, clause_size) && 
                 (++cnt > cls.size() + grow || (clause_lim != -1 && clause_size > clause_lim)))
                 return true;
 
@@ -471,22 +475,22 @@ bool SimpSolver::eliminateVar(Var v)
 
     if (pos.size() > neg.size()){
         for (int i = 0; i < neg.size(); i++)
-            mkElimClause(elimclauses, v, *neg[i]);
+            mkElimClause(elimclauses, v, ca.deref(neg[i]));
         mkElimClause(elimclauses, mkLit(v));
     }else{
         for (int i = 0; i < pos.size(); i++)
-            mkElimClause(elimclauses, v, *pos[i]);
+            mkElimClause(elimclauses, v, ca.deref(pos[i]));
         mkElimClause(elimclauses, ~mkLit(v));
     }
 
     for (int i = 0; i < cls.size(); i++)
-        removeClause(*cls[i]); 
+        removeClause(cls[i]); 
 
     // Produce clauses in cross product:
     vec<Lit>& resolvent = add_tmp;
     for (int i = 0; i < pos.size(); i++)
         for (int j = 0; j < neg.size(); j++)
-            if (merge(*pos[i], *neg[j], v, resolvent) && !addClause_(resolvent))
+            if (merge(ca.deref(pos[i]), ca.deref(neg[j]), v, resolvent) && !addClause_(resolvent))
                 return false;
 
     // Free occurs list for this variable:
@@ -510,11 +514,11 @@ bool SimpSolver::substitute(Var v, Lit x)
 
     eliminated[v] = true;
     setDecisionVar(v, false);
-    const vec<Clause*>& cls = getOccurs(v);
+    const vec<ClauseId>& cls = getOccurs(v);
     
     vec<Lit>& subst_clause = add_tmp;
     for (int i = 0; i < cls.size(); i++){
-        Clause& c = *cls[i];
+        Clause& c = ca.deref(cls[i]);
 
         subst_clause.clear();
         for (int j = 0; j < c.size(); j++){
@@ -522,7 +526,7 @@ bool SimpSolver::substitute(Var v, Lit x)
             subst_clause.push(var(p) == v ? x ^ sign(p) : p);
         }
 
-        removeClause(c);
+        removeClause(cls[i]);
 
         if (!addClause_(subst_clause))
             return ok = false;
@@ -609,6 +613,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         printf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
                double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
 
+    garbageCollect();
     return true;
 }
 
@@ -618,8 +623,8 @@ void SimpSolver::cleanUpClauses()
     int      i , j;
     vec<Var> dirty;
     for (i = 0; i < clauses.size(); i++)
-        if (clauses[i]->mark() == 1){
-            Clause& c = *clauses[i];
+        if (ca.deref(clauses[i]).mark() == 1){
+            Clause& c = ca.deref(clauses[i]);
             for (int k = 0; k < c.size(); k++)
                 if (!seen[var(c[k])]){
                     seen[var(c[k])] = 1;
@@ -631,11 +636,45 @@ void SimpSolver::cleanUpClauses()
         seen[dirty[i]] = 0; }
 
     for (i = j = 0; i < clauses.size(); i++)
-        if (clauses[i]->mark() == 1)
-            free(clauses[i]);
-        else
+        if (ca.deref(clauses[i]).mark() == 0)
             clauses[j++] = clauses[i];
     clauses.shrink(i - j);
+}
+
+
+//=================================================================================================
+// Garbage Collection methods:
+
+
+void SimpSolver::relocAll(ClauseAllocator& to)
+{
+    // All occurs lists:
+    //
+    for (int i = 0; i < occurs.size(); i++)
+        for (int j = 0; j < occurs[i].size(); j++)
+            reloc(occurs[i][j], to);
+
+    // Subsumption queue:
+    //
+    for (int i = 0; i < subsumption_queue.size(); i++)
+        reloc(subsumption_queue[i], to);
+
+    // Temporary clause:
+    //
+    reloc(bwdsub_tmpunit, to);
+}
+
+
+void SimpSolver::garbageCollect()
+{
+    int size_before = ca.size();
+    ClauseAllocator to;
+    relocAll(to);
+    Solver::relocAll(to);
+    to.moveTo(ca);
+    int size_after = ca.size();
+    if (verbosity >= 2)
+        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", size_before, size_after);
 }
 
 
@@ -675,12 +714,12 @@ void SimpSolver::toDimacs(const char* file)
         // to deallocate them at this point. Could be improved.
         int cnt = 0;
         for (int i = 0; i < clauses.size(); i++)
-            if (!satisfied(*clauses[i]))
+            if (!satisfied(ca.deref(clauses[i])))
                 cnt++;
         
         for (int i = 0; i < clauses.size(); i++)
-            if (!satisfied(*clauses[i])){
-                Clause& c = *clauses[i];
+            if (!satisfied(ca.deref(clauses[i]))){
+                Clause& c = ca.deref(clauses[i]);
                 for (int j = 0; j < c.size(); j++)
                     if (value(c[j]) != l_False)
                         mapVar(var(c[j]), map, max);
@@ -689,7 +728,7 @@ void SimpSolver::toDimacs(const char* file)
         fprintf(f, "p cnf %d %d\n", max, cnt);
 
         for (int i = 0; i < clauses.size(); i++)
-            toDimacs(f, *clauses[i], map, max);
+            toDimacs(f, ca.deref(clauses[i]), map, max);
 
         if (verbosity > 0)
             printf("Wrote %d clauses with %d variables.\n", cnt, max);
