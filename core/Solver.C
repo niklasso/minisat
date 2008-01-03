@@ -379,10 +379,10 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
 void Solver::uncheckedEnqueue(Lit p, Clause* from)
 {
     assert(value(p) == l_Undef);
-    assigns [var(p)] = lbool(!sign(p));
-    _level  [var(p)] = decisionLevel();
-    _reason [var(p)] = from;
-    trail.push(p);
+    assigns[var(p)] = lbool(!sign(p));
+    _level [var(p)] = decisionLevel();
+    _reason[var(p)] = from;
+    trail.push_(p);
 }
 
 
