@@ -468,18 +468,16 @@ void Solver::reduceDB()
     double  extra_lim = cla_inc / learnts.size();    // Remove any clause below this activity
 
     sort(learnts, reduceDB_lt());
-    for (i = j = 0; i < learnts.size() / 2; i++){
-        if (learnts[i]->size() > 2 && !locked(*learnts[i]))
+
+    // Don't delete binary or locked clauses. From the rest, delete clauses from the first half
+    // and clauses with activity smaller than 'extra_lim':
+    for (i = j = 0; i < learnts.size(); i++)
+        if (learnts[i]->size() > 2 && !locked(*learnts[i]) &&
+            (i < learnts.size() / 2 || learnts[i]->activity() < extra_lim))
             removeClause(*learnts[i]);
         else
             learnts[j++] = learnts[i];
-    }
-    for (; i < learnts.size(); i++){
-        if (learnts[i]->size() > 2 && !locked(*learnts[i]) && learnts[i]->activity() < extra_lim)
-            removeClause(*learnts[i]);
-        else
-            learnts[j++] = learnts[i];
-    }
+
     learnts.shrink(i - j);
 }
 
