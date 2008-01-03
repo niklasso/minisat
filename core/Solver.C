@@ -80,9 +80,9 @@ Var Solver::newVar(bool sign, bool dvar)
     int v = nVars();
     watches  .push();          // (list for positive literal)
     watches  .push();          // (list for negative literal)
-    reason   .push(NULL);
+    _reason  .push(NULL);
     assigns  .push(l_Undef);
-    level    .push(-1);
+    _level   .push(-1);
     activity .push(0);
     seen     .push(0);
     polarity .push((char)sign);
@@ -232,10 +232,10 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
         for (int j = (p == lit_Undef) ? 0 : 1; j < c.size(); j++){
             Lit q = c[j];
 
-            if (!seen[var(q)] && level[var(q)] > 0){
+            if (!seen[var(q)] && level(var(q)) > 0){
                 varBumpActivity(var(q));
                 seen[var(q)] = 1;
-                if (level[var(q)] >= decisionLevel())
+                if (level(var(q)) >= decisionLevel())
                     pathC++;
                 else
                     out_learnt.push(q);
@@ -245,7 +245,7 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
         // Select next clause to look at:
         while (!seen[var(trail[index--])]);
         p     = trail[index+1];
-        confl = reason[var(p)];
+        confl = reason(var(p));
         seen[var(p)] = 0;
         pathC--;
 
@@ -262,23 +262,22 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
             abstract_level |= abstractLevel(var(out_learnt[i])); // (maintain an abstraction of levels involved in conflict)
 
         for (i = j = 1; i < out_learnt.size(); i++)
-            if (reason[var(out_learnt[i])] == NULL || !litRedundant(out_learnt[i], abstract_level))
+            if (reason(var(out_learnt[i])) == NULL || !litRedundant(out_learnt[i], abstract_level))
                 out_learnt[j++] = out_learnt[i];
     }else{
         for (i = j = 1; i < out_learnt.size(); i++){
-            Clause& c = *reason[var(out_learnt[i])];
+            Var x = var(out_learnt[i]);
 
-            if (&c == NULL)
-                goto keep;
+            if (reason(x) == NULL)
+                out_learnt[j++] = out_learnt[i];
+            else{
+                Clause& c = *reason(var(out_learnt[i]));
 
-            for (int k = 1; k < c.size(); k++)
-                if (!seen[var(c[k])] && level[var(c[k])] > 0)
-                    goto keep;
-
-            continue;
-
-        keep:
-            out_learnt[j++] = out_learnt[i];
+                for (int k = 1; k < c.size(); k++)
+                    if (!seen[var(c[k])] && level(var(c[k])) > 0){
+                        out_learnt[j++] = out_learnt[i];
+                        break; }
+            }
         }
     }
     max_literals += out_learnt.size();
@@ -293,13 +292,13 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
         int max_i = 1;
         // Find the first literal assigned at the next-highest level:
         for (int i = 2; i < out_learnt.size(); i++)
-            if (level[var(out_learnt[i])] > level[var(out_learnt[max_i])])
+            if (level(var(out_learnt[i])) > level(var(out_learnt[max_i])))
                 max_i = i;
         // Swap-in this literal at index 1:
         Lit p             = out_learnt[max_i];
         out_learnt[max_i] = out_learnt[1];
         out_learnt[1]     = p;
-        out_btlevel       = level[var(p)];
+        out_btlevel       = level(var(p));
     }
 
 
@@ -314,13 +313,13 @@ bool Solver::litRedundant(Lit p, uint32_t abstract_levels)
     analyze_stack.clear(); analyze_stack.push(p);
     int top = analyze_toclear.size();
     while (analyze_stack.size() > 0){
-        assert(reason[var(analyze_stack.last())] != NULL);
-        Clause& c = *reason[var(analyze_stack.last())]; analyze_stack.pop();
+        assert(reason(var(analyze_stack.last())) != NULL);
+        Clause& c = *reason(var(analyze_stack.last())); analyze_stack.pop();
 
         for (int i = 1; i < c.size(); i++){
             Lit p  = c[i];
-            if (!seen[var(p)] && level[var(p)] > 0){
-                if (reason[var(p)] != NULL && (abstractLevel(var(p)) & abstract_levels) != 0){
+            if (!seen[var(p)] && level(var(p)) > 0){
+                if (reason(var(p)) != NULL && (abstractLevel(var(p)) & abstract_levels) != 0){
                     seen[var(p)] = 1;
                     analyze_stack.push(p);
                     analyze_toclear.push(p);
@@ -360,13 +359,13 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
     for (int i = trail.size()-1; i >= trail_lim[0]; i--){
         Var x = var(trail[i]);
         if (seen[x]){
-            if (reason[x] == NULL){
-                assert(level[x] > 0);
+            if (reason(x) == NULL){
+                assert(level(x) > 0);
                 out_conflict.push(~trail[i]);
             }else{
-                Clause& c = *reason[x];
+                Clause& c = *reason(x);
                 for (int j = 1; j < c.size(); j++)
-                    if (level[var(c[j])] > 0)
+                    if (level(var(c[j])) > 0)
                         seen[var(c[j])] = 1;
             }
             seen[x] = 0;
@@ -381,8 +380,8 @@ void Solver::uncheckedEnqueue(Lit p, Clause* from)
 {
     assert(value(p) == l_Undef);
     assigns [var(p)] = lbool(!sign(p));
-    level   [var(p)] = decisionLevel();
-    reason  [var(p)] = from;
+    _level  [var(p)] = decisionLevel();
+    _reason [var(p)] = from;
     trail.push(p);
 }
 
