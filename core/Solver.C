@@ -555,10 +555,7 @@ lbool Solver::search(int nof_conflicts)
     int         backtrack_level;
     int         conflictC = 0;
     vec<Lit>    learnt_clause;
-
     starts++;
-
-    bool first = true;
 
     for (;;){
         Clause* confl = propagate();
@@ -566,8 +563,6 @@ lbool Solver::search(int nof_conflicts)
             // CONFLICT
             conflicts++; conflictC++;
             if (decisionLevel() == 0) return l_False;
-
-            first = false;
 
             learnt_clause.clear();
             analyze(confl, learnt_clause, backtrack_level);
@@ -590,7 +585,6 @@ lbool Solver::search(int nof_conflicts)
                 learntsize_adjust_confl *= learntsize_adjust_inc;
                 learntsize_adjust_cnt    = (int)learntsize_adjust_confl;
                 max_learnts             *= learntsize_inc;
-                //fprintf(stderr, "learntsize adjusted, next = %d\n", learntsize_adjust_cnt);
             }
 
         }else{
