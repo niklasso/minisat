@@ -209,7 +209,7 @@ inline int     Solver::level (Var x) const { return _level[x]; }
 inline void Solver::insertVarOrder(Var x) {
     if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x); }
 
-inline void Solver::varDecayActivity() { var_inc *= var_decay; }
+inline void Solver::varDecayActivity() { var_inc *= (1 / var_decay); }
 inline void Solver::varBumpActivity(Var v) {
     if ( (activity[v] += var_inc) > 1e100 ) {
         // Rescale:
@@ -221,7 +221,7 @@ inline void Solver::varBumpActivity(Var v) {
     if (order_heap.inHeap(v))
         order_heap.decrease(v); }
 
-inline void Solver::claDecayActivity() { cla_inc *= clause_decay; }
+inline void Solver::claDecayActivity() { cla_inc *= (1 / clause_decay); }
 inline void Solver::claBumpActivity (Clause& c) {
         if ( (c.activity() += cla_inc) > 1e20 ) {
             // Rescale:
