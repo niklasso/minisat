@@ -1,5 +1,5 @@
 EXEC      = minisat
-DEPDIR    = mtl core
+DEPDIR    = mtl utils core
 
 CFLAGS    = -Wall -ffloat-store
 LFLAGS    = -lz

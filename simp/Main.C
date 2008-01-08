@@ -18,129 +18,19 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#define __STDC_FORMAT_MACROS
-#include <ctime>
-#include <cstring>
-#include <stdint.h>
-#include <inttypes.h>
 #include <errno.h>
 
 #include <signal.h>
 #include <zlib.h>
 
+#include "System.h"
+#include "ParseUtils.h"
+#include "Options.h"
+
 #include "SimpSolver.h"
-
-/*************************************************************************************/
-#ifdef _MSC_VER
-#include <ctime>
-
-static inline double cpuTime(void) {
-    return (double)clock() / CLOCKS_PER_SEC; }
-#else
-
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <unistd.h>
-
-static inline double cpuTime(void) {
-    struct rusage ru;
-    getrusage(RUSAGE_SELF, &ru);
-    return (double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1000000; }
-#endif
-
-
-#if defined(__linux__)
-static inline int memReadStat(int field)
-{
-    char    name[256];
-    pid_t pid = getpid();
-    sprintf(name, "/proc/%d/statm", pid);
-    FILE*   in = fopen(name, "rb");
-    if (in == NULL) return 0;
-    int     value;
-    for (; field >= 0; field--)
-        fscanf(in, "%d", &value);
-    fclose(in);
-    return value;
-}
-static inline uint64_t memUsed() { return (uint64_t)memReadStat(0) * (uint64_t)getpagesize(); }
-
-
-#elif defined(__FreeBSD__)
-static inline uint64_t memUsed(void) {
-    struct rusage ru;
-    getrusage(RUSAGE_SELF, &ru);
-    return ru.ru_maxrss*1024; }
-
-
-#elif defined(__APPLE__)
-#include <malloc/malloc.h>
-
-static inline uint64_t memUsed(void) {
-    malloc_statistics_t t;
-    malloc_zone_statistics(NULL, &t);
-    return t.max_size_in_use; }
-
-
-#else
-static inline uint64_t memUsed() { return 0; }
-#endif
-
-#if defined(__linux__)
-#include <fpu_control.h>
-#endif
-
 
 //=================================================================================================
 // DIMACS Parser:
-
-#define CHUNK_LIMIT 1048576
-
-class StreamBuffer {
-    unsigned char buf[CHUNK_LIMIT];
-    gzFile        in;
-    int           pos;
-    int           size;
-
-    void assureLookahead() {
-        if (pos >= size) {
-            pos  = 0;
-            size = gzread(in, buf, sizeof(buf)); } }
-
-public:
-    StreamBuffer(gzFile i) : in(i), pos(0), size(0) {
-        assureLookahead(); }
-
-    int  operator *  () { return (pos >= size) ? EOF : buf[pos]; }
-    void operator ++ () { pos++; assureLookahead(); }
-};
-
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-template<class B>
-static void skipWhitespace(B& in) {
-    while ((*in >= 9 && *in <= 13) || *in == 32)
-        ++in; }
-
-template<class B>
-static void skipLine(B& in) {
-    for (;;){
-        if (*in == EOF || *in == '\0') return;
-        if (*in == '\n') { ++in; return; }
-        ++in; } }
-
-template<class B>
-static int parseInt(B& in) {
-    int     val = 0;
-    bool    neg = false;
-    skipWhitespace(in);
-    if      (*in == '-') neg = true, ++in;
-    else if (*in == '+') ++in;
-    if (*in < '0' || *in > '9') reportf("PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
-    while (*in >= '0' && *in <= '9')
-        val = val*10 + (*in - '0'),
-        ++in;
-    return neg ? -val : val; }
 
 template<class B>
 static void readClause(B& in, SimpSolver& S, vec<Lit>& lits) {
@@ -156,15 +46,6 @@ static void readClause(B& in, SimpSolver& S, vec<Lit>& lits) {
 }
 
 template<class B>
-static bool match(B& in, const char* str) {
-    for (; *str != 0; ++str, ++in)
-        if (*str != *in)
-            return false;
-    return true;
-}
-
-
-template<class B>
 static void parse_DIMACS_main(B& in, SimpSolver& S) {
     vec<Lit> lits;
     int vars    = 0;
@@ -177,7 +58,7 @@ static void parse_DIMACS_main(B& in, SimpSolver& S) {
         skipWhitespace(in);
         if (*in == EOF) break;
         else if (*in == 'p'){
-            if (match(in, "p cnf")){
+            if (eagerMatch(in, "p cnf")){
                 vars    = parseInt(in);
                 clauses = parseInt(in);
                 reportf("|  Number of variables:  %12d                                         |\n", vars);
@@ -252,15 +133,6 @@ void printUsage(char** argv, SimpSolver& S)
     reportf("\n");
 }
 
-const char* hasPrefix(const char* str, const char* prefix)
-{
-    int len = strlen(prefix);
-    if (strncmp(str, prefix, len) == 0)
-        return str + len;
-    else
-        return NULL;
-}
-
 
 int main(int argc, char** argv)
 {
@@ -286,28 +158,29 @@ int main(int argc, char** argv)
     int         i, j;
     const char* value;
     for (i = j = 0; i < argc; i++){
-        if ((value = hasPrefix(argv[i], "-rnd-freq="))){
+        value = argv[i];
+        if (match(argv[i], "-rnd-freq=")){
             double rnd;
             if (sscanf(value, "%lf", &rnd) <= 0 || rnd < 0 || rnd > 1){
                 reportf("ERROR! illegal rnd-freq constant %s\n", value);
                 exit(0); }
             S.random_var_freq = rnd;
 
-        }else if ((value = hasPrefix(argv[i], "-decay="))){
+        }else if (match(value, "-decay=")){
             double decay;
             if (sscanf(value, "%lf", &decay) <= 0 || decay <= 0 || decay > 1){
                 reportf("ERROR! illegal decay constant %s\n", value);
                 exit(0); }
             S.var_decay = 1 / decay;
 
-        }else if ((value = hasPrefix(argv[i], "-seed="))){
+        }else if (match(value, "-seed=")){
             double seed;
             if (sscanf(value, "%lf", &seed) <= 0 || seed <= 0){
                 reportf("ERROR! illegal random seed constant %s\n", value);
                 exit(0); }
             S.random_seed = seed;
 
-        }else if ((value = hasPrefix(argv[i], "-verb="))){
+        }else if (match(value, "-verb=")){
             int verbosity = (int)strtol(value, NULL, 10);
             if (verbosity == 0 && errno == EINVAL){
                 reportf("ERROR! illegal verbosity level %s\n", value);
@@ -316,38 +189,38 @@ int main(int argc, char** argv)
 
         // Boolean flags:
         //
-        }else if (strcmp(argv[i], "-pre") == 0){
+        }else if (match(value, "-pre")){
             pre = true;
-        }else if (strcmp(argv[i], "-no-pre") == 0){
+        }else if (match(value, "-no-pre")){
             pre = false;
-        }else if (strcmp(argv[i], "-asymm") == 0){
+        }else if (match(argv[i], "-asymm")){
             S.use_asymm = true;
-        }else if (strcmp(argv[i], "-no-asymm") == 0){
+        }else if (match(argv[i], "-no-asymm")){
             S.use_asymm = false;
-        }else if (strcmp(argv[i], "-rcheck") == 0){
+        }else if (match(argv[i], "-rcheck")){
             S.use_rcheck = true;
-        }else if (strcmp(argv[i], "-no-rcheck") == 0){
+        }else if (match(argv[i], "-no-rcheck")){
             S.use_rcheck = false;
-        }else if (strcmp(argv[i], "-elim") == 0){
+        }else if (match(argv[i], "-elim")){
             S.use_elim = true;
-        }else if (strcmp(argv[i], "-no-elim") == 0){
+        }else if (match(argv[i], "-no-elim")){
             S.use_elim = false;
-        }else if ((value = hasPrefix(argv[i], "-grow="))){
+        }else if (match(value, "-grow=")){
             int grow = (int)strtol(value, NULL, 10);
             if (grow < 0){
-                reportf("ERROR! illegal grow constant %s\n", &argv[i][6]);
+                reportf("ERROR! illegal grow constant %s\n", value);
                 exit(0); }
             S.grow = grow;
-        }else if ((value = hasPrefix(argv[i], "-lim="))){
+        }else if (match(value, "-lim=")){
             int lim = (int)strtol(value, NULL, 10);
             if (lim < 3){
-                reportf("ERROR! illegal clause limit constant %s\n", &argv[i][5]);
+                reportf("ERROR! illegal clause limit constant %s\n", value);
                 exit(0); }
             S.clause_lim = lim;
-        }else if ((value = hasPrefix(argv[i], "-dimacs="))){
+        }else if (match(value, "-dimacs=")){
             dimacs = value;
-        }else if (strncmp(argv[i], "-", 1) == 0){
-            reportf("ERROR! unknown flag %s\nUse -help for more information.\n", argv[i]);
+        }else if (match(argv[i], "-")){
+            reportf("ERROR! unknown flag %s\nUse -help for more information.\n", value);
             exit(0);
         }else
             argv[j++] = argv[i];

@@ -18,129 +18,19 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#define __STDC_FORMAT_MACROS
-#include <ctime>
-#include <cstring>
-#include <stdint.h>
-#include <inttypes.h>
 #include <errno.h>
 
 #include <signal.h>
 #include <zlib.h>
 
+#include "System.h"
+#include "ParseUtils.h"
+#include "Options.h"
+
 #include "Solver.h"
-
-/*************************************************************************************/
-#ifdef _MSC_VER
-#include <ctime>
-
-static inline double cpuTime(void) {
-    return (double)clock() / CLOCKS_PER_SEC; }
-#else
-
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <unistd.h>
-
-static inline double cpuTime(void) {
-    struct rusage ru;
-    getrusage(RUSAGE_SELF, &ru);
-    return (double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1000000; }
-#endif
-
-
-#if defined(__linux__)
-static inline int memReadStat(int field)
-{
-    char    name[256];
-    pid_t pid = getpid();
-    sprintf(name, "/proc/%d/statm", pid);
-    FILE*   in = fopen(name, "rb");
-    if (in == NULL) return 0;
-    int     value;
-    for (; field >= 0; field--)
-        fscanf(in, "%d", &value);
-    fclose(in);
-    return value;
-}
-static inline uint64_t memUsed() { return (uint64_t)memReadStat(0) * (uint64_t)getpagesize(); }
-
-
-#elif defined(__FreeBSD__)
-static inline uint64_t memUsed(void) {
-    struct rusage ru;
-    getrusage(RUSAGE_SELF, &ru);
-    return ru.ru_maxrss*1024; }
-
-
-#elif defined(__APPLE__)
-#include <malloc/malloc.h>
-
-static inline uint64_t memUsed(void) {
-    malloc_statistics_t t;
-    malloc_zone_statistics(NULL, &t);
-    printf("got here...\n");
-    return t.max_size_in_use; }
-
-
-#else
-static inline uint64_t memUsed() { return 0; }
-#endif
-
-#if defined(__linux__)
-#include <fpu_control.h>
-#endif
 
 //=================================================================================================
 // DIMACS Parser:
-
-#define CHUNK_LIMIT 1048576
-
-class StreamBuffer {
-    unsigned char buf[CHUNK_LIMIT];
-    gzFile        in;
-    int           pos;
-    int           size;
-
-    void assureLookahead() {
-        if (pos >= size) {
-            pos  = 0;
-            size = gzread(in, buf, sizeof(buf)); } }
-
-public:
-    StreamBuffer(gzFile i) : in(i), pos(0), size(0) {
-        assureLookahead(); }
-
-    int  operator *  () { return (pos >= size) ? EOF : buf[pos]; }
-    void operator ++ () { pos++; assureLookahead(); }
-};
-
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-template<class B>
-static void skipWhitespace(B& in) {
-    while ((*in >= 9 && *in <= 13) || *in == 32)
-        ++in; }
-
-template<class B>
-static void skipLine(B& in) {
-    for (;;){
-        if (*in == EOF || *in == '\0') return;
-        if (*in == '\n') { ++in; return; }
-        ++in; } }
-
-template<class B>
-static int parseInt(B& in) {
-    int     val = 0;
-    bool    neg = false;
-    skipWhitespace(in);
-    if      (*in == '-') neg = true, ++in;
-    else if (*in == '+') ++in;
-    if (*in < '0' || *in > '9') reportf("PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
-    while (*in >= '0' && *in <= '9')
-        val = val*10 + (*in - '0'),
-        ++in;
-    return neg ? -val : val; }
 
 template<class B>
 static void readClause(B& in, Solver& S, vec<Lit>& lits) {
@@ -156,15 +46,6 @@ static void readClause(B& in, Solver& S, vec<Lit>& lits) {
 }
 
 template<class B>
-static bool match(B& in, const char* str) {
-    for (; *str != 0; ++str, ++in)
-        if (*str != *in)
-            return false;
-    return true;
-}
-
-
-template<class B>
 static void parse_DIMACS_main(B& in, Solver& S) {
     vec<Lit> lits;
     for (;;){
@@ -172,7 +53,7 @@ static void parse_DIMACS_main(B& in, Solver& S) {
         if (*in == EOF)
             break;
         else if (*in == 'p'){
-            if (match(in, "p cnf")){
+            if (eagerMatch(in, "p cnf")){
                 int vars    = parseInt(in);
                 int clauses = parseInt(in);
                 reportf("|  Number of variables:  %12d                                         |\n", vars);
@@ -234,16 +115,6 @@ void printUsage(char** argv, Solver& S)
 }
 
 
-const char* hasPrefix(const char* str, const char* prefix)
-{
-    int len = strlen(prefix);
-    if (strncmp(str, prefix, len) == 0)
-        return str + len;
-    else
-        return NULL;
-}
-
-
 int main(int argc, char** argv)
 {
     Solver      S;
@@ -253,40 +124,42 @@ int main(int argc, char** argv)
     int         i, j;
     const char* value;
     for (i = j = 0; i < argc; i++){
-        if ((value = hasPrefix(argv[i], "-rnd-freq="))){
+        value = argv[i];
+
+        if (match(value, "-rnd-freq=")){
             double rnd;
             if (sscanf(value, "%lf", &rnd) <= 0 || rnd < 0 || rnd > 1){
                 reportf("ERROR! illegal rnd-freq constant %s\n", value);
                 exit(0); }
             S.random_var_freq = rnd;
 
-        }else if ((value = hasPrefix(argv[i], "-decay="))){
+        }else if (match(value, "-decay=")){
             double decay;
             if (sscanf(value, "%lf", &decay) <= 0 || decay <= 0 || decay > 1){
                 reportf("ERROR! illegal decay constant %s\n", value);
                 exit(0); }
             S.var_decay = 1 / decay;
 
-        }else if ((value = hasPrefix(argv[i], "-seed="))){
+        }else if (match(value, "-seed=")){
             double seed;
             if (sscanf(value, "%lf", &seed) <= 0 || seed <= 0){
                 reportf("ERROR! illegal random seed constant %s\n", value);
                 exit(0); }
             S.random_seed = seed;
 
-        }else if ((value = hasPrefix(argv[i], "-verb="))){
+        }else if (match(value, "-verb=")){
             int verbosity = (int)strtol(value, NULL, 10);
             if (verbosity == 0 && errno == EINVAL){
                 reportf("ERROR! illegal verbosity level %s\n", value);
                 exit(0); }
             S.verbosity = verbosity;
 
-        }else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-help") == 0 || strcmp(argv[i], "--help") == 0){
+        }else if (match(value, "-h") || match(value, "-help") || match(value, "--help")){
             printUsage(argv, S);
             exit(0);
 
-        }else if (strncmp(argv[i], "-", 1) == 0){
-            reportf("ERROR! unknown flag %s\n", argv[i]);
+        }else if (match(value, "-")){
+            reportf("ERROR! unknown flag %s\n", value);
             exit(0);
 
         }else
