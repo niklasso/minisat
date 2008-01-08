@@ -93,12 +93,25 @@ static int parseInt(B& in) {
     return neg ? -val : val; }
 
 
+// String matching: in case of a match the input iterator will be advanced the corresponding
+// number of characters.
 template<class B>
 static bool match(B& in, const char* str) {
-    for (; *str != 0; ++str, ++in)
+    int i;
+    for (i = 0; str[i] != '\0'; i++)
+        if (in[i] != str[i])
+            return false;
+    in += i;
+
+    return true; 
+}
+
+// String matching: consumes characters eagerly, but does not require random access iterator.
+template<class B>
+static bool eagerMatch(B& in, const char* str) {
+    for (; *str != '\0'; ++str, ++in)
         if (*str != *in)
             return false;
     return true; }
-
 
 #endif
