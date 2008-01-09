@@ -29,16 +29,21 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 Solver::Solver() :
 
-    // Parameters: (formerly in 'SearchParams')
-    var_decay(0.95), clause_decay(0.999), random_var_freq(0.02), random_seed(91648253)
+    // Parameters (command-line settable):
+    //
+    verbosity        ("verb", "Verbosity level. 0=silent, 1=some, 2=more",         0,        Range<int>(0, 2))
+  , var_decay        ("var-decay","The variable activity decay factor",            0.95,     Range<double>(0, false, 1, false))
+  , clause_decay     ("cla-decay","The clause activity decay factor",              0.999,    Range<double>(0, false, 1, false))
+  , random_var_freq  ("rnd-freq", "The frequency with which the decision heuristic tries to choose a random variable", 
+                                                                                   0.02,     Range<double>(0, true, 1, true))
+  , random_seed      ("rnd-seed", "Used by the random variable selection",         91648253, Range<double>(0, false, INFINITY, false))
+  , expensive_ccmin  ("exp-ccmin", "Controls conflict clause minimization", true)
+
+    // Parameters (the rest):
+    //
   , restart_first(100), restart_inc(1.5), learntsize_factor((double)1/(double)3), learntsize_inc(1.1)
 
-    // More parameters:
-    //
-  , expensive_ccmin  (true)
-  , verbosity        (0)
-
-    // Experimental parameteres:
+    // Parameters (experimental):
     //
   , learntsize_adjust_start_confl (100)
   , learntsize_adjust_inc         (1.5)

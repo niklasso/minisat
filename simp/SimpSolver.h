@@ -55,14 +55,13 @@ class SimpSolver : public Solver {
 
     // Mode of operation:
     //
-    int     grow;             // Allow a variable elimination step to grow by a number of clauses (default to zero).
-    int     clause_lim;       // Variables are not eliminated if it produces a resolvent with a length above this limit.
-                              // -1 means no limit.
-    int     subsumption_lim;  // Do not check if subsumption against a clause larger than this. -1 means no limit.
+    Option<bool> use_asymm;
+    Option<bool> use_rcheck;
+    Option<bool> use_elim;
+    Option<int>  grow;
+    Option<int>  clause_lim;
+    Option<int>  subsumption_lim;
 
-    bool    use_asymm;        // Shrink clauses by asymmetric branching.
-    bool    use_rcheck;       // Check if a clause is already implied. Prett costly, and subsumes subsumptions :)
-    bool    use_elim;         // Perform variable elimination.
     bool    oblivious_mode;   // When true, does not store eliminated clauses, when a variable has been eliminated it
                               // can not be refered to later. Moreover, values for eliminated variables will likely be
                               // equal to 'l_Undef'.

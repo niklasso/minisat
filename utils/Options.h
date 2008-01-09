@@ -23,8 +23,9 @@
 // Top-level option parse/help functions:
 
 
-extern void parseOptions(int& argc, char** argv);
-extern void helpOptions (bool verbose);
+extern void parseOptions     (int& argc, char** argv, bool strict = false);
+extern void printUsageAndExit(int  argc, char** argv, bool verbose = false);
+extern void setUsageHelp     (const char* str);
 
 
 //==================================================================================================
@@ -34,13 +35,15 @@ extern void helpOptions (bool verbose);
 class GenOption
 {
  protected:
-    typedef vec<GenOption*> OptList;
-    static  OptList options;
+    static  vec<GenOption*> options;
+    static  const char*     help_usage;
  public:
     virtual bool parse       (const char* str) = 0;
     virtual void help        (bool verbose = false) = 0;
-    friend  void parseOptions(int& argc, char** argv);
-    friend  void helpOptions (bool verbose);
+
+    friend  void parseOptions      (int& argc, char** argv, bool strict);
+    friend  void printUsageAndExit (int  argc, char** argv, bool verbose);
+    friend  void setUsageHelp      (const char* str);
 };
 
 
@@ -144,7 +147,7 @@ class FloatOption : public BaseOption
     Float        value;
 
  public:
-    FloatOption(const char* n, const char* d, Range<Float> r, float def)
+    FloatOption(const char* n, const char* d, Range<Float> r, Float def)
         : BaseOption(n, d), range(r), value(def) {
         // FIXME: set LC_NUMERIC to "C" to make sure that strtof/strtod parses decimal point correctly.
     }
@@ -173,7 +176,7 @@ class FloatOption : public BaseOption
     }
 
     virtual void help (bool verbose = false){
-        fprintf(stderr, "  %-10s = %-8s  %c%4.2g .. %4.2g%c (default: %g)\n", 
+        fprintf(stderr, "  -%-10s = %-8s  %c%4.2g .. %4.2g%c (default: %g)\n", 
                 name, typeName<Float>(), 
                 range.begin_inclusive ? '[' : '(', 
                 range.begin,
@@ -192,10 +195,11 @@ template<>
 class Option<float>  : public FloatOption<float>
 {
  public:
-    Option(const char* n, const char* d, Range<float> r = Range<float>(-INFINITY, true, INFINITY, true), float def = float())
+    Option(const char* n, const char* d, float def = float(), Range<float> r = Range<float>(-INFINITY, false, INFINITY, false))
         : FloatOption<float>(n, d, r, def) {}
 
     operator float          (void) const  { return value; }
+    operator float&         (void)        { return value; }
     Option<float>& operator=(float x)     { value = x; return *this; }
 };
 
@@ -204,10 +208,11 @@ template<>
 class Option<double> : public FloatOption<double>
 {
  public:
-    Option(const char* n, const char* d, Range<double> r = Range<double>(-INFINITY, true, INFINITY, true), double def = double())
+    Option(const char* n, const char* d, double def = double(), Range<double> r = Range<double>(-INFINITY, false, INFINITY, false))
         : FloatOption<double>(n, d, r, def) {}
 
     operator double          (void) const { return value; }
+    operator double&         (void)       { return value; }
     Option<double>& operator=(double x)   { value = x; return *this; }
 };
 
@@ -251,7 +256,7 @@ class IntOption : public BaseOption
     }
 
     virtual void help (bool verbose = false){
-        fprintf(stderr, "  %-10s = %-8s [", name, typeName<Int>());
+        fprintf(stderr, "  -%-10s = %-8s [", name, typeName<Int>());
         if (range.begin == intMin<Int>())
             fprintf(stderr, "imin");
         else
@@ -276,10 +281,11 @@ template<>
 class Option<int32_t> : public IntOption<int32_t>
 {
  public:
-    Option(const char* n, const char* d, Range<int32_t> r = Range<int32_t>(INT32_MIN, INT32_MAX), int32_t def = int32_t())
+    Option(const char* n, const char* d, int32_t def = int32_t(), Range<int32_t> r = Range<int32_t>(INT32_MIN, INT32_MAX))
         : IntOption<int32_t>(n, d, r, def) {};
 
     operator int32_t          (void) const { return value; }
+    operator int32_t&         (void)       { return value; }
     Option<int32_t>& operator=(int32_t x)  { value = x; return *this; }
 };
 
@@ -288,10 +294,11 @@ template<>
 class Option<int64_t> : public IntOption<int64_t>
 {
  public:
-    Option(const char* n, const char* d, Range<int64_t> r = Range<int64_t>(INT64_MIN, INT64_MAX), int64_t def = int64_t())
+    Option(const char* n, const char* d, int64_t def = int64_t(), Range<int64_t> r = Range<int64_t>(INT64_MIN, INT64_MAX))
         : IntOption<int64_t>(n, d, r, def) {};
 
     operator int64_t          (void) const { return value; }
+    operator int64_t&         (void)       { return value; }
     Option<int64_t>& operator=(int64_t x)  { value = x; return *this; }
 };
 
@@ -308,6 +315,7 @@ class Option<const char*> : public BaseOption
     Option(const char* n, const char* d, const char* def = NULL) : BaseOption(n, d), value(def) {}
 
     operator const char*          (void) const     { return value; }
+    operator const char*&         (void)           { return value; }
     Option<const char*>& operator=(const char* x)  { value = x; return *this; }
 
     virtual bool parse(const char* str){
@@ -321,7 +329,7 @@ class Option<const char*> : public BaseOption
     }
 
     virtual void help (bool verbose = false){
-        fprintf(stderr, "  %-10s = <string>\n", name);
+        fprintf(stderr, "  -%-10s = <string>\n", name);
         if (verbose){
             fprintf(stderr, "\n        %s\n", description);
             fprintf(stderr, "\n");
@@ -355,14 +363,15 @@ class Option<bool> : public BaseOption
     Option(const char* n, const char* d, bool v) : BaseOption(n, d), value(v) {}
 
     operator bool          (void) const { return value; }
+    operator bool&         (void)       { return value; }
     Option<bool>& operator=(bool b)     { value = b; return *this; }
 
     virtual bool parse(const char* str){
         const char* span = str; 
-
+        
         if (match(span, "-") && match(span, name) && strlen(str) == strlen(name) + 1)
             value = true;
-        else if (match(span, "-no") && match(span, name) && strlen(str) == strlen(name) + 3)
+        else if (span = str, match(span, "-no-") && match(span, name) && strlen(str) == strlen(name) + 4)
             value = false;
         else
             return false;
@@ -374,9 +383,9 @@ class Option<bool> : public BaseOption
 
         fprintf(stderr, "  -%s, -no-%s", name, name);
 
-
-        for (uint32_t i = 0; i < 30 - strlen(name)*2; i++)
+        for (uint32_t i = 0; i < 31 - strlen(name)*2; i++)
             fprintf(stderr, " ");
+
         fprintf(stderr, " ");
         fprintf(stderr, "(default: %s)\n", value ? "on" : "off");
         if (verbose){

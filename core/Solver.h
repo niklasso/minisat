@@ -27,6 +27,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "Heap.h"
 #include "Alg.h"
 
+#include "Options.h"
+
 #include "SolverTypes.h"
 
 
@@ -77,19 +79,20 @@ public:
 
     // Mode of operation:
     //
-    double    var_decay;          // Inverse of the variable activity decay factor.                                            (default 1 / 0.95)
-    double    clause_decay;       // Inverse of the clause activity decay factor.                                              (1 / 0.999)
-    double    random_var_freq;    // The frequency with which the decision heuristic tries to choose a random variable.        (default 0.02)
-    double    random_seed;        // Used by the random variable selection.                                                    (default 91648253)
+    Option<int>    verbosity;
+    Option<double> var_decay;
+    Option<double> clause_decay;
+    Option<double> random_var_freq;
+    Option<double> random_seed;
+    Option<bool>   expensive_ccmin;
+
     int       restart_first;      // The initial restart limit.                                                                (default 100)
     double    restart_inc;        // The factor with which the restart limit is multiplied in each restart.                    (default 1.5)
     double    learntsize_factor;  // The intitial limit for learnt clauses is a factor of the original clauses.                (default 1 / 3)
     double    learntsize_inc;     // The limit for learnt clauses is multiplied with this factor each restart.                 (default 1.1)
-    bool      expensive_ccmin;    // Controls conflict clause minimization.                                                    (default TRUE)
-    int       verbosity;          // Verbosity level. 0=silent, 1=some progress report                                         (default 0)
 
-    int                 learntsize_adjust_start_confl;
-    double              learntsize_adjust_inc;
+    int       learntsize_adjust_start_confl;
+    double    learntsize_adjust_inc;
 
     // Statistics: (read-only member variable)
     //

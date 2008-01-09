@@ -113,119 +113,27 @@ static void SIGINT_handler(int signum) {
 //=================================================================================================
 // Main:
 
-void printUsage(char** argv, SimpSolver& S)
-{
-    reportf("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n\n", argv[0]);
-    reportf("OPTIONS:\n\n");
-    reportf("  -pre,    -no-pre                     (default: on)\n");
-    reportf("  -elim,   -no-elim                    (default: %s)\n", S.use_elim           ? "on" : "off");
-    reportf("  -asymm,  -no-asymm                   (default: %s)\n", S.use_asymm          ? "on" : "off");
-    reportf("  -rcheck, -no-rcheck                  (default: %s)\n", S.use_rcheck         ? "on" : "off");
-    reportf("\n");
-    reportf("  -grow          = <integer> [ >= 0  ] (default: %d)\n", S.grow);
-    reportf("  -lim           = <integer> [ >= -1 ] (default: %d)\n", S.clause_lim);
-    reportf("  -decay         = <double>  [ 0 - 1 ] (default: %g)\n", S.var_decay);
-    reportf("  -rnd-freq      = <double>  [ 0 - 1 ] (default: %g)\n", S.random_var_freq);
-    reportf("  -seed          = <double>  [ >0    ] (default: %g)\n", S.random_seed);
-    reportf("\n");
-    reportf("  -dimacs        = <output-file>.\n");
-    reportf("  -verb          = {0,1,2}             (default: %d)\n", S.verbosity);
-    reportf("\n");
-}
-
-
 int main(int argc, char** argv)
 {
+    setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n\n");
     reportf("This is MiniSat 2.0 beta\n");
+
 #if defined(__linux__)
     fpu_control_t oldcw, newcw;
     _FPU_GETCW(oldcw); newcw = (oldcw & ~_FPU_EXTENDED) | _FPU_DOUBLE; _FPU_SETCW(newcw);
     reportf("WARNING: for repeatability, setting FPU to use double precision\n");
 #endif
-    bool           pre    = true;
-    const char*    dimacs = NULL;
-    SimpSolver     S;
+
+    SimpSolver  S;
     S.verbosity = 1;
 
-    // Check for help flag:
-    for (int i = 0; i < argc; i++)
-        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-help") == 0){
-            printUsage(argv, S);
-            exit(0); }
-
-    // This just grew and grew, and I didn't have time to do sensible argument parsing yet :)
+    // Extra options:
     //
-    int         i, j;
-    const char* value;
-    for (i = j = 0; i < argc; i++){
-        value = argv[i];
-        if (match(argv[i], "-rnd-freq=")){
-            double rnd;
-            if (sscanf(value, "%lf", &rnd) <= 0 || rnd < 0 || rnd > 1){
-                reportf("ERROR! illegal rnd-freq constant %s\n", value);
-                exit(0); }
-            S.random_var_freq = rnd;
+    Option<bool>        pre    ("pre",    "Completely turn on/off any preprocessing.", true);
+    DummyOption         _dummy0;
+    Option<const char*> dimacs ("dimacs", "If given, stop after preprocessing and write the result to this file.");
 
-        }else if (match(value, "-decay=")){
-            double decay;
-            if (sscanf(value, "%lf", &decay) <= 0 || decay <= 0 || decay > 1){
-                reportf("ERROR! illegal decay constant %s\n", value);
-                exit(0); }
-            S.var_decay = 1 / decay;
-
-        }else if (match(value, "-seed=")){
-            double seed;
-            if (sscanf(value, "%lf", &seed) <= 0 || seed <= 0){
-                reportf("ERROR! illegal random seed constant %s\n", value);
-                exit(0); }
-            S.random_seed = seed;
-
-        }else if (match(value, "-verb=")){
-            int verbosity = (int)strtol(value, NULL, 10);
-            if (verbosity == 0 && errno == EINVAL){
-                reportf("ERROR! illegal verbosity level %s\n", value);
-                exit(0); }
-            S.verbosity = verbosity;
-
-        // Boolean flags:
-        //
-        }else if (match(value, "-pre")){
-            pre = true;
-        }else if (match(value, "-no-pre")){
-            pre = false;
-        }else if (match(argv[i], "-asymm")){
-            S.use_asymm = true;
-        }else if (match(argv[i], "-no-asymm")){
-            S.use_asymm = false;
-        }else if (match(argv[i], "-rcheck")){
-            S.use_rcheck = true;
-        }else if (match(argv[i], "-no-rcheck")){
-            S.use_rcheck = false;
-        }else if (match(argv[i], "-elim")){
-            S.use_elim = true;
-        }else if (match(argv[i], "-no-elim")){
-            S.use_elim = false;
-        }else if (match(value, "-grow=")){
-            int grow = (int)strtol(value, NULL, 10);
-            if (grow < 0){
-                reportf("ERROR! illegal grow constant %s\n", value);
-                exit(0); }
-            S.grow = grow;
-        }else if (match(value, "-lim=")){
-            int lim = (int)strtol(value, NULL, 10);
-            if (lim < 3){
-                reportf("ERROR! illegal clause limit constant %s\n", value);
-                exit(0); }
-            S.clause_lim = lim;
-        }else if (match(value, "-dimacs=")){
-            dimacs = value;
-        }else if (match(argv[i], "-")){
-            reportf("ERROR! unknown flag %s\nUse -help for more information.\n", value);
-            exit(0);
-        }else
-            argv[j++] = argv[i];
-    }
-    argc = j;
+    parseOptions(argc, argv);
 
     double initial_time = cpuTime();
 

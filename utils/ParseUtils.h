@@ -93,6 +93,7 @@ static int parseInt(B& in) {
 
 // String matching: in case of a match the input iterator will be advanced the corresponding
 // number of characters.
+// FIXME: check that it does not match a longer string ...
 template<class B>
 static bool match(B& in, const char* str) {
     int i;

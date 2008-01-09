@@ -27,12 +27,12 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 
 SimpSolver::SimpSolver() :
-    grow               (0)
-  , clause_lim         (20)
-  , subsumption_lim    (1000)
-  , use_asymm          (false)
-  , use_rcheck         (false)
-  , use_elim           (true)
+    use_asymm          ("asymm",   "Shrink clauses by asymmetric branching.", false)
+  , use_rcheck         ("rcheck",  "Check if a clause is already implied. (costly)", false)
+  , use_elim           ("elim",    "Perform variable elimination.", true)
+  , grow               ("grow",    "Allow a variable elimination step to grow by a number of clauses.", 0)
+  , clause_lim         ("cl-lim",  "Variables are not eliminated if it produces a resolvent with a length above this limit. -1 means no limit", 20,   Range<int>(-1, INT32_MAX))
+  , subsumption_lim    ("sub-lim", "Do not check if subsumption against a clause larger than this. -1 means no limit.", 1000, Range<int>(-1, INT32_MAX))
   , oblivious_mode     (false)
   , merges             (0)
   , asymm_lits         (0)

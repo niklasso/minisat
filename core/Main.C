@@ -103,77 +103,23 @@ static void SIGINT_handler(int signum) {
 //=================================================================================================
 // Main:
 
-void printUsage(char** argv, Solver& S)
-{
-    reportf("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n\n", argv[0]);
-    reportf("OPTIONS:\n\n");
-    reportf("  -decay         = <double>  [ 0 - 1 ] (default: %g)\n", S.var_decay);
-    reportf("  -rnd-freq      = <double>  [ 0 - 1 ] (default: %g)\n", S.random_var_freq);
-    reportf("  -seed          = <double>  [ >0    ] (default: %g)\n", S.random_seed);
-    reportf("  -verb          = {0,1,2}             (default: %d)\n", S.verbosity);
-    reportf("\n");
-}
-
 
 int main(int argc, char** argv)
 {
-    Solver      S;
-    S.verbosity = 1;
-
-
-    int         i, j;
-    const char* value;
-    for (i = j = 0; i < argc; i++){
-        value = argv[i];
-
-        if (match(value, "-rnd-freq=")){
-            double rnd;
-            if (sscanf(value, "%lf", &rnd) <= 0 || rnd < 0 || rnd > 1){
-                reportf("ERROR! illegal rnd-freq constant %s\n", value);
-                exit(0); }
-            S.random_var_freq = rnd;
-
-        }else if (match(value, "-decay=")){
-            double decay;
-            if (sscanf(value, "%lf", &decay) <= 0 || decay <= 0 || decay > 1){
-                reportf("ERROR! illegal decay constant %s\n", value);
-                exit(0); }
-            S.var_decay = 1 / decay;
-
-        }else if (match(value, "-seed=")){
-            double seed;
-            if (sscanf(value, "%lf", &seed) <= 0 || seed <= 0){
-                reportf("ERROR! illegal random seed constant %s\n", value);
-                exit(0); }
-            S.random_seed = seed;
-
-        }else if (match(value, "-verb=")){
-            int verbosity = (int)strtol(value, NULL, 10);
-            if (verbosity == 0 && errno == EINVAL){
-                reportf("ERROR! illegal verbosity level %s\n", value);
-                exit(0); }
-            S.verbosity = verbosity;
-
-        }else if (match(value, "-h") || match(value, "-help") || match(value, "--help")){
-            printUsage(argv, S);
-            exit(0);
-
-        }else if (match(value, "-")){
-            reportf("ERROR! unknown flag %s\n", value);
-            exit(0);
-
-        }else
-            argv[j++] = argv[i];
-    }
-    argc = j;
-
-
+    setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n\n");
     reportf("This is MiniSat 2.0 beta\n");
+
 #if defined(__linux__)
     fpu_control_t oldcw, newcw;
     _FPU_GETCW(oldcw); newcw = (oldcw & ~_FPU_EXTENDED) | _FPU_DOUBLE; _FPU_SETCW(newcw);
     reportf("WARNING: for repeatability, setting FPU to use double precision\n");
 #endif
+
+    Solver S;
+    S.verbosity = 1;
+
+    parseOptions(argc, argv);
+
     double initial_time = cpuTime();
 
     solver = &S;
