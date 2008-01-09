@@ -27,54 +27,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "ParseUtils.h"
 #include "Options.h"
 
+#include "Dimacs.h"
 #include "Solver.h"
-
-//=================================================================================================
-// DIMACS Parser:
-
-template<class B>
-static void readClause(B& in, Solver& S, vec<Lit>& lits) {
-    int     parsed_lit, var;
-    lits.clear();
-    for (;;){
-        parsed_lit = parseInt(in);
-        if (parsed_lit == 0) break;
-        var = abs(parsed_lit)-1;
-        while (var >= S.nVars()) S.newVar();
-        lits.push( (parsed_lit > 0) ? mkLit(var) : ~mkLit(var) );
-    }
-}
-
-template<class B>
-static void parse_DIMACS_main(B& in, Solver& S) {
-    vec<Lit> lits;
-    for (;;){
-        skipWhitespace(in);
-        if (*in == EOF)
-            break;
-        else if (*in == 'p'){
-            if (eagerMatch(in, "p cnf")){
-                int vars    = parseInt(in);
-                int clauses = parseInt(in);
-                reportf("|  Number of variables:  %12d                                         |\n", vars);
-                reportf("|  Number of clauses:    %12d                                         |\n", clauses);
-            }else{
-                reportf("PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
-            }
-        } else if (*in == 'c' || *in == 'p')
-            skipLine(in);
-        else
-            readClause(in, S, lits),
-            S.addClause(lits);
-    }
-}
-
-// Inserts problem into solver.
-//
-static void parse_DIMACS(gzFile input_stream, Solver& S) {
-    StreamBuffer in(input_stream);
-    parse_DIMACS_main(in, S); }
-
 
 //=================================================================================================
 
@@ -133,12 +87,15 @@ int main(int argc, char** argv)
     if (in == NULL)
         reportf("ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
 
-    reportf("============================[ Problem Statistics ]=============================\n");
-    reportf("|                                                                             |\n");
+    printf("============================[ Problem Statistics ]=============================\n");
+    printf("|                                                                             |\n");
 
     parse_DIMACS(in, S);
     gzclose(in);
     FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
+
+    printf("|  Number of variables:  %12d                                         |\n", S.nVars());
+    printf("|  Number of clauses:    %12d                                         |\n", S.nClauses());
 
     double parsed_time = cpuTime();
     reportf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
