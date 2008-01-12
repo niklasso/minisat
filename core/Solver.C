@@ -24,6 +24,20 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 
 //=================================================================================================
+// Options:
+
+
+static const char* _cat = "CORE";
+
+static IntOption     opt_verbosity        (_cat, "verb", "Verbosity level. 0=silent, 1=some, 2=more",         1,        IntRange(0, 2));
+static DoubleOption  opt_var_decay        (_cat, "var-decay","The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
+static DoubleOption  opt_clause_decay     (_cat, "cla-decay","The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
+static DoubleOption  opt_random_var_freq  (_cat, "rnd-freq", "The frequency with which the decision heuristic tries to choose a random variable", 0.02, DoubleRange(0, true, 1, true));
+static DoubleOption  opt_random_seed      (_cat, "rnd-seed", "Used by the random variable selection",         91648253, DoubleRange(0, false, INFINITY, false));
+static BoolOption    opt_expensive_ccmin  (_cat, "exp-ccmin", "Controls conflict clause minimization", true);
+
+
+//=================================================================================================
 // Constructor/Destructor:
 
 
@@ -31,13 +45,12 @@ Solver::Solver() :
 
     // Parameters (command-line settable):
     //
-    verbosity        ("verb", "Verbosity level. 0=silent, 1=some, 2=more",         0,        Range<int>(0, 2))
-  , var_decay        ("var-decay","The variable activity decay factor",            0.95,     Range<double>(0, false, 1, false))
-  , clause_decay     ("cla-decay","The clause activity decay factor",              0.999,    Range<double>(0, false, 1, false))
-  , random_var_freq  ("rnd-freq", "The frequency with which the decision heuristic tries to choose a random variable", 
-                                                                                   0.02,     Range<double>(0, true, 1, true))
-  , random_seed      ("rnd-seed", "Used by the random variable selection",         91648253, Range<double>(0, false, INFINITY, false))
-  , expensive_ccmin  ("exp-ccmin", "Controls conflict clause minimization", true)
+    verbosity        (opt_verbosity)
+  , var_decay        (opt_var_decay)
+  , clause_decay     (opt_clause_decay)
+  , random_var_freq  (opt_random_var_freq)
+  , random_seed      (opt_random_seed)
+  , expensive_ccmin  (opt_expensive_ccmin)
 
     // Parameters (the rest):
     //

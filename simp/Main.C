@@ -60,7 +60,7 @@ static void SIGINT_handler(int signum) {
 
 int main(int argc, char** argv)
 {
-    setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n\n");
+    setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n");
     reportf("This is MiniSat 2.0 beta\n");
 
 #if defined(__linux__)
@@ -69,18 +69,15 @@ int main(int argc, char** argv)
     reportf("WARNING: for repeatability, setting FPU to use double precision\n");
 #endif
 
-    SimpSolver  S;
-    S.verbosity = 1;
-
     // Extra options:
     //
-    Option<bool>        pre    ("pre",    "Completely turn on/off any preprocessing.", true);
-    DummyOption         _dummy0;
-    Option<const char*> dimacs ("dimacs", "If given, stop after preprocessing and write the result to this file.");
+    BoolOption   pre    ("MAIN", "pre",    "Completely turn on/off any preprocessing.", true);
+    StringOption dimacs ("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
 
-    parseOptions(argc, argv);
+    parseOptions(argc, argv, true);
 
-    double initial_time = cpuTime();
+    SimpSolver  S;
+    double      initial_time = cpuTime();
 
     if (!pre) S.eliminate(true);
 
@@ -89,7 +86,7 @@ int main(int argc, char** argv)
     signal(SIGHUP,SIGINT_handler);
 
     if (argc == 1)
-        reportf("Reading from standard input... Use '-h' or '--help' for help.\n");
+        reportf("Reading from standard input... Use '-h' for help.\n");
 
     gzFile in = (argc == 1) ? gzdopen(0, "rb") : gzopen(argv[1], "rb");
     if (in == NULL)

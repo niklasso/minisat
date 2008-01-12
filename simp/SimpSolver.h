@@ -55,12 +55,13 @@ class SimpSolver : public Solver {
 
     // Mode of operation:
     //
-    Option<bool> use_asymm;
-    Option<bool> use_rcheck;
-    Option<bool> use_elim;
-    Option<int>  grow;
-    Option<int>  clause_lim;
-    Option<int>  subsumption_lim;
+
+    bool    use_asymm;
+    bool    use_rcheck;
+    bool    use_elim;
+    int     grow;
+    int     clause_lim;
+    int     subsumption_lim;
 
     bool    oblivious_mode;   // When true, does not store eliminated clauses, when a variable has been eliminated it
                               // can not be refered to later. Moreover, values for eliminated variables will likely be

@@ -79,12 +79,12 @@ public:
 
     // Mode of operation:
     //
-    Option<int>    verbosity;
-    Option<double> var_decay;
-    Option<double> clause_decay;
-    Option<double> random_var_freq;
-    Option<double> random_seed;
-    Option<bool>   expensive_ccmin;
+    int       verbosity;
+    double    var_decay;
+    double    clause_decay;
+    double    random_var_freq;
+    double    random_seed;
+    bool      expensive_ccmin;
 
     int       restart_first;      // The initial restart limit.                                                                (default 100)
     double    restart_inc;        // The factor with which the restart limit is multiplied in each restart.                    (default 1.5)

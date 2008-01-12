@@ -21,18 +21,31 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "Sort.h"
 #include "SimpSolver.h"
 
+//=================================================================================================
+// Options:
+
+
+const char* _cat = "SIMP";
+
+static BoolOption opt_use_asymm          (_cat, "asymm",   "Shrink clauses by asymmetric branching.", false);
+static BoolOption opt_use_rcheck         (_cat, "rcheck",  "Check if a clause is already implied. (costly)", false);
+static BoolOption opt_use_elim           (_cat, "elim",    "Perform variable elimination.", true);
+static IntOption  opt_grow               (_cat, "grow",    "Allow a variable elimination step to grow by a number of clauses.", 0);
+static IntOption  opt_clause_lim         (_cat, "cl-lim",  "Variables are not eliminated if it produces a resolvent with a length above this limit. -1 means no limit", 20,   IntRange(-1, INT64_MAX));
+static IntOption  opt_subsumption_lim    (_cat, "sub-lim", "Do not check if subsumption against a clause larger than this. -1 means no limit.", 1000, IntRange(-1, INT64_MAX));
+
 
 //=================================================================================================
 // Constructor/Destructor:
 
 
 SimpSolver::SimpSolver() :
-    use_asymm          ("asymm",   "Shrink clauses by asymmetric branching.", false)
-  , use_rcheck         ("rcheck",  "Check if a clause is already implied. (costly)", false)
-  , use_elim           ("elim",    "Perform variable elimination.", true)
-  , grow               ("grow",    "Allow a variable elimination step to grow by a number of clauses.", 0)
-  , clause_lim         ("cl-lim",  "Variables are not eliminated if it produces a resolvent with a length above this limit. -1 means no limit", 20,   Range<int>(-1, INT32_MAX))
-  , subsumption_lim    ("sub-lim", "Do not check if subsumption against a clause larger than this. -1 means no limit.", 1000, Range<int>(-1, INT32_MAX))
+    use_asymm          (opt_use_asymm)
+  , use_rcheck         (opt_use_rcheck)
+  , use_elim           (opt_use_elim)
+  , grow               (opt_grow)
+  , clause_lim         (opt_clause_lim)
+  , subsumption_lim    (opt_subsumption_lim)
   , oblivious_mode     (false)
   , merges             (0)
   , asymm_lits         (0)
