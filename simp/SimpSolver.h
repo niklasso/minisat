@@ -38,10 +38,13 @@ class SimpSolver : public Solver {
     //
     Var     newVar    (bool polarity = true, bool dvar = true);
     bool    addClause (const vec<Lit>& ps);
+    bool    substitute(Var v, Lit x);  // Replace all occurences of v with x (may cause a contradiction).
 
     // Variable mode:
     // 
     void    setFrozen (Var v, bool b); // If a variable is frozen it will not be eliminated.
+    bool    isEliminated(Var v) const;
+    int     nFreeVars () const { return order_heap.size(); }
 
     // Solving:
     //
@@ -55,38 +58,24 @@ class SimpSolver : public Solver {
 
     // Mode of operation:
     //
+    int     grow;             // Allow a variable elimination step to grow by a number of clauses (default to zero).
+    int     clause_lim;       // Variables are not eliminated if it produces a resolvent with a length above this limit.
+                              // -1 means no limit.
+    int     subsumption_lim;  // Do not check if subsumption against a clause larger than this. -1 means no limit.
 
-    bool    use_asymm;
-    bool    use_rcheck;
-    bool    use_elim;
-    int     grow;
-    int     clause_lim;
-    int     subsumption_lim;
-
-    bool    oblivious_mode;   // When true, does not store eliminated clauses, when a variable has been eliminated it
-                              // can not be refered to later. Moreover, values for eliminated variables will likely be
-                              // equal to 'l_Undef'.
+    bool    use_asymm;        // Shrink clauses by asymmetric branching.
+    bool    use_rcheck;       // Check if a clause is already implied. Prett costly, and subsumes subsumptions :)
+    bool    use_elim;         // Perform variable elimination.
 
     // Statistics:
     //
     int     merges;
     int     asymm_lits;
-    int     remembered_clauses;
 
  protected:
 
     // Helper structures:
     //
-    struct ElimData {
-        int          order;      // 0 means not eliminated, >0 gives an index in the elimination order
-        vec<Clause*> eliminated;
-        ElimData() : order(0) {} };
-
-    struct ElimOrderLt {
-        const vec<ElimData>& elimtable;
-        ElimOrderLt(const vec<ElimData>& et) : elimtable(et) {}
-        bool operator()(Var x, Var y) { return elimtable[x].order > elimtable[y].order; } };
-
     struct ElimLt {
         const vec<int>& n_occ;
         ElimLt(const vec<int>& no) : n_occ(no) {}
@@ -99,13 +88,15 @@ class SimpSolver : public Solver {
     //
     int                 elimorder;
     bool                use_simplification;
-    vec<ElimData>       elimtable;
+    vec<uint32_t>       elimclauses;
     vec<char>           touched;
     vec<vec<Clause*> >  occurs;
     vec<int>            n_occ;
     Heap<ElimLt>        elim_heap;
     Queue<Clause*>      subsumption_queue;
     vec<char>           frozen;
+    vec<char>           eliminated;
+
     int                 bwdsub_assigns;
 
     // Temporaries:
@@ -124,7 +115,6 @@ class SimpSolver : public Solver {
     bool          merge                    (const Clause& _ps, const Clause& _qs, Var v, int& size);
     bool          backwardSubsumptionCheck (bool verbose = false);
     bool          eliminateVar             (Var v);
-    void          remember                 (Var v);
     void          extendModel              ();
 
     void          removeClause             (Clause& c);
@@ -133,8 +123,6 @@ class SimpSolver : public Solver {
     bool          implied                  (const vec<Lit>& c);
     //void          toDimacs                 (FILE* f, Clause& c);
     void          toDimacs                 (FILE* f, Clause& c, vec<Var>& map, Var& max);
-    bool          isEliminated             (Var v) const;
-
 };
 
 
@@ -142,6 +130,7 @@ class SimpSolver : public Solver {
 // Implementation of inline methods:
 
 
+inline bool SimpSolver::isEliminated (Var v) const { return eliminated[v]; }
 inline void SimpSolver::updateElimHeap(Var v) {
     if (!frozen[v] && !isEliminated(v) && value(v) == l_Undef)
         elim_heap.update(v); }
@@ -163,9 +152,8 @@ inline void SimpSolver::cleanOcc(Var v) {
 inline vec<Clause*>& SimpSolver::getOccurs(Var x) {
     cleanOcc(x); return occurs[x]; }
 
-inline bool  SimpSolver::isEliminated (Var v) const { return v < elimtable.size() && elimtable[v].order != 0; }
-inline void  SimpSolver::setFrozen    (Var v, bool b) { frozen[v] = (char)b; if (b) { updateElimHeap(v); } }
-inline bool  SimpSolver::solve        (bool do_simp, bool turn_off_simp) { vec<Lit> tmp; return solve(tmp, do_simp, turn_off_simp); }
+inline void SimpSolver::setFrozen    (Var v, bool b) { frozen[v] = (char)b; if (b) { updateElimHeap(v); } }
+inline bool SimpSolver::solve        (bool do_simp, bool turn_off_simp) { vec<Lit> tmp; return solve(tmp, do_simp, turn_off_simp); }
 
 //=================================================================================================
 #endif

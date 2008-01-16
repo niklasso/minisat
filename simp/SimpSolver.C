@@ -40,16 +40,14 @@ static IntOption  opt_subsumption_lim    (_cat, "sub-lim", "Do not check if subs
 
 
 SimpSolver::SimpSolver() :
-    use_asymm          (opt_use_asymm)
-  , use_rcheck         (opt_use_rcheck)
-  , use_elim           (opt_use_elim)
-  , grow               (opt_grow)
+    grow               (opt_grow)
   , clause_lim         (opt_clause_lim)
   , subsumption_lim    (opt_subsumption_lim)
-  , oblivious_mode     (false)
+  , use_asymm          (opt_use_asymm)
+  , use_rcheck         (opt_use_rcheck)
+  , use_elim           (opt_use_elim)
   , merges             (0)
   , asymm_lits         (0)
-  , remembered_clauses (0)
   , elimorder          (1)
   , use_simplification (true)
   , elim_heap          (ElimLt(n_occ))
@@ -65,11 +63,6 @@ SimpSolver::SimpSolver() :
 SimpSolver::~SimpSolver()
 {
     free(bwdsub_tmpunit);
-
-    // NOTE: elimtable.size() might be lower than nVars() at the moment
-    for (int i = 0; i < elimtable.size(); i++)
-        for (int j = 0; j < elimtable[i].eliminated.size(); j++)
-            free(elimtable[i].eliminated[j]);
 }
 
 
@@ -77,14 +70,13 @@ Var SimpSolver::newVar(bool sign, bool dvar) {
     Var v = Solver::newVar(sign, dvar);
 
     if (use_simplification){
-        n_occ    .push(0);
-        n_occ    .push(0);
-        occurs   .push();
-        frozen   .push((char)false);
-        touched  .push(0);
-        elim_heap.insert(v);
-        //if (!oblivious_mode)
-        elimtable.push();
+        n_occ     .push(0);
+        n_occ     .push(0);
+        occurs    .push();
+        frozen    .push((char)false);
+        eliminated.push((char)false);
+        touched   .push(0);
+        elim_heap .insert(v);
     }
     return v; }
 
@@ -102,8 +94,7 @@ bool SimpSolver::solve(const vec<Lit>& assumps, bool do_simp, bool turn_off_simp
             Var v = var(assumps[i]);
 
             // If an assumption has been eliminated, remember it.
-            if (isEliminated(v))
-                remember(v);
+            assert(!isEliminated(v));
 
             if (!frozen[v]){
                 // Freeze and store.
@@ -134,9 +125,10 @@ bool SimpSolver::solve(const vec<Lit>& assumps, bool do_simp, bool turn_off_simp
 
 bool SimpSolver::addClause(const vec<Lit>& ps)
 {
+#ifndef NDEBUG
     for (int i = 0; i < ps.size(); i++)
-        if (isEliminated(var(ps[i])))
-            remember(var(ps[i]));
+        assert(!isEliminated(var(ps[i])));
+#endif
 
     int nclauses = clauses.size();
 
@@ -409,6 +401,39 @@ bool SimpSolver::asymmVar(Var v)
 }
 
 
+static void mkElimClause(vec<uint32_t>& elimclauses, Lit x)
+{
+    elimclauses.push(toInt(x));
+    elimclauses.push(1);
+}
+
+
+static void mkElimClause(vec<uint32_t>& elimclauses, Var v, Clause& c)
+{
+    int first = elimclauses.size();
+    int v_pos = -1;
+
+    // Copy clause to elimclauses-vector. Remember position where the
+    // variable 'v' occurs:
+    for (int i = 0; i < c.size(); i++){
+        elimclauses.push(toInt(c[i]));
+        if (var(c[i]) == v)
+            v_pos = i + first;
+    }
+    assert(v_pos != -1);
+
+    // Swap the first literal with the 'v' literal, so that the literal
+    // containing 'v' will occur first in the clause:
+    uint32_t tmp = elimclauses[v_pos];
+    elimclauses[v_pos] = elimclauses[first];
+    elimclauses[first] = tmp;
+
+    // Store the length of the clause last:
+    elimclauses.push(c.size());
+}
+
+
+
 bool SimpSolver::eliminateVar(Var v)
 {
     assert(!frozen[v]);
@@ -435,13 +460,18 @@ bool SimpSolver::eliminateVar(Var v)
                 return true;
 
     // Delete and store old clauses:
+    eliminated[v] = true;
     setDecisionVar(v, false);
-    elimtable[v].order = elimorder++;
-    if (!oblivious_mode){
-        assert(elimtable[v].eliminated.size() == 0);
-        for (int i = 0; i < cls.size(); i++)
-            elimtable[v].eliminated.push(Clause_new(*cls[i], false, false));
+    if (pos.size() > neg.size()){
+        for (int i = 0; i < neg.size(); i++)
+            mkElimClause(elimclauses, v, *neg[i]);
+        mkElimClause(elimclauses, mkLit(v));
+    }else{
+        for (int i = 0; i < pos.size(); i++)
+            mkElimClause(elimclauses, v, *pos[i]);
+        mkElimClause(elimclauses, ~mkLit(v));
     }
+
     for (int i = 0; i < cls.size(); i++)
         removeClause(*cls[i]); 
 
@@ -463,73 +493,51 @@ bool SimpSolver::eliminateVar(Var v)
 }
 
 
-void SimpSolver::remember(Var v)
+bool SimpSolver::substitute(Var v, Lit x)
 {
-    assert(decisionLevel() == 0);
-    assert(isEliminated(v));
-    assert(!oblivious_mode);
+    assert(!frozen[v]);
+    assert(!isEliminated(v));
+    assert(value(v) == l_Undef);
 
-    vec<Lit> clause;
+    if (!ok) return false;
 
-    // Re-activate variable:
-    elimtable[v].order = 0;
-    setDecisionVar(v, true); // Not good if the variable wasn't a decision variable before. Not sure how to fix this right now.
+    eliminated[v] = true;
+    setDecisionVar(v, false);
+    const vec<Clause*>& cls = getOccurs(v);
+    
+    vec<Lit> subst_clause;
+    for (int i = 0; i < cls.size(); i++){
+        Clause& c = *cls[i];
 
-    if (use_simplification)
-        updateElimHeap(v);
+        subst_clause.clear();
+        for (int j = 0; j < c.size(); j++){
+            Lit p = c[j];
+            subst_clause.push(var(p) == v ? x ^ sign(p) : p);
+        }
 
-    // Reintroduce all old clauses which may implicitly remember other clauses:
-    for (int i = 0; i < elimtable[v].eliminated.size(); i++){
-        Clause& c = *elimtable[v].eliminated[i];
-        clause.clear();
-        for (int j = 0; j < c.size(); j++)
-            clause.push(c[j]);
+        removeClause(c);
 
-        remembered_clauses++;
-        check(addClause(clause));
-        free(&c);
+        if (!addClause(subst_clause))
+            return ok = false;
     }
 
-    elimtable[v].eliminated.clear();
+    return true;
 }
 
 
-// NOTE: this has no effect if the solver is in 'oblivious_mode'.
 void SimpSolver::extendModel()
 {
-    assert(model.size() == nVars());
+    int i, j;
+    Lit x;
 
-    vec<Var> vs;
+    for (i = elimclauses.size()-1; i > 0; i -= j){
+        for (j = elimclauses[i--]; j > 1; j--, i--)
+            if (modelValue(toLit(elimclauses[i])) != l_False)
+                goto next;
 
-    // NOTE: elimtable.size() might be lower than nVars() at the moment
-    for (int v = 0; v < elimtable.size(); v++)
-        if (elimtable[v].order > 0)
-            vs.push(v);
-
-    sort(vs, ElimOrderLt(elimtable));
-
-    for (int i = 0; i < vs.size(); i++){
-        Var v = vs[i];
-        Lit l = lit_Undef;
-
-        for (int j = 0; j < elimtable[v].eliminated.size(); j++){
-            Clause& c = *elimtable[v].eliminated[j];
-
-            for (int k = 0; k < c.size(); k++)
-                if (var(c[k]) == v)
-                    l = c[k];
-                else if (modelValue(c[k]) != l_False)
-                    goto next;
-
-            assert(l != lit_Undef);
-            model[v] = lbool(!sign(l));
-            break;
-
-        next:;
-        }
-
-        if (model[v] == l_Undef)
-            model[v] = l_True;
+        x = toLit(elimclauses[i]);
+        model[var(x)] = lbool(!sign(x));
+    next:;
     }
 }
 
