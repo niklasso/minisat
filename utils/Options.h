@@ -1,13 +1,7 @@
 #ifndef Options_h
 #define Options_h
 
-#ifndef __STDC_LIMIT_MACROS
-#define __STDC_LIMIT_MACROS
-#endif
 #include <stdint.h>
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
 #include <inttypes.h>
 
 #include <cstdlib>

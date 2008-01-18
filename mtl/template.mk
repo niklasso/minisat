@@ -24,7 +24,7 @@ LFLAGS    ?= -Wall
 
 COPTIMIZE ?= -O3
 
-CFLAGS    += $(foreach dir, $(DEPDIR), -I$(MROOT)/$(dir))
+CFLAGS    += $(foreach dir, $(DEPDIR), -I$(MROOT)/$(dir)) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS
 
 .PHONY : s p d r rs clean 
 
