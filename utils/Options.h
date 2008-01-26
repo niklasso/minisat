@@ -58,6 +58,8 @@ class Option
     }
 
  public:
+    virtual ~Option() {}
+
     virtual bool parse             (const char* str)      = 0;
     virtual void help              (bool verbose = false) = 0;
 
