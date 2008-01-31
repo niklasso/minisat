@@ -598,8 +598,9 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         extra_clause_field = false;
     }
 
-    reportf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
-            double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
+    if (verbosity >= 1 && elimclauses.size() > 0)
+        reportf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
+                double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
 
     return true;
 }
