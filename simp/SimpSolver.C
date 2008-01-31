@@ -452,6 +452,13 @@ bool SimpSolver::eliminateVar(Var v)
             if (merge(*pos[i], *neg[j], v, resolvent) && !addClause(resolvent))
                 return false;
 
+    // Free occurs list for this variable:
+    occurs[v].clear(true);
+    
+    // Free watchers lists for this variable, if possible:
+    if (watches[toInt( mkLit(v))].size() == 0) watches[toInt( mkLit(v))].clear(true);
+    if (watches[toInt(~mkLit(v))].size() == 0) watches[toInt(~mkLit(v))].clear(true);
+
     return backwardSubsumptionCheck();
 }
 
@@ -487,9 +494,10 @@ void SimpSolver::remember(Var v)
 }
 
 
+// NOTE: this has no effect if the solver is in 'oblivious_mode'.
 void SimpSolver::extendModel()
 {
-    if (oblivious_mode) return;
+    assert(model.size() == nVars());
 
     vec<Var> vs;
 
@@ -534,9 +542,8 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         return true;
 
     // Main simplification loop:
-    //assert(subsumption_queue.size() == 0);
-    //gatherTouchedClauses();
-    while (subsumption_queue.size() > 0 || elim_heap.size() > 0){
+    //
+    while (subsumption_queue.size() > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){
 
         if (!backwardSubsumptionCheck(true))
             return ok = false;
@@ -544,25 +551,22 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         for (int cnt = 0; !elim_heap.empty(); cnt++){
             Var elim = elim_heap.removeMin();
 
-            if (isEliminated(elim))
-                fprintf(stderr, "\nAlready eliminated: %d\n", elim+1);
-
-            assert(!isEliminated(elim));
-
-            if (frozen[elim] || value(elim) != l_Undef) continue;
+            if (isEliminated(elim) || value(elim) != l_Undef) continue;
 
             if (verbosity >= 2 && cnt % 100 == 0)
                 reportf("elimination left: %10d\r", elim_heap.size());
 
-            //fprintf(stderr, "\nTrying to eliminate: %d\n", elim+1);
             if (use_asymm){
+                // Temporarily freeze variable. Otherwise, it would immediately end up on the queue again:
                 bool was_frozen = frozen[elim];
                 frozen[elim] = true;
                 if (!asymmVar(elim))
                     return ok = false;
                 frozen[elim] = was_frozen; }
 
-            if (use_elim && value(elim) == l_Undef && !eliminateVar(elim))
+            // At this point, the variable may have been set by assymetric branching, so check it
+            // again. Also, don't eliminate frozen variables:
+            if (use_elim && value(elim) == l_Undef && !frozen[elim] && !eliminateVar(elim))
                 return ok = false;
         }
 
@@ -586,6 +590,8 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         extra_clause_field = false;
     }
 
+    reportf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
+            double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
 
     return true;
 }
