@@ -1,8 +1,9 @@
-#include "Options.h"
-#include "Sort.h"
+#include "mtl/Sort.h"
+#include "utils/Options.h"
 
+using namespace Minisat;
 
-void parseOptions(int& argc, char** argv, bool strict)
+void Minisat::parseOptions(int& argc, char** argv, bool strict)
 {
     int i, j;
     for (i = j = 1; i < argc; i++)
@@ -31,8 +32,8 @@ void parseOptions(int& argc, char** argv, bool strict)
 }
 
 
-void setUsageHelp      (const char* str){ Option::getUsageString() = str; }
-void printUsageAndExit (int argc, char** argv, bool verbose)
+void Minisat::setUsageHelp      (const char* str){ Option::getUsageString() = str; }
+void Minisat::printUsageAndExit (int argc, char** argv, bool verbose)
 {
     const char* usage = Option::getUsageString();
     if (usage != NULL)

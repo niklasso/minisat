@@ -1,5 +1,5 @@
-#ifndef Options_h
-#define Options_h
+#ifndef Minisat_Options_h
+#define Minisat_Options_h
 
 #include <stdint.h>
 #include <inttypes.h>
@@ -9,9 +9,10 @@
 #include <cmath>
 #include <cstring>
 
-#include "Vec.h"
-#include "ParseUtils.h"
+#include "mtl/Vec.h"
+#include "utils/ParseUtils.h"
 
+namespace Minisat {
 
 //==================================================================================================
 // Top-level option parse/help functions:
@@ -29,7 +30,6 @@ extern void setUsageHelp     (const char* str);
 class Option
 {
  protected:
-
     const char* name;
     const char* description;
     const char* category;
@@ -293,5 +293,6 @@ class BoolOption : public Option
     }
 };
 
+};
 
 #endif

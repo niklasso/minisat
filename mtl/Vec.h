@@ -18,12 +18,14 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Vec_h
-#define Vec_h
+#ifndef Minisat_Vec_h
+#define Minisat_Vec_h
 
 #include <cstdlib>
 #include <cassert>
 #include <new>
+
+namespace Minisat {
 
 //=================================================================================================
 // Automatically resizable arrays
@@ -112,5 +114,6 @@ void vec<T>::clear(bool dealloc) {
         sz = 0;
         if (dealloc) free(data), data = NULL, cap = 0; } }
 
+};
 
 #endif

@@ -24,7 +24,8 @@ LFLAGS    ?= -Wall
 
 COPTIMIZE ?= -O3
 
-CFLAGS    += $(foreach dir, $(DEPDIR), -I$(MROOT)/$(dir)) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS
+#CFLAGS    += $(foreach dir, $(DEPDIR), -I$(MROOT)/$(dir)) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS
+CFLAGS    += -I$(MROOT) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS
 
 .PHONY : s p d r rs clean 
 
@@ -72,7 +73,7 @@ clean:
 ## Make dependencies
 depend.mk: $(CSRCS) $(CHDRS)
 	@echo Making dependencies
-	@$(CXX) $(foreach dir, $(DEPDIR), -I$(MROOT)/$(dir)) \
+	@$(CXX) -I$(MROOT) \
 	   $(CSRCS) -MM | sed 's|\(.*\):|$(PWD)/\1 $(PWD)/\1r $(PWD)/\1d $(PWD)/\1p:|' > depend.mk
 	@for dir in $(DEPDIR); do \
 	      if [ -r $(MROOT)/$${dir}/depend.mk ]; then \

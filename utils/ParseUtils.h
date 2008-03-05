@@ -18,13 +18,15 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef ParseUtils_h
-#define ParseUtils_h
+#ifndef Minisat_ParseUtils_h
+#define Minisat_ParseUtils_h
 
 #include <cstdlib>
 #include <cstdio>
 
 #include <zlib.h>
+
+namespace Minisat {
 
 //-------------------------------------------------------------------------------------------------
 // A simple buffered character stream class:
@@ -112,5 +114,7 @@ static bool eagerMatch(B& in, const char* str) {
         if (*str != *in)
             return false;
     return true; }
+
+};
 
 #endif

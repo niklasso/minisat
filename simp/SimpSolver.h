@@ -18,13 +18,18 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef SimpSolver_h
-#define SimpSolver_h
+#ifndef Minisat_SimpSolver_h
+#define Minisat_SimpSolver_h
 
 #include <cstdio>
 
-#include "Queue.h"
-#include "Solver.h"
+#include "mtl/Queue.h"
+#include "core/Solver.h"
+
+
+namespace Minisat {
+
+//=================================================================================================
 
 
 class SimpSolver : public Solver {
@@ -156,4 +161,7 @@ inline void SimpSolver::setFrozen    (Var v, bool b) { frozen[v] = (char)b; if (
 inline bool SimpSolver::solve        (bool do_simp, bool turn_off_simp) { vec<Lit> tmp; return solve(tmp, do_simp, turn_off_simp); }
 
 //=================================================================================================
+
+};
+
 #endif

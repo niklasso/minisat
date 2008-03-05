@@ -24,6 +24,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include <cstdio>
 
+using namespace Minisat;
+
 static inline int memReadStat(int field)
 {
     char    name[256];
@@ -37,12 +39,12 @@ static inline int memReadStat(int field)
     fclose(in);
     return value;
 }
-double memUsed() { return (double)memReadStat(0) * (double)getpagesize() / (1024*1024); }
+double Minisat::memUsed() { return (double)memReadStat(0) * (double)getpagesize() / (1024*1024); }
 
 
 #elif defined(__FreeBSD__)
 
-double memUsed(void) {
+double Minisat::memUsed(void) {
     struct rusage ru;
     getrusage(RUSAGE_SELF, &ru);
     return (double)ru.ru_maxrss / 1024; }
@@ -51,13 +53,12 @@ double memUsed(void) {
 #elif defined(__APPLE__)
 #include <malloc/malloc.h>
 
-double memUsed(void) {
+double Minisat::memUsed(void) {
     malloc_statistics_t t;
     malloc_zone_statistics(NULL, &t);
     return (double)t.max_size_in_use / (1024*1024); }
 
-
 #else
-double memUsed() { 
+double Minisat::memUsed() { 
     return 0; }
 #endif

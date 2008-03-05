@@ -18,12 +18,13 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Alg_h
-#define Alg_h
+#ifndef Minisat_Alg_h
+#define Minisat_Alg_h
 
 //=================================================================================================
 // Useful functions on vector-like types:
 
+namespace Minisat {
 
 template<class V, class T>
 static inline void remove(V& ts, const T& t)
@@ -44,5 +45,7 @@ static inline bool find(V& ts, const T& t)
     return j < ts.size();
 }
 
+
+};
 
 #endif

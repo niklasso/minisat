@@ -18,14 +18,15 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Dimacs_h
-#define Dimacs_h
+#ifndef Minisat_Dimacs_h
+#define Minisat_Dimacs_h
 
 #include <cstdio>
 
-#include "ParseUtils.h"
+#include "utils/ParseUtils.h"
+#include "core/SolverTypes.h"
 
-#include "SolverTypes.h"
+namespace Minisat {
 
 //=================================================================================================
 // DIMACS Parser:
@@ -81,5 +82,7 @@ template<class Solver>
 static void parse_DIMACS(gzFile input_stream, Solver& S) {
     StreamBuffer in(input_stream);
     parse_DIMACS_main(in, S); }
+
+};
 
 #endif

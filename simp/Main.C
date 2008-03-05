@@ -23,13 +23,13 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <signal.h>
 #include <zlib.h>
 
-#include "System.h"
-#include "ParseUtils.h"
-#include "Options.h"
+#include "utils/System.h"
+#include "utils/ParseUtils.h"
+#include "utils/Options.h"
+#include "core/Dimacs.h"
+#include "simp/SimpSolver.h"
 
-#include "Dimacs.h"
-#include "SimpSolver.h"
-
+using namespace Minisat;
 
 //=================================================================================================
 

@@ -19,13 +19,15 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 **************************************************************************************************/
 
 
-#ifndef SolverTypes_h
-#define SolverTypes_h
+#ifndef Minisat_SolverTypes_h
+#define Minisat_SolverTypes_h
 
 #include <cassert>
 #include <stdint.h>
 
-#include "Alg.h"
+#include "mtl/Alg.h"
+
+namespace Minisat {
 
 //=================================================================================================
 // Variables, literals, lifted booleans, clauses:
@@ -211,5 +213,7 @@ inline void Clause::strengthen(Lit p)
     remove(*this, p);
     calcAbstraction();
 }
+
+};
 
 #endif

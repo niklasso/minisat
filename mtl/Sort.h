@@ -18,14 +18,16 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Sort_h
-#define Sort_h
+#ifndef Minisat_Sort_h
+#define Minisat_Sort_h
 
-#include "Vec.h"
+#include "mtl/Vec.h"
 
 //=================================================================================================
 // Some sorting algorithms for vec's
 
+
+namespace Minisat {
 
 template<class T>
 struct LessThan_default {
@@ -91,4 +93,7 @@ template <class T> void sort(vec<T>& v) {
 
 
 //=================================================================================================
+
+};
+
 #endif

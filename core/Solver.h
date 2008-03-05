@@ -18,19 +18,19 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Solver_h
-#define Solver_h
+#ifndef Minisat_Solver_h
+#define Minisat_Solver_h
 
 #include <cstdio>
 
-#include "Vec.h"
-#include "Heap.h"
-#include "Alg.h"
+#include "mtl/Vec.h"
+#include "mtl/Heap.h"
+#include "mtl/Alg.h"
+#include "utils/Options.h"
+#include "core/SolverTypes.h"
 
-#include "Options.h"
 
-#include "SolverTypes.h"
-
+namespace Minisat {
 
 //=================================================================================================
 // Solver -- the main class:
@@ -264,4 +264,7 @@ static inline void check(bool expr) {
 
 
 //=================================================================================================
+
+};
+
 #endif

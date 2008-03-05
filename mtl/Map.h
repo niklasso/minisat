@@ -17,21 +17,21 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Map_h
-#define Map_h
+#ifndef Minisat_Map_h
+#define Minisat_Map_h
 
-#include <stdint.h>
+#include "mtl/Vec.h"
 
-#include "Vec.h"
+namespace Minisat {
 
 //=================================================================================================
 // Default hash/equals functions
 //
 
-template<class K> struct Hash  { uint32_t operator()(const K& k)               const { return hash(k);  } };
+template<class K> struct Hash  { unsigned operator()(const K& k)               const { return hash(k);  } };
 template<class K> struct Equal { bool     operator()(const K& k1, const K& k2) const { return k1 == k2; } };
 
-template<class K> struct DeepHash  { uint32_t operator()(const K* k)               const { return hash(*k);  } };
+template<class K> struct DeepHash  { unsigned operator()(const K* k)               const { return hash(*k);  } };
 template<class K> struct DeepEqual { bool     operator()(const K* k1, const K* k2) const { return *k1 == *k2; } };
 
 //=================================================================================================
@@ -113,6 +113,8 @@ class Map {
         delete [] table;
         table = NULL;
     }
+};
+
 };
 
 #endif
