@@ -71,12 +71,13 @@ SimpSolver::~SimpSolver()
 Var SimpSolver::newVar(bool sign, bool dvar) {
     Var v = Solver::newVar(sign, dvar);
 
+    frozen    .push((char)false);
+    eliminated.push((char)false);
+
     if (use_simplification){
         n_occ     .push(0);
         n_occ     .push(0);
         occurs    .push();
-        frozen    .push((char)false);
-        eliminated.push((char)false);
         touched   .push(0);
         elim_heap .insert(v);
     }
