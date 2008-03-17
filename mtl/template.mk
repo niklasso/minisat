@@ -103,4 +103,5 @@ depend.mk: $(CSRCS) $(CHDRS)
 	      fi; \
 	  done
 
+-include $(MROOT)/mtl/config.mk
 -include depend.mk
