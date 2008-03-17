@@ -21,6 +21,7 @@ namespace Minisat {
 extern void parseOptions     (int& argc, char** argv, bool strict = false);
 extern void printUsageAndExit(int  argc, char** argv, bool verbose = false);
 extern void setUsageHelp     (const char* str);
+extern void setHelpPrefixStr (const char* str);
 
 
 //==================================================================================================
@@ -37,6 +38,7 @@ class Option
 
     static vec<Option*>& getOptionList () { static vec<Option*> options; return options; }
     static const char*&  getUsageString() { static const char* usage_str; return usage_str; }
+    static const char*&  getHelpPrefixString() { static const char* help_prefix_str = ""; return help_prefix_str; }
 
     struct OptionLt {
         bool operator()(const Option* x, const Option* y) {
@@ -66,6 +68,7 @@ class Option
     friend  void parseOptions      (int& argc, char** argv, bool strict);
     friend  void printUsageAndExit (int  argc, char** argv, bool verbose);
     friend  void setUsageHelp      (const char* str);
+    friend  void setHelpPrefixStr  (const char* str);
 };
 
 
