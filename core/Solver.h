@@ -266,11 +266,6 @@ inline bool     Solver::okay          ()      const   { return ok; }
 // Debug etc:
 
 
-// Just like 'assert()' but expression will be evaluated in the release version as well.
-static inline void check(bool expr) {
-    assert(expr); }
-
-
 //=================================================================================================
 
 };
