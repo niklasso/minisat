@@ -266,8 +266,6 @@ inline bool     Solver::okay          ()      const   { return ok; }
 // Debug etc:
 
 
-#define reportf(format, args...) ( fflush(stdout), fprintf(stderr, format, ## args), fflush(stderr) )
-
 // Just like 'assert()' but expression will be evaluated in the release version as well.
 static inline void check(bool expr) {
     assert(expr); }

@@ -38,20 +38,20 @@ void printStats(Solver& solver)
 {
     double cpu_time = cpuTime();
     double mem_used = memUsed();
-    reportf("restarts              : %"PRIu64"\n", solver.starts);
-    reportf("conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts   , solver.conflicts   /cpu_time);
-    reportf("decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
-    reportf("propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
-    reportf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
-    if (mem_used != 0) reportf("Memory used           : %.2f MB\n", mem_used);
-    reportf("CPU time              : %g s\n", cpu_time);
+    printf("restarts              : %"PRIu64"\n", solver.starts);
+    printf("conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts   , solver.conflicts   /cpu_time);
+    printf("decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
+    printf("propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
+    printf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
+    if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
+    printf("CPU time              : %g s\n", cpu_time);
 }
 
 Solver* solver;
 static void SIGINT_handler(int signum) {
-    reportf("\n"); reportf("*** INTERRUPTED ***\n");
+    printf("\n"); printf("*** INTERRUPTED ***\n");
     printStats(*solver);
-    reportf("\n"); reportf("*** INTERRUPTED ***\n");
+    printf("\n"); printf("*** INTERRUPTED ***\n");
     exit(1); }
 
 
@@ -62,12 +62,12 @@ static void SIGINT_handler(int signum) {
 int main(int argc, char** argv)
 {
     setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n");
-    reportf("This is MiniSat 2.0 beta\n");
+    printf("This is MiniSat 2.0 beta\n");
 
 #if defined(__linux__)
     fpu_control_t oldcw, newcw;
     _FPU_GETCW(oldcw); newcw = (oldcw & ~_FPU_EXTENDED) | _FPU_DOUBLE; _FPU_SETCW(newcw);
-    reportf("WARNING: for repeatability, setting FPU to use double precision\n");
+    printf("WARNING: for repeatability, setting FPU to use double precision\n");
 #endif
 
     parseOptions(argc, argv, true);
@@ -80,11 +80,11 @@ int main(int argc, char** argv)
     signal(SIGHUP,SIGINT_handler);
 
     if (argc == 1)
-        reportf("Reading from standard input... Use '-h' for help.\n");
+        printf("Reading from standard input... Use '-h' for help.\n");
 
     gzFile in = (argc == 1) ? gzdopen(0, "rb") : gzopen(argv[1], "rb");
     if (in == NULL)
-        reportf("ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
+        printf("ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
 
     printf("============================[ Problem Statistics ]=============================\n");
     printf("|                                                                             |\n");
@@ -97,22 +97,22 @@ int main(int argc, char** argv)
     printf("|  Number of clauses:    %12d                                         |\n", S.nClauses());
 
     double parsed_time = cpuTime();
-    reportf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
-    reportf("|                                                                             |\n");
+    printf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
+    printf("|                                                                             |\n");
 
     if (!S.simplify()){
         if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
-        reportf("===============================================================================\n");
-        reportf("Solved by unit propagation\n");
+        printf("===============================================================================\n");
+        printf("Solved by unit propagation\n");
         printStats(S);
-        reportf("\n");
+        printf("\n");
         printf("UNSATISFIABLE\n");
         exit(20);
     }
 
     bool ret = S.solve();
     printStats(S);
-    reportf("\n");
+    printf("\n");
     printf(ret ? "SATISFIABLE\n" : "UNSATISFIABLE\n");
     if (res != NULL){
         if (ret){

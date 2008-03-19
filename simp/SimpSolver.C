@@ -110,7 +110,7 @@ bool SimpSolver::solve(const vec<Lit>& assumps, bool do_simp, bool turn_off_simp
     if (result)
         result = Solver::solve(assumps);
     else if (verbosity >= 1)
-        reportf("===============================================================================\n");
+        printf("===============================================================================\n");
 
     if (result) 
         extendModel();
@@ -321,7 +321,7 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
         if (c.mark()) continue;
 
         if (verbose && verbosity >= 2 && cnt++ % 1000 == 0)
-            reportf("subsumption left: %10d (%10d subsumed, %10d deleted literals)\r", subsumption_queue.size(), subsumed, deleted_literals);
+            printf("subsumption left: %10d (%10d subsumed, %10d deleted literals)\r", subsumption_queue.size(), subsumed, deleted_literals);
 
         assert(c.size() > 1 || value(c[0]) == l_True);    // Unit-clauses should have been propagated before this point.
 
@@ -564,7 +564,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
             if (isEliminated(elim) || value(elim) != l_Undef) continue;
 
             if (verbosity >= 2 && cnt % 100 == 0)
-                reportf("elimination left: %10d\r", elim_heap.size());
+                printf("elimination left: %10d\r", elim_heap.size());
 
             if (use_asymm){
                 // Temporarily freeze variable. Otherwise, it would immediately end up on the queue again:
@@ -601,8 +601,8 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     }
 
     if (verbosity >= 1 && elimclauses.size() > 0)
-        reportf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
-                double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
+        printf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
+               double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
 
     return true;
 }

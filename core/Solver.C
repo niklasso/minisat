@@ -728,10 +728,10 @@ bool Solver::solve(const vec<Lit>& assumps)
     lbool   status            = l_Undef;
 
     if (verbosity >= 1){
-        reportf("============================[ Search Statistics ]==============================\n");
-        reportf("| Conflicts |          ORIGINAL         |          LEARNT          | Progress |\n");
-        reportf("|           |    Vars  Clauses Literals |    Limit  Clauses Lit/Cl |          |\n");
-        reportf("===============================================================================\n");
+        printf("============================[ Search Statistics ]==============================\n");
+        printf("| Conflicts |          ORIGINAL         |          LEARNT          | Progress |\n");
+        printf("|           |    Vars  Clauses Literals |    Limit  Clauses Lit/Cl |          |\n");
+        printf("===============================================================================\n");
     }
 
     // Search:
@@ -739,13 +739,13 @@ bool Solver::solve(const vec<Lit>& assumps)
     while (status == l_Undef){
         int nof_conflicts = (int)(luby(restart_luby_inc, curr_restarts) * restart_luby_start);
         if (verbosity >= 1)
-            reportf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% | %d\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100, nof_conflicts), fflush(stdout);
+            printf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% | %d\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100, nof_conflicts), fflush(stdout);
         status = search(nof_conflicts);
         curr_restarts++;
     }
 
     if (verbosity >= 1)
-        reportf("===============================================================================\n");
+        printf("===============================================================================\n");
 
 
     if (status == l_True){
