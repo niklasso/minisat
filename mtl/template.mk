@@ -35,6 +35,11 @@ d:	$(EXEC)_debug
 r:	$(EXEC)_release
 rs:	$(EXEC)_static
 
+libs:	lib$(LIB)_standard.a
+libp:	lib$(LIB)_profile.a
+libd:	lib$(LIB)_debug.a
+libr:	lib$(LIB)_release.a
+
 ## Compile options
 %.o:			CFLAGS +=$(COPTIMIZE) -g -D DEBUG
 %.op:			CFLAGS +=$(COPTIMIZE) -pg -g -D NDEBUG
@@ -55,6 +60,12 @@ $(EXEC)_debug:		$(DCOBJS)
 $(EXEC)_release:	$(RCOBJS)
 $(EXEC)_static:		$(RCOBJS)
 
+lib$(LIB)_standard.a:	$(filter-out */Main.o,  $(COBJS))
+lib$(LIB)_profile.a:	$(filter-out */Main.op, $(PCOBJS))
+lib$(LIB)_debug.a:	$(filter-out */Main.od, $(DCOBJS))
+lib$(LIB)_release.a:	$(filter-out */Main.or, $(RCOBJS))
+
+
 ## Build rule
 %.o %.op %.od %.or:	%.C
 	@echo Compiling: $(subst $(MROOT)/,,$@)
@@ -64,6 +75,16 @@ $(EXEC)_static:		$(RCOBJS)
 $(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_release $(EXEC)_static:
 	@echo Linking: "$@ ( $(foreach f,$^,$(subst $(MROOT)/,,$f)) )"
 	@$(CXX) $^ $(LFLAGS) -o $@
+
+## Library rules (standard/profile/debug/release)
+lib$(LIB)_standard.a lib$(LIB)_release.a lib$(LIB)_debug.a:
+	@echo Making library: "$@ ( $(foreach f,$^,$(subst $(MROOT)/,,$f)) )"
+	@$(AR) -rcsv $@ $^
+
+## Library Soft Link rule:
+libs libp libd libr:
+	@echo "Making Soft Link: $^ -> lib$(LIB).a"
+	@ln -sf $^ lib$(LIB).a
 
 ## Clean rule
 clean:
