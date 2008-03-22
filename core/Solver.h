@@ -108,7 +108,7 @@ public:
     // Statistics: (read-only member variable)
     //
     uint64_t starts, decisions, rnd_decisions, propagations, conflicts;
-    uint64_t clauses_literals, learnts_literals, max_literals, tot_literals;
+    uint64_t dec_vars, clauses_literals, learnts_literals, max_literals, tot_literals;
 
 protected:
 
@@ -256,8 +256,15 @@ inline int      Solver::nAssigns      ()      const   { return trail.size(); }
 inline int      Solver::nClauses      ()      const   { return clauses.size(); }
 inline int      Solver::nLearnts      ()      const   { return learnts.size(); }
 inline int      Solver::nVars         ()      const   { return assigns.size(); }
-inline void     Solver::setPolarity   (Var v, bool b) { polarity    [v] = (char)b; }
-inline void     Solver::setDecisionVar(Var v, bool b) { decision[v] = (char)b; if (b) { insertVarOrder(v); } }
+inline void     Solver::setPolarity   (Var v, bool b) { polarity[v] = b; }
+inline void     Solver::setDecisionVar(Var v, bool b) 
+{ 
+    if      ( b && !decision[v]) dec_vars++;
+    else if (!b &&  decision[v]) dec_vars--;
+
+    decision[v] = b;
+    insertVarOrder(v);
+}
 inline bool     Solver::solve         ()              { vec<Lit> tmp; return solve(tmp); }
 inline bool     Solver::okay          ()      const   { return ok; }
 

@@ -73,7 +73,7 @@ Solver::Solver() :
     // Statistics: (formerly in 'SolverStats')
     //
   , starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
-  , clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
+  , dec_vars(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
 
   , ok                 (true)
   , cla_inc            (1)
@@ -112,11 +112,10 @@ Var Solver::newVar(bool sign, bool dvar)
     _level   .push(-1);
     activity .push(0);
     seen     .push(0);
-    polarity .push((char)sign);
-    decision .push((char)dvar);
-
-    trail.capacity(v+1);
-    insertVarOrder(v);
+    polarity .push(sign);
+    decision .push();
+    trail    .capacity(v+1);
+    setDecisionVar(v, dvar);
     return v;
 }
 
@@ -619,6 +618,12 @@ lbool Solver::search(int nof_conflicts)
                 learntsize_adjust_confl *= learntsize_adjust_inc;
                 learntsize_adjust_cnt    = (int)learntsize_adjust_confl;
                 max_learnts             *= learntsize_inc;
+
+                if (verbosity >= 1)
+                    printf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", 
+                           (int)conflicts, 
+                           (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals, 
+                           (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progressEstimate()*100);
             }
 
         }else{
@@ -740,8 +745,6 @@ bool Solver::solve(const vec<Lit>& assumps)
     int curr_restarts = 0;
     while (status == l_Undef){
         int nof_conflicts = (int)(luby(restart_luby_inc, curr_restarts) * restart_luby_start);
-        if (verbosity >= 1)
-            printf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% | %d\n", (int)conflicts, order_heap.size(), nClauses(), (int)clauses_literals, (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progress_estimate*100, nof_conflicts), fflush(stdout);
         status = search(nof_conflicts);
         curr_restarts++;
     }
