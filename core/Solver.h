@@ -55,7 +55,10 @@ public:
     // Problem specification:
     //
     Var     newVar    (bool polarity = true, bool dvar = true); // Add a new variable with parameters specifying variable mode.
+
     bool    addClause (const vec<Lit>& ps);                     // Add a clause to the solver. 
+    bool    addClause_(      vec<Lit>& ps);                     // Add a clause to the solver without making superflous internal copy. Will
+                                                                // change the passed vector 'ps'.
 
     // Solving:
     //
@@ -243,6 +246,7 @@ inline void Solver::claBumpActivity (Clause& c) {
                 learnts[i]->activity() *= 1e-20;
             cla_inc *= 1e-20; } }
 
+inline bool     Solver::addClause       (const vec<Lit>& ps)    { ps.copyTo(add_tmp); return addClause_(add_tmp); }
 inline bool     Solver::enqueue         (Lit p, Clause* from)   { return value(p) != l_Undef ? value(p) != l_False : (uncheckedEnqueue(p, from), true); }
 inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && reason(var(c[0])) == &c; }
 inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }

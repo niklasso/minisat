@@ -43,6 +43,7 @@ class SimpSolver : public Solver {
     //
     Var     newVar    (bool polarity = true, bool dvar = true);
     bool    addClause (const vec<Lit>& ps);
+    bool    addClause_(      vec<Lit>& ps);
     bool    substitute(Var v, Lit x);  // Replace all occurences of v with x (may cause a contradiction).
 
     // Variable mode:
@@ -157,6 +158,7 @@ inline void SimpSolver::cleanOcc(Var v) {
 inline vec<Clause*>& SimpSolver::getOccurs(Var x) {
     cleanOcc(x); return occurs[x]; }
 
+inline bool SimpSolver::addClause    (const vec<Lit>& ps) { ps.copyTo(add_tmp); return addClause_(add_tmp); }
 inline void SimpSolver::setFrozen    (Var v, bool b) { frozen[v] = (char)b; if (b) { updateElimHeap(v); } }
 inline bool SimpSolver::solve        (bool do_simp, bool turn_off_simp) { vec<Lit> tmp; return solve(tmp, do_simp, turn_off_simp); }
 

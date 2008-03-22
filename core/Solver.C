@@ -120,13 +120,10 @@ Var Solver::newVar(bool sign, bool dvar)
 }
 
 
-bool Solver::addClause(const vec<Lit>& ps_)
+bool Solver::addClause_(vec<Lit>& ps)
 {
     assert(decisionLevel() == 0);
     if (!ok) return false;
-
-    // Copy clause:
-    vec<Lit>& ps = add_tmp; ps_.copyTo(ps);
 
     // Check if clause is satisfied and remove false/duplicate literals:
     sort(ps);

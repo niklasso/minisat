@@ -126,7 +126,7 @@ bool SimpSolver::solve(const vec<Lit>& assumps, bool do_simp, bool turn_off_simp
 
 
 
-bool SimpSolver::addClause(const vec<Lit>& ps)
+bool SimpSolver::addClause_(vec<Lit>& ps)
 {
 #ifndef NDEBUG
     for (int i = 0; i < ps.size(); i++)
@@ -138,7 +138,7 @@ bool SimpSolver::addClause(const vec<Lit>& ps)
     if (use_rcheck && implied(ps))
         return true;
 
-    if (!Solver::addClause(ps))
+    if (!Solver::addClause_(ps))
         return false;
 
     if (use_simplification && clauses.size() == nclauses + 1){
@@ -479,10 +479,10 @@ bool SimpSolver::eliminateVar(Var v)
         removeClause(*cls[i]); 
 
     // Produce clauses in cross product:
-    vec<Lit> resolvent;
+    vec<Lit>& resolvent = add_tmp;
     for (int i = 0; i < pos.size(); i++)
         for (int j = 0; j < neg.size(); j++)
-            if (merge(*pos[i], *neg[j], v, resolvent) && !addClause(resolvent))
+            if (merge(*pos[i], *neg[j], v, resolvent) && !addClause_(resolvent))
                 return false;
 
     // Free occurs list for this variable:
@@ -508,7 +508,7 @@ bool SimpSolver::substitute(Var v, Lit x)
     setDecisionVar(v, false);
     const vec<Clause*>& cls = getOccurs(v);
     
-    vec<Lit> subst_clause;
+    vec<Lit>& subst_clause = add_tmp;
     for (int i = 0; i < cls.size(); i++){
         Clause& c = *cls[i];
 
@@ -520,7 +520,7 @@ bool SimpSolver::substitute(Var v, Lit x)
 
         removeClause(c);
 
-        if (!addClause(subst_clause))
+        if (!addClause_(subst_clause))
             return ok = false;
     }
 
