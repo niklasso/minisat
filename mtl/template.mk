@@ -47,11 +47,11 @@ libr:	lib$(LIB)_release.a
 %.or:			CFLAGS +=$(COPTIMIZE) -g -D NDEBUG
 
 ## Link options
-$(EXEC):		LFLAGS := -ggdb $(LFLAGS)
-$(EXEC)_profile:	LFLAGS := -ggdb -pg $(LFLAGS)
-$(EXEC)_debug:		LFLAGS := -ggdb $(LFLAGS)
-$(EXEC)_release:	LFLAGS := $(LFLAGS)
-$(EXEC)_static:		LFLAGS := --static $(LFLAGS)
+$(EXEC):		LFLAGS += -g
+$(EXEC)_profile:	LFLAGS += -g -pg
+$(EXEC)_debug:		LFLAGS += -g
+#$(EXEC)_release:	LFLAGS += $(LFLAGS)
+$(EXEC)_static:		LFLAGS += --static
 
 ## Dependencies
 $(EXEC):		$(COBJS)
