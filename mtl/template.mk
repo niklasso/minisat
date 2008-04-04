@@ -94,7 +94,7 @@ clean:
 ## Make dependencies
 depend.mk: $(CSRCS) $(CHDRS)
 	@echo Making dependencies
-	@$(CXX) -I$(MROOT) \
+	@$(CXX) $(CFLAGS) -I$(MROOT) \
 	   $(CSRCS) -MM | sed 's|\(.*\):|$(PWD)/\1 $(PWD)/\1r $(PWD)/\1d $(PWD)/\1p:|' > depend.mk
 	@for dir in $(DEPDIR); do \
 	      if [ -r $(MROOT)/$${dir}/depend.mk ]; then \
