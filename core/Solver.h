@@ -182,6 +182,7 @@ protected:
     // Maintaining Variable/Clause activity:
     //
     void     varDecayActivity ();                      // Decay all variables with the specified factor. Implemented by increasing the 'bump' value instead.
+    void     varBumpActivity  (Var v, double inc);     // Increase a variable with the current 'bump' value.
     void     varBumpActivity  (Var v);                 // Increase a variable with the current 'bump' value.
     void     claDecayActivity ();                      // Decay all clauses with the specified factor. Implemented by increasing the 'bump' value instead.
     void     claBumpActivity  (Clause& c);             // Increase a clause with the current 'bump' value.
@@ -228,8 +229,9 @@ inline void Solver::insertVarOrder(Var x) {
     if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x); }
 
 inline void Solver::varDecayActivity() { var_inc *= (1 / var_decay); }
-inline void Solver::varBumpActivity(Var v) {
-    if ( (activity[v] += var_inc) > 1e100 ) {
+inline void Solver::varBumpActivity(Var v) { varBumpActivity(v, var_inc); }
+inline void Solver::varBumpActivity(Var v, double inc) {
+    if ( (activity[v] += inc) > 1e100 ) {
         // Rescale:
         for (int i = 0; i < nVars(); i++)
             activity[i] *= 1e-100;
