@@ -158,7 +158,7 @@ inline vec<Clause*>& SimpSolver::getOccurs(Var x) {
     cleanOcc(x); return occurs[x]; }
 
 inline bool SimpSolver::addClause    (const vec<Lit>& ps) { ps.copyTo(add_tmp); return addClause_(add_tmp); }
-inline void SimpSolver::setFrozen    (Var v, bool b) { frozen[v] = (char)b; if (b) { updateElimHeap(v); } }
+inline void SimpSolver::setFrozen    (Var v, bool b) { frozen[v] = (char)b; if (!b) { updateElimHeap(v); } }
 inline bool SimpSolver::solve        (bool do_simp, bool turn_off_simp) { vec<Lit> tmp; return solve(tmp, do_simp, turn_off_simp); }
 
 //=================================================================================================
