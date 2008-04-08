@@ -50,6 +50,7 @@ SimpSolver::SimpSolver() :
   , use_elim           (opt_use_elim)
   , merges             (0)
   , asymm_lits         (0)
+  , eliminated_vars    (0)
   , elimorder          (1)
   , use_simplification (true)
   , elim_heap          (ElimLt(n_occ))
@@ -465,6 +466,8 @@ bool SimpSolver::eliminateVar(Var v)
     // Delete and store old clauses:
     eliminated[v] = true;
     setDecisionVar(v, false);
+    eliminated_vars++;
+
     if (pos.size() > neg.size()){
         for (int i = 0; i < neg.size(); i++)
             mkElimClause(elimclauses, v, *neg[i]);

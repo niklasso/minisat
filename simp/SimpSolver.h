@@ -76,6 +76,7 @@ class SimpSolver : public Solver {
     //
     int     merges;
     int     asymm_lits;
+    int     eliminated_vars;
 
  protected:
 
