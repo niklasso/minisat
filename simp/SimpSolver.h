@@ -50,7 +50,6 @@ class SimpSolver : public Solver {
     // 
     void    setFrozen (Var v, bool b); // If a variable is frozen it will not be eliminated.
     bool    isEliminated(Var v) const;
-    int     nFreeVars () const { return order_heap.size(); }
 
     // Solving:
     //
