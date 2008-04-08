@@ -35,17 +35,6 @@ namespace Minisat {
 //=================================================================================================
 // Solver -- the main class:
 
-struct VarData { Clause* ptr; int level; };
-inline VarData mkVarData(Clause* reason, int lev){ VarData d; d.ptr = reason; d.level = lev; return d; }
-
-struct Watcher {
-    Clause*  c;
-    Lit      other;
-    Watcher(Clause* _c, Lit p) : c(_c), other(p) {}
-    bool operator==(const Watcher& w) const { return c == w.c; }
-    bool operator!=(const Watcher& w) const { return c != w.c; }
-};
-
 class Solver {
 public:
 
@@ -120,6 +109,17 @@ protected:
 
     // Helper structures:
     //
+    struct VarData { Clause* reason; int level; };
+    static inline VarData mkVarData(Clause* r, int l){ VarData d; d.reason = r; d.level = l; return d; }
+
+    struct Watcher {
+        Clause*  cref;
+        Lit      blocker;
+        Watcher(Clause* c, Lit p) : cref(c), blocker(p) {}
+        bool operator==(const Watcher& w) const { return cref == w.cref; }
+        bool operator!=(const Watcher& w) const { return cref != w.cref; }
+    };
+
     struct VarOrderLt {
         const vec<double>&  activity;
         bool operator () (Var x, Var y) const { return activity[x] > activity[y]; }
@@ -140,11 +140,7 @@ protected:
     vec<char>           decision;         // Declares if a variable is eligible for selection in the decision heuristic.
     vec<Lit>            trail;            // Assignment stack; stores all assigments made in the order they were made.
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
-    vec<VarData>        vardata;
-    // Contains:
-    // 
-    // vec<Clause*>        reason;           // 'reason[var]' is the clause that implied the variables current value, or 'NULL' if none.
-    // vec<int>            level;            // 'level[var]' contains the level at which the assignment was made.
+    vec<VarData>        vardata;          // Stores reason and level for each variable.
 
     int                 qhead;            // Head of queue (as index into the trail -- no more explicit propagation queue in MiniSat).
     int                 simpDB_assigns;   // Number of top-level assignments since last execution of 'simplify()'.
@@ -228,7 +224,7 @@ protected:
 //=================================================================================================
 // Implementation of inline methods:
 
-inline Clause* Solver::reason(Var x) const { return vardata[x].ptr; }
+inline Clause* Solver::reason(Var x) const { return vardata[x].reason; }
 inline int     Solver::level (Var x) const { return vardata[x].level; }
 
 inline void Solver::insertVarOrder(Var x) {

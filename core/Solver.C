@@ -432,23 +432,23 @@ Clause* Solver::propagate()
         num_props++;
 
         for (i = j = (Watcher*)ws, end = i + ws.size();  i != end;){
-            if (value(i->other) == l_True){
-                *j++ = *i++;
-                continue;
-            }
+            // Try to avoid inspecting the clause:
+            Lit blocker = i->blocker;
+            if (value(blocker) == l_True){
+                *j++ = *i++; continue; }
 
             // Make sure the false literal is data[1]:
-            Clause& c = *(i->c);
-            Lit false_lit = ~p;
+            Clause& c         = *(i->cref);
+            Lit     false_lit = ~p;
             if (c[0] == false_lit)
                 c[0] = c[1], c[1] = false_lit;
-
             assert(c[1] == false_lit);
+            i++;
 
             // If 0th watch is true, then clause is already satisfied.
             Lit     first = c[0];
             Watcher w     = Watcher(&c, first);
-            if (first != i++->other && value(first) == l_True){
+            if (first != blocker && value(first) == l_True){
                 *j++ = w; continue; }
 
             // Look for new watch:
