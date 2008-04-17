@@ -86,7 +86,8 @@ Var SimpSolver::newVar(bool sign, bool dvar) {
 
 
 
-bool SimpSolver::solve(const vec<Lit>& assumps, bool do_simp, bool turn_off_simp) {
+bool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
+{
     vec<Var> extra_frozen;
     bool     result = true;
 
@@ -94,8 +95,8 @@ bool SimpSolver::solve(const vec<Lit>& assumps, bool do_simp, bool turn_off_simp
 
     if (do_simp){
         // Assumptions must be temporarily frozen to run variable elimination:
-        for (int i = 0; i < assumps.size(); i++){
-            Var v = var(assumps[i]);
+        for (int i = 0; i < assumptions.size(); i++){
+            Var v = var(assumptions[i]);
 
             // If an assumption has been eliminated, remember it.
             assert(!isEliminated(v));
@@ -110,7 +111,7 @@ bool SimpSolver::solve(const vec<Lit>& assumps, bool do_simp, bool turn_off_simp
     }
 
     if (result)
-        result = Solver::solve(assumps);
+        result = Solver::solve_();
     else if (verbosity >= 1)
         printf("===============================================================================\n");
 

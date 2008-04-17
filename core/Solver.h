@@ -48,6 +48,9 @@ public:
     Var     newVar    (bool polarity = true, bool dvar = true); // Add a new variable with parameters specifying variable mode.
 
     bool    addClause (const vec<Lit>& ps);                     // Add a clause to the solver. 
+    bool    addClause (Lit p);                                  // Add a unit clause to the solver. 
+    bool    addClause (Lit p, Lit q);                           // Add a binary clause to the solver. 
+    bool    addClause (Lit p, Lit q, Lit r);                    // Add a ternary clause to the solver. 
     bool    addClause_(      vec<Lit>& ps);                     // Add a clause to the solver without making superflous internal copy. Will
                                                                 // change the passed vector 'ps'.
 
@@ -56,6 +59,8 @@ public:
     bool    simplify     ();                        // Removes already satisfied clauses.
     bool    solve        (const vec<Lit>& assumps); // Search for a model that respects a given set of assumptions.
     bool    solve        ();                        // Search without assumptions.
+    bool    solve        (Lit p);                   // Search for a model that respects a single assumption.
+    bool    solve        (Lit p, Lit q);            // Search for a model that respects two assumptions.
     bool    okay         () const;                  // FALSE means solver is in a conflicting state
 
     // Variable mode:
@@ -177,6 +182,7 @@ protected:
     void     analyzeFinal     (Lit p, vec<Lit>& out_conflict);                         // COULD THIS BE IMPLEMENTED BY THE ORDINARIY "analyze" BY SOME REASONABLE GENERALIZATION?
     bool     litRedundant     (Lit p, uint32_t abstract_levels);                       // (helper method for 'analyze()')
     lbool    search           (int nof_conflicts);                                     // Search for a given number of conflicts.
+    bool     solve_           ();                                                      // Main solve method (assumptions given in 'assumptions').
     void     reduceDB         ();                                                      // Reduce the set of learnt clauses.
     void     removeSatisfied  (vec<Clause*>& cs);                                      // Shrink 'cs' to contain only non-satisfied clauses.
     void     rebuildOrderHeap ();
@@ -252,6 +258,9 @@ inline void Solver::claBumpActivity (Clause& c) {
             cla_inc *= 1e-20; } }
 
 inline bool     Solver::addClause       (const vec<Lit>& ps)    { ps.copyTo(add_tmp); return addClause_(add_tmp); }
+inline bool     Solver::addClause       (Lit p)                 { add_tmp.clear(); add_tmp.push(p); return addClause_(add_tmp); }
+inline bool     Solver::addClause       (Lit p, Lit q)          { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); return addClause_(add_tmp); }
+inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
 inline bool     Solver::enqueue         (Lit p, Clause* from)   { return value(p) != l_Undef ? value(p) != l_False : (uncheckedEnqueue(p, from), true); }
 inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && reason(var(c[0])) == &c; }
 inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }
@@ -275,7 +284,11 @@ inline void     Solver::setDecisionVar(Var v, bool b)
     decision[v] = b;
     insertVarOrder(v);
 }
-inline bool     Solver::solve         ()              { vec<Lit> tmp; return solve(tmp); }
+inline bool     Solver::solve         ()              { assumptions.clear(); return solve_(); }
+inline bool     Solver::solve         (Lit p)         { assumptions.clear(); assumptions.push(p); return solve_(); }
+inline bool     Solver::solve         (Lit p, Lit q)  { assumptions.clear(); assumptions.push(p); assumptions.push(q); return solve_(); }
+inline bool     Solver::solve         (const vec<Lit>& assumps) {
+    assumps.copyTo(assumptions); return solve_(); }
 inline bool     Solver::okay          ()      const   { return ok; }
 
 

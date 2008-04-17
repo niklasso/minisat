@@ -714,15 +714,13 @@ static double luby(double y, int x){
     return pow(y, seq);
 }
 
-
-bool Solver::solve(const vec<Lit>& assumps)
+// NOTE: assumptions passed in member-variable 'assumptions'.
+bool Solver::solve_()
 {
     model.clear();
     conflict.clear();
 
     if (!ok) return false;
-
-    assumps.copyTo(assumptions);
 
     max_learnts               = nClauses() * learntsize_factor;
     learntsize_adjust_confl   = learntsize_adjust_start_confl;
