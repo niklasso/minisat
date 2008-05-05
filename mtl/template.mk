@@ -26,6 +26,7 @@ COPTIMIZE ?= -O3
 
 #CFLAGS    += $(foreach dir, $(DEPDIR), -I$(MROOT)/$(dir)) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS
 CFLAGS    += -I$(MROOT) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS
+LFLAGS    += -lz
 
 .PHONY : s p d r rs clean 
 
