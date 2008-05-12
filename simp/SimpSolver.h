@@ -170,9 +170,9 @@ inline bool SimpSolver::addClause    (Lit p, Lit q)          { add_tmp.clear(); 
 inline bool SimpSolver::addClause    (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
 inline void SimpSolver::setFrozen    (Var v, bool b) { frozen[v] = (char)b; if (!b) { updateElimHeap(v); } }
 
-inline bool SimpSolver::solve        (              bool do_simp, bool turn_off_simp)  { add_tmp.clear(); return solve_(); }
-inline bool SimpSolver::solve        (Lit p       , bool do_simp, bool turn_off_simp)  { add_tmp.clear(); add_tmp.push(p); return solve_(); }
-inline bool SimpSolver::solve        (Lit p, Lit q, bool do_simp, bool turn_off_simp)  { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); return solve_(); }
+inline bool SimpSolver::solve        (              bool do_simp, bool turn_off_simp)  { assumptions.clear(); return solve_(); }
+inline bool SimpSolver::solve        (Lit p       , bool do_simp, bool turn_off_simp)  { assumptions.clear(); assumptions.push(p); return solve_(); }
+inline bool SimpSolver::solve        (Lit p, Lit q, bool do_simp, bool turn_off_simp)  { assumptions.clear(); assumptions.push(p); assumptions.push(q); return solve_(); }
 inline bool SimpSolver::solve        (const vec<Lit>& assumps, bool do_simp, bool turn_off_simp)  { 
      assumps.copyTo(assumptions); return solve_(); }
 
