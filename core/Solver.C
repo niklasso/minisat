@@ -167,6 +167,8 @@ void Solver::detachClause(Clause& c) {
 
 void Solver::removeClause(Clause& c) {
     detachClause(c);
+    // Don't leave pointers to free'd memory!
+    if (locked(c)) vardata[var(c[0])].reason = NULL;
     free(&c); }
 
 
@@ -513,9 +515,9 @@ void Solver::removeSatisfied(vec<Clause*>& cs)
 {
     int i, j;
     for (i = j = 0; i < cs.size(); i++)
-        if (satisfied(*cs[i]))
+        if (satisfied(*cs[i])){
             removeClause(*cs[i]);
-        else
+        }else
             cs[j++] = cs[i];
 
     cs.shrink(i - j);
