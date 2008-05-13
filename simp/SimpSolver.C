@@ -691,7 +691,9 @@ void SimpSolver::toDimacs(const char* file)
         for (int i = 0; i < clauses.size(); i++)
             toDimacs(f, *clauses[i], map, max);
 
-        fprintf(stderr, "Wrote %d clauses with %d variables.\n", cnt, max);
+        if (verbosity > 0)
+            printf("Wrote %d clauses with %d variables.\n", cnt, max);
+
         fclose(f);
     }else
         fprintf(stderr, "could not open file %s\n", file);

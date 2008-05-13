@@ -50,8 +50,9 @@ void printStats(Solver& solver)
 Solver* solver;
 static void SIGINT_handler(int signum) {
     printf("\n"); printf("*** INTERRUPTED ***\n");
-    printStats(*solver);
-    printf("\n"); printf("*** INTERRUPTED ***\n");
+    if (solver->verbosity > 0){
+        printStats(*solver);
+        printf("\n"); printf("*** INTERRUPTED ***\n"); }
     exit(1); }
 
 
@@ -62,7 +63,7 @@ static void SIGINT_handler(int signum) {
 int main(int argc, char** argv)
 {
     setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n");
-    printf("This is MiniSat 2.0 beta\n");
+    // printf("This is MiniSat 2.0 beta\n");
 
 #if defined(__linux__)
     fpu_control_t oldcw, newcw;
@@ -80,39 +81,44 @@ int main(int argc, char** argv)
     signal(SIGHUP,SIGINT_handler);
 
     if (argc == 1)
-        printf("Reading from standard input... Use '-h' for help.\n");
+        printf("Reading from standard input... Use '--help' for help.\n");
 
     gzFile in = (argc == 1) ? gzdopen(0, "rb") : gzopen(argv[1], "rb");
     if (in == NULL)
         printf("ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
 
-    printf("============================[ Problem Statistics ]=============================\n");
-    printf("|                                                                             |\n");
+    if (S.verbosity > 0){
+        printf("============================[ Problem Statistics ]=============================\n");
+        printf("|                                                                             |\n"); }
 
     parse_DIMACS(in, S);
     gzclose(in);
     FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
 
-    printf("|  Number of variables:  %12d                                         |\n", S.nVars());
-    printf("|  Number of clauses:    %12d                                         |\n", S.nClauses());
+    if (S.verbosity > 0){
+        printf("|  Number of variables:  %12d                                         |\n", S.nVars());
+        printf("|  Number of clauses:    %12d                                         |\n", S.nClauses()); }
 
     double parsed_time = cpuTime();
-    printf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
-    printf("|                                                                             |\n");
+    if (S.verbosity > 0){
+        printf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
+        printf("|                                                                             |\n"); }
 
     if (!S.simplify()){
         if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
-        printf("===============================================================================\n");
-        printf("Solved by unit propagation\n");
-        printStats(S);
-        printf("\n");
+        if (S.verbosity > 0){
+            printf("===============================================================================\n");
+            printf("Solved by unit propagation\n");
+            printStats(S);
+            printf("\n"); }
         printf("UNSATISFIABLE\n");
         exit(20);
     }
 
     bool ret = S.solve();
-    printStats(S);
-    printf("\n");
+    if (S.verbosity > 0){
+        printStats(S);
+        printf("\n"); }
     printf(ret ? "SATISFIABLE\n" : "UNSATISFIABLE\n");
     if (res != NULL){
         if (ret){
