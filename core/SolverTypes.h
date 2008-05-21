@@ -78,6 +78,10 @@ const Lit lit_Error = { -1 };  // }
 //       does enough constant propagation to produce sensible code, and this appears to be somewhat
 //       fragile unfortunately.
 
+#define l_True  (lbool((uint8_t)0)) // gcc does not do constant propagation if these are real constants.
+#define l_False (lbool((uint8_t)1))
+#define l_Undef (lbool((uint8_t)2))
+
 class lbool {
     uint8_t value;
 
@@ -91,15 +95,19 @@ public:
     bool  operator != (lbool b) const { return !(*this == b); }
     lbool operator ^  (bool  b) const { return lbool((uint8_t)(value^(uint8_t)b)); }
 
+    // FIXME: make these more efficient
+    lbool operator && (lbool b) const { return (*this == l_False || b == l_False) ? l_False
+                                             : (*this == l_True  && b == l_True)  ? l_True
+                                             : l_Undef; }
+    lbool operator || (lbool b) const { return (*this == l_True  || b == l_True)  ? l_True
+                                             : (*this == l_False && b == l_False) ? l_False
+                                             : l_Undef; }
+
     friend int   toInt  (lbool l);
     friend lbool toLbool(int   v);
 };
 inline int   toInt  (lbool l) { return l.value; }
 inline lbool toLbool(int   v) { return lbool((uint8_t)v);  }
-
-#define l_True  (lbool((uint8_t)0)) // gcc does not do constant propagation if these are real constants.
-#define l_False (lbool((uint8_t)1)) 
-#define l_Undef (lbool((uint8_t)2))
 
 //=================================================================================================
 // Clause -- a simple class for representing a clause:
