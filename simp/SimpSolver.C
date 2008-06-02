@@ -20,6 +20,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include "mtl/Sort.h"
 #include "simp/SimpSolver.h"
+#include "utils/System.h"
 
 using namespace Minisat;
 
@@ -452,6 +453,9 @@ bool SimpSolver::eliminateVar(Var v)
     for (int i = 0; i < cls.size(); i++)
         (find(*cls[i], mkLit(v)) ? pos : neg).push(cls[i]);
 
+    if (cls.size() < pos.size() * neg.size() && pos.size() * neg.size() > 10)
+        printf(" ::: ELIMINATING VAR %10d (%10d x %10d)\n", v+1, pos.size(), neg.size());
+
     // Check wether the increase in number of clauses stays within the allowed ('grow'). Moreover, no
     // clause must exceed the limit on the maximal clause size (if it is set):
     //
@@ -496,7 +500,26 @@ bool SimpSolver::eliminateVar(Var v)
     if (watches[toInt( mkLit(v))].size() == 0) watches[toInt( mkLit(v))].clear(true);
     if (watches[toInt(~mkLit(v))].size() == 0) watches[toInt(~mkLit(v))].clear(true);
 
-    return backwardSubsumptionCheck();
+    double t_before = cpuTime();
+    bool   ret      = backwardSubsumptionCheck();
+    double t_after  = cpuTime();
+
+    static double   t_sum   = 0;
+    static uint64_t t_times = 0;
+
+    t_sum += (t_after - t_before);
+    t_times++;
+
+    double avg = t_times == 0 ? 1 : (t_sum / t_times);
+
+    double t_diff = t_after - t_before;
+    if (t_diff > 3 * avg && t_diff > 0.001)
+        printf(" ::: HMM %d (%d x %d) cput-time = %6.2f\n", v+1, pos.size(), neg.size(), 
+               (float)(t_after - t_before));
+
+    return ret;
+
+    //return backwardSubsumptionCheck();
 }
 
 
