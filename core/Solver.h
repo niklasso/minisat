@@ -62,6 +62,7 @@ public:
     bool    solve        ();                        // Search without assumptions.
     bool    solve        (Lit p);                   // Search for a model that respects a single assumption.
     bool    solve        (Lit p, Lit q);            // Search for a model that respects two assumptions.
+    bool    solve        (Lit p, Lit q, Lit r);     // Search for a model that respects three assumptions.
     bool    okay         () const;                  // FALSE means solver is in a conflicting state
 
     // Variable mode:
@@ -289,9 +290,10 @@ inline void     Solver::setDecisionVar(Var v, bool b)
     decision[v] = b;
     insertVarOrder(v);
 }
-inline bool     Solver::solve         ()              { assumptions.clear(); return solve_(); }
-inline bool     Solver::solve         (Lit p)         { assumptions.clear(); assumptions.push(p); return solve_(); }
-inline bool     Solver::solve         (Lit p, Lit q)  { assumptions.clear(); assumptions.push(p); assumptions.push(q); return solve_(); }
+inline bool     Solver::solve         ()                    { assumptions.clear(); return solve_(); }
+inline bool     Solver::solve         (Lit p)               { assumptions.clear(); assumptions.push(p); return solve_(); }
+inline bool     Solver::solve         (Lit p, Lit q)        { assumptions.clear(); assumptions.push(p); assumptions.push(q); return solve_(); }
+inline bool     Solver::solve         (Lit p, Lit q, Lit r) { assumptions.clear(); assumptions.push(p); assumptions.push(q); assumptions.push(r); return solve_(); }
 inline bool     Solver::solve         (const vec<Lit>& assumps) {
     assumps.copyTo(assumptions); return solve_(); }
 inline bool     Solver::okay          ()      const   { return ok; }
