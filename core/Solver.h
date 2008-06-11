@@ -48,6 +48,7 @@ public:
     Var     newVar    (bool polarity = true, bool dvar = true); // Add a new variable with parameters specifying variable mode.
 
     bool    addClause (const vec<Lit>& ps);                     // Add a clause to the solver. 
+    bool    addEmptyClause();                                   // Add the empty clause, making the solver contradictory.
     bool    addClause (Lit p);                                  // Add a unit clause to the solver. 
     bool    addClause (Lit p, Lit q);                           // Add a binary clause to the solver. 
     bool    addClause (Lit p, Lit q, Lit r);                    // Add a ternary clause to the solver. 
@@ -261,6 +262,7 @@ inline void Solver::claBumpActivity (Clause& c) {
 // NOTE: enqueue does not set the ok flag! (only public methods do)
 inline bool     Solver::enqueue         (Lit p, Clause* from)   { return value(p) != l_Undef ? value(p) != l_False : (uncheckedEnqueue(p, from), true); }
 inline bool     Solver::addClause       (const vec<Lit>& ps)    { ps.copyTo(add_tmp); return addClause_(add_tmp); }
+inline bool     Solver::addEmptyClause  ()                      { add_tmp.clear(); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p)                 { add_tmp.clear(); add_tmp.push(p); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q)          { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
