@@ -60,6 +60,7 @@ Solver::Solver() :
   , restart_luby_inc (opt_restart_luby_inc)
   , expensive_ccmin  (opt_expensive_ccmin)
   , store_pol        (opt_store_pol)
+  , rnd_pol          (false)
 
     // Parameters (the rest):
     //
@@ -217,7 +218,7 @@ Lit Solver::pickBranchLit()
         }else
             next = order_heap.removeMin();
 
-    return next == var_Undef ? lit_Undef : mkLit(next, polarity[next]);
+    return next == var_Undef ? lit_Undef : mkLit(next, rnd_pol ? drand(random_seed) < 0.5 : polarity[next]);
 }
 
 
