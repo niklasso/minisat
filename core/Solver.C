@@ -31,7 +31,7 @@ using namespace Minisat;
 
 static const char* _cat = "CORE";
 
-static IntOption     opt_verbosity        (_cat, "verb", "Verbosity level. 0=silent, 1=some, 2=more",         1,        IntRange(0, 2));
+static IntOption     opt_verbosity        (_cat, "verb", "Verbosity level (0=silent, 1=some, 2=more).",         1,        IntRange(0, 2));
 static DoubleOption  opt_var_decay        (_cat, "var-decay","The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
 static DoubleOption  opt_clause_decay     (_cat, "cla-decay","The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
 static DoubleOption  opt_random_var_freq  (_cat, "rnd-freq", "The frequency with which the decision heuristic tries to choose a random variable", 0.02, DoubleRange(0, true, 1, true));
