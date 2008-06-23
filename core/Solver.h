@@ -98,7 +98,6 @@ public:
     double    restart_luby_start; // The factor with which the values of the luby sequence is multiplied to get the restart    (default 100)
     double    restart_luby_inc;   // The constant that the luby sequence uses powers of                                        (default 2)
     bool      expensive_ccmin;    // FIXME: describe.
-    bool      store_pol;          // FIXME: describe.
     bool      rnd_pol;            // FIXME: describe.
 
     int       restart_first;      // The initial restart limit.                                                                (default 100)

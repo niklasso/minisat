@@ -40,7 +40,6 @@ static BoolOption    opt_expensive_ccmin  (_cat, "exp-ccmin", "Controls conflict
 static IntOption     opt_restart_luby_start 
                                           (_cat, "luby", "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT64_MAX));
 static DoubleOption  opt_restart_luby_inc (_cat, "luby-inc", "", 2, DoubleRange(1, false, INFINITY, false));
-static BoolOption    opt_store_pol        (_cat, "store-pol", "Store preferred polarities while backtracking.\n", true);
 
 
 //=================================================================================================
@@ -59,7 +58,6 @@ Solver::Solver() :
   , restart_luby_start (opt_restart_luby_start)
   , restart_luby_inc (opt_restart_luby_inc)
   , expensive_ccmin  (opt_expensive_ccmin)
-  , store_pol        (opt_store_pol)
   , rnd_pol          (false)
 
     // Parameters (the rest):
@@ -187,8 +185,7 @@ void Solver::cancelUntil(int level) {
         for (int c = trail.size()-1; c >= trail_lim[level]; c--){
             Var      x  = var(trail[c]);
             assigns [x] = l_Undef;
-            if (store_pol && c < trail_lim.last())
-                polarity[x] = sign(trail[c]);
+            polarity[x] = sign(trail[c]);
             insertVarOrder(x); }
         qhead = trail_lim[level];
         trail.shrink(trail.size() - trail_lim[level]);
