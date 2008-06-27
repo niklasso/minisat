@@ -31,16 +31,15 @@ using namespace Minisat;
 
 static const char* _cat = "CORE";
 
-static IntOption     opt_verbosity        (_cat, "verb", "Verbosity level. 0=silent, 1=some, 2=more",         1,        IntRange(0, 2));
+static IntOption     opt_verbosity        (_cat, "verb", "Verbosity level (0=silent, 1=some, 2=more).",         1,        IntRange(0, 2));
 static DoubleOption  opt_var_decay        (_cat, "var-decay","The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
 static DoubleOption  opt_clause_decay     (_cat, "cla-decay","The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
-static DoubleOption  opt_random_var_freq  (_cat, "rnd-freq", "The frequency with which the decision heuristic tries to choose a random variable", 0.02, DoubleRange(0, true, 1, true));
+static DoubleOption  opt_random_var_freq  (_cat, "rnd-freq", "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed      (_cat, "rnd-seed", "Used by the random variable selection",         91648253, DoubleRange(0, false, INFINITY, false));
 static BoolOption    opt_expensive_ccmin  (_cat, "exp-ccmin", "Controls conflict clause minimization", true);
 static IntOption     opt_restart_luby_start 
                                           (_cat, "luby", "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT64_MAX));
 static DoubleOption  opt_restart_luby_inc (_cat, "luby-inc", "", 2, DoubleRange(1, false, INFINITY, false));
-static BoolOption    opt_store_pol        (_cat, "store-pol", "Store preferred polarities while backtracking.\n", true);
 
 
 //=================================================================================================
@@ -59,7 +58,7 @@ Solver::Solver() :
   , restart_luby_start (opt_restart_luby_start)
   , restart_luby_inc (opt_restart_luby_inc)
   , expensive_ccmin  (opt_expensive_ccmin)
-  , store_pol        (opt_store_pol)
+  , rnd_pol          (false)
 
     // Parameters (the rest):
     //
@@ -186,8 +185,7 @@ void Solver::cancelUntil(int level) {
         for (int c = trail.size()-1; c >= trail_lim[level]; c--){
             Var      x  = var(trail[c]);
             assigns [x] = l_Undef;
-            if (store_pol && c < trail_lim.last())
-                polarity[x] = sign(trail[c]);
+            polarity[x] = sign(trail[c]);
             insertVarOrder(x); }
         qhead = trail_lim[level];
         trail.shrink(trail.size() - trail_lim[level]);
@@ -217,7 +215,7 @@ Lit Solver::pickBranchLit()
         }else
             next = order_heap.removeMin();
 
-    return next == var_Undef ? lit_Undef : mkLit(next, polarity[next]);
+    return next == var_Undef ? lit_Undef : mkLit(next, rnd_pol ? drand(random_seed) < 0.5 : polarity[next]);
 }
 
 
