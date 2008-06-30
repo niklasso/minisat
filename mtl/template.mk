@@ -78,7 +78,7 @@ $(EXEC) $(EXEC)_profile $(EXEC)_debug $(EXEC)_release $(EXEC)_static:
 	@$(CXX) $^ $(LFLAGS) -o $@
 
 ## Library rules (standard/profile/debug/release)
-lib$(LIB)_standard.a lib$(LIB)_release.a lib$(LIB)_debug.a:
+lib$(LIB)_standard.a lib$(LIB)_profile.a lib$(LIB)_release.a lib$(LIB)_debug.a:
 	@echo Making library: "$@ ( $(foreach f,$^,$(subst $(MROOT)/,,$f)) )"
 	@$(AR) -rcsv $@ $^
 
