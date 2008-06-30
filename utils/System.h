@@ -39,7 +39,7 @@ extern double memUsed();            // Memory in mega bytes (returns 0 for unsup
 //-------------------------------------------------------------------------------------------------
 // Implementation of inline functions:
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__)
 #include <ctime>
 
 static inline double Minisat::cpuTime(void) { return (double)clock() / CLOCKS_PER_SEC; }

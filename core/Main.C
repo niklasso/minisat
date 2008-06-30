@@ -78,7 +78,6 @@ int main(int argc, char** argv)
 
     solver = &S;
     signal(SIGINT,SIGINT_handler);
-    signal(SIGHUP,SIGINT_handler);
 
     if (argc == 1)
         printf("Reading from standard input... Use '--help' for help.\n");
