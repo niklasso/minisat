@@ -24,7 +24,6 @@ LFLAGS    ?= -Wall
 
 COPTIMIZE ?= -O3
 
-#CFLAGS    += $(foreach dir, $(DEPDIR), -I$(MROOT)/$(dir)) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS
 CFLAGS    += -I$(MROOT) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS
 LFLAGS    += -lz
 
@@ -51,7 +50,7 @@ libr:	lib$(LIB)_release.a
 $(EXEC):		LFLAGS += -g
 $(EXEC)_profile:	LFLAGS += -g -pg
 $(EXEC)_debug:		LFLAGS += -g
-#$(EXEC)_release:	LFLAGS += $(LFLAGS)
+#$(EXEC)_release:	LFLAGS += ...
 $(EXEC)_static:		LFLAGS += --static
 
 ## Dependencies
