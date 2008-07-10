@@ -146,7 +146,8 @@ class SimpSolver : public Solver {
 
 inline bool SimpSolver::isEliminated (Var v) const { return eliminated[v]; }
 inline void SimpSolver::updateElimHeap(Var v) {
-    if (!frozen[v] && !isEliminated(v) && value(v) == l_Undef)
+    // if (!frozen[v] && !isEliminated(v) && value(v) == l_Undef)
+    if (elim_heap.inHeap(v) || (!frozen[v] && !isEliminated(v) && value(v) == l_Undef))
         elim_heap.update(v); }
 
 inline void SimpSolver::cleanOcc(Var v) {
