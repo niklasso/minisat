@@ -36,7 +36,7 @@ static DoubleOption  opt_var_decay        (_cat, "var-decay","The variable activ
 static DoubleOption  opt_clause_decay     (_cat, "cla-decay","The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
 static DoubleOption  opt_random_var_freq  (_cat, "rnd-freq", "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed      (_cat, "rnd-seed", "Used by the random variable selection",         91648253, DoubleRange(0, false, INFINITY, false));
-static BoolOption    opt_expensive_ccmin  (_cat, "exp-ccmin", "Controls conflict clause minimization", true);
+static IntOption     opt_ccmin_mode       (_cat, "ccmin-mode", "Controls conflict clause minimization (0=none, 1=basic, 2=deep).", 2, IntRange(0, 2));
 static IntOption     opt_restart_luby_start 
                                           (_cat, "luby", "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT64_MAX));
 static DoubleOption  opt_restart_luby_inc (_cat, "luby-inc", "", 2, DoubleRange(1, false, INFINITY, false));
@@ -57,7 +57,7 @@ Solver::Solver() :
   , random_seed      (opt_random_seed)
   , restart_luby_start (opt_restart_luby_start)
   , restart_luby_inc (opt_restart_luby_inc)
-  , expensive_ccmin  (opt_expensive_ccmin)
+  , ccmin_mode       (opt_ccmin_mode)
   , rnd_pol          (false)
 
     // Parameters (the rest):
@@ -280,7 +280,7 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
     //
     int i, j;
     out_learnt.copyTo(analyze_toclear);
-    if (expensive_ccmin){
+    if (ccmin_mode == 2){
         uint32_t abstract_level = 0;
         for (i = 1; i < out_learnt.size(); i++)
             abstract_level |= abstractLevel(var(out_learnt[i])); // (maintain an abstraction of levels involved in conflict)
@@ -288,7 +288,8 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
         for (i = j = 1; i < out_learnt.size(); i++)
             if (reason(var(out_learnt[i])) == NULL || !litRedundant(out_learnt[i], abstract_level))
                 out_learnt[j++] = out_learnt[i];
-    }else{
+        
+    }else if (ccmin_mode == 1){
         for (i = j = 1; i < out_learnt.size(); i++){
             Var x = var(out_learnt[i]);
 
@@ -303,7 +304,9 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
                         break; }
             }
         }
-    }
+    }else
+        i = j = out_learnt.size();
+
     max_literals += out_learnt.size();
     out_learnt.shrink(i - j);
     tot_literals += out_learnt.size();
@@ -324,7 +327,6 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
         out_learnt[1]     = p;
         out_btlevel       = level(var(p));
     }
-
 
     for (int j = 0; j < analyze_toclear.size(); j++) seen[var(analyze_toclear[j])] = 0;    // ('seen[]' is now cleared)
 }
