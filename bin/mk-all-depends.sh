@@ -2,7 +2,7 @@
 
 MAKE=make
 
-if gmake
+if gmake -v >/dev/null
 then
   echo "Using gmake..."
   MAKE=gmake
