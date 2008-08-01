@@ -71,7 +71,7 @@ Solver::Solver() :
 
     // Statistics: (formerly in 'SolverStats')
     //
-  , starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
+  , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
   , dec_vars(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
 
   , ok                 (true)
@@ -721,8 +721,9 @@ bool Solver::solve_()
 {
     model.clear();
     conflict.clear();
-
     if (!ok) return false;
+
+    solves++;
 
     max_learnts               = nClauses() * learntsize_factor;
     learntsize_adjust_confl   = learntsize_adjust_start_confl;
