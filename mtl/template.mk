@@ -8,10 +8,10 @@
 PWD        = $(shell pwd)
 EXEC      ?= $(notdir $(PWD))
 
-CSRCS      = $(wildcard $(PWD)/*.C) 
-DSRCS      = $(foreach dir, $(DEPDIR), $(filter-out $(MROOT)/$(dir)/Main.C, $(wildcard $(MROOT)/$(dir)/*.C)))
+CSRCS      = $(wildcard $(PWD)/*.cc) 
+DSRCS      = $(foreach dir, $(DEPDIR), $(filter-out $(MROOT)/$(dir)/Main.cc, $(wildcard $(MROOT)/$(dir)/*.cc)))
 CHDRS      = $(wildcard $(PWD)/*.h)
-COBJS      = $(CSRCS:.C=.o) $(DSRCS:.C=.o)
+COBJS      = $(CSRCS:.cc=.o) $(DSRCS:.cc=.o)
 
 PCOBJS     = $(addsuffix p,  $(COBJS))
 DCOBJS     = $(addsuffix d,  $(COBJS))
@@ -67,7 +67,7 @@ lib$(LIB)_release.a:	$(filter-out */Main.or, $(RCOBJS))
 
 
 ## Build rule
-%.o %.op %.od %.or:	%.C
+%.o %.op %.od %.or:	%.cc
 	@echo Compiling: $(subst $(MROOT)/,,$@)
 	@$(CXX) $(CFLAGS) -c -o $@ $<
 
