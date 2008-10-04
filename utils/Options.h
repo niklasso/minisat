@@ -77,11 +77,16 @@ class Option
 
 
 struct IntRange {
-    int64_t begin;
-    int64_t end;
-    IntRange(int64_t b, int64_t e) : begin(b), end(e) {}
+    int begin;
+    int end;
+    IntRange(int b, int e) : begin(b), end(e) {}
 };
 
+struct Int64Range {
+    int64_t begin;
+    int64_t end;
+    Int64Range(int64_t b, int64_t e) : begin(b), end(e) {}
+};
 
 struct DoubleRange {
     double begin;
@@ -160,15 +165,77 @@ class IntOption : public Option
 {
  protected:
     IntRange range;
+    int32_t  value;
+
+ public:
+    IntOption(const char* c, const char* n, const char* d, int32_t def = int32_t(), IntRange r = IntRange(INT32_MIN, INT32_MAX))
+        : Option(n, d, c, "<int32>"), range(r), value(def) {}
+ 
+    operator   int32_t   (void) const { return value; }
+    operator   int32_t&  (void)       { return value; }
+    IntOption& operator= (int32_t x)  { value = x; return *this; }
+
+    virtual bool parse(const char* str){
+        const char* span = str; 
+
+        if (!match(span, "-") || !match(span, name) || !match(span, "="))
+            return false;
+
+        char*   end;
+        int32_t tmp = strtol(span, &end, 10);
+
+        if (end == NULL) 
+            return false;
+        else if (tmp > range.end){
+            fprintf(stderr, "ERROR! value <%s> is too large for option \"%s\".\n", span, name);
+            exit(1);
+        }else if (tmp < range.begin){
+            fprintf(stderr, "ERROR! value <%s> is too small for option \"%s\".\n", span, name);
+            exit(1); }
+
+        value = tmp;
+
+        return true;
+    }
+
+    virtual void help (bool verbose = false){
+        fprintf(stderr, "  -%-10s = %-8s [", name, type_name);
+        if (range.begin == INT32_MIN)
+            fprintf(stderr, "imin");
+        else
+            fprintf(stderr, "%4d", range.begin);
+
+        fprintf(stderr, " .. ");
+        if (range.end == INT32_MAX)
+            fprintf(stderr, "imax");
+        else
+            fprintf(stderr, "%4d", range.end);
+
+        fprintf(stderr, "] (default: %d)\n", value);
+        if (verbose){
+            fprintf(stderr, "\n        %s\n", description);
+            fprintf(stderr, "\n");
+        }
+    }
+};
+
+
+// Leave this out for visual C++ until Microsoft implements C99 and gets support for strtoll.
+#ifndef _MSC_VER
+
+class Int64Option : public Option
+{
+ protected:
+    Int64Range range;
     int64_t  value;
 
  public:
-    IntOption(const char* c, const char* n, const char* d, int64_t def = int64_t(), IntRange r = IntRange(INT64_MIN, INT64_MAX))
+    Int64Option(const char* c, const char* n, const char* d, int64_t def = int64_t(), Int64Range r = Int64Range(INT64_MIN, INT64_MAX))
         : Option(n, d, c, "<int64>"), range(r), value(def) {}
  
-    operator   int64_t   (void) const { return value; }
-    operator   int64_t&  (void)       { return value; }
-    IntOption& operator= (int64_t x)  { value = x; return *this; }
+    operator     int64_t   (void) const { return value; }
+    operator     int64_t&  (void)       { return value; }
+    Int64Option& operator= (int64_t x)  { value = x; return *this; }
 
     virtual bool parse(const char* str){
         const char* span = str; 
@@ -213,7 +280,7 @@ class IntOption : public Option
         }
     }
 };
-
+#endif
 
 //==================================================================================================
 // String option:
