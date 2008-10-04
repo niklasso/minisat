@@ -1,4 +1,4 @@
-/******************************************************************************************[Main.C]
+/*****************************************************************************************[Main.cc]
 Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
 Copyright (c) 2007,      Niklas Sorensson
 
@@ -27,7 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "utils/ParseUtils.h"
 #include "utils/Options.h"
 #include "core/Dimacs.h"
-#include "core/Solver.h"
+#include "simp/SimpSolver.h"
 
 using namespace Minisat;
 
@@ -47,7 +47,7 @@ void printStats(Solver& solver)
     printf("CPU time              : %g s\n", cpu_time);
 }
 
-Solver* solver;
+SimpSolver* solver;
 static void SIGINT_handler(int signum) {
     printf("\n"); printf("*** INTERRUPTED ***\n");
     if (solver->verbosity > 0){
@@ -58,7 +58,6 @@ static void SIGINT_handler(int signum) {
 
 //=================================================================================================
 // Main:
-
 
 int main(int argc, char** argv)
 {
@@ -71,13 +70,21 @@ int main(int argc, char** argv)
     printf("WARNING: for repeatability, setting FPU to use double precision\n");
 #endif
 
+    // Extra options:
+    //
+    BoolOption   pre    ("MAIN", "pre",    "Completely turn on/off any preprocessing.", true);
+    StringOption dimacs ("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
+
     parseOptions(argc, argv, true);
 
-    Solver S;
-    double initial_time = cpuTime();
+    SimpSolver  S;
+    double      initial_time = cpuTime();
+
+    if (!pre) S.eliminate(true);
 
     solver = &S;
     signal(SIGINT,SIGINT_handler);
+    signal(SIGHUP,SIGINT_handler);
 
     if (argc == 1)
         printf("Reading from standard input... Use '--help' for help.\n");
@@ -99,19 +106,33 @@ int main(int argc, char** argv)
         printf("|  Number of clauses:    %12d                                         |\n", S.nClauses()); }
 
     double parsed_time = cpuTime();
-    if (S.verbosity > 0){
+    if (S.verbosity > 0)
         printf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
+
+    S.eliminate(true);
+    double simplified_time = cpuTime();
+    if (S.verbosity > 0){
+        printf("|  Simplification time:  %12.2f s                                       |\n", simplified_time - parsed_time);
         printf("|                                                                             |\n"); }
 
-    if (!S.simplify()){
+    if (!S.okay()){
         if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
         if (S.verbosity > 0){
             printf("===============================================================================\n");
-            printf("Solved by unit propagation\n");
+            printf("Solved by simplification\n");
             printStats(S);
             printf("\n"); }
         printf("UNSATISFIABLE\n");
         exit(20);
+    }
+
+    if (dimacs){
+        if (S.verbosity > 0)
+            printf("==============================[ Writing DIMACS ]===============================\n");
+        S.toDimacs(dimacs);
+        if (S.verbosity > 0)
+            printStats(S);
+        exit(0);
     }
 
     vec<Lit> dummy;
