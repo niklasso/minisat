@@ -632,9 +632,7 @@ lbool Solver::search(int nof_conflicts)
 
         }else{
             // NO CONFLICT
-
-            if (nof_conflicts >= 0 && conflictC >= nof_conflicts || 
-                conflict_budget >= 0 && conflicts >= (uint64_t)conflict_budget){
+            if (nof_conflicts >= 0 && conflictC >= nof_conflicts || !withinBudget()){
                 // Reached bound on number of conflicts:
                 progress_estimate = progressEstimate();
                 cancelUntil(0);
@@ -750,8 +748,7 @@ lbool Solver::solve_()
     while (status == l_Undef){
         int nof_conflicts = (int)(luby(restart_luby_inc, curr_restarts) * restart_luby_start);
         status = search(nof_conflicts);
-        if (conflict_budget <= (int64_t)conflicts)
-            break;
+        if (!withinBudget()) break;
         curr_restarts++;
     }
 

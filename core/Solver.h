@@ -225,6 +225,7 @@ protected:
     Clause*  reason           (Var x) const;
     int      level            (Var x) const;
     double   progressEstimate ()      const; // DELETE THIS ?? IT'S NOT VERY USEFUL ...
+    bool     withinBudget     ()      const;
 
     // Static helpers:
     //
@@ -302,10 +303,13 @@ inline void     Solver::setDecisionVar(Var v, bool b)
     decision[v] = b;
     insertVarOrder(v);
 }
-
 inline void     Solver::setConfBudget(int x){ conflict_budget = conflicts + x; }
-inline void     Solver::setPropBudget(int x){ propagation_budget = propagations + x; }
+inline void     Solver::setPropBudget(int x){ propagation_budget = propagations + x; } // TODO: may need to expose the full 64-bit scale here.
 inline void     Solver::budgetOff(){ conflict_budget = propagation_budget = -1; }
+inline bool     Solver::withinBudget() const {
+    return (conflict_budget    < 0 || conflicts < (uint64_t)conflict_budget) &&
+           (propagation_budget < 0 || propagations < (uint64_t)propagation_budget); }
+
 inline bool     Solver::solve         ()                    { budgetOff(); assumptions.clear(); return solve_() == l_True; }
 inline bool     Solver::solve         (Lit p)               { budgetOff(); assumptions.clear(); assumptions.push(p); return solve_() == l_True; }
 inline bool     Solver::solve         (Lit p, Lit q)        { budgetOff(); assumptions.clear(); assumptions.push(p); assumptions.push(q); return solve_() == l_True; }
