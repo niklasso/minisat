@@ -86,10 +86,10 @@ Var SimpSolver::newVar(bool sign, bool dvar) {
 
 
 
-bool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
+lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
 {
     vec<Var> extra_frozen;
-    bool     result = true;
+    lbool    result = l_True;
 
     do_simp &= use_simplification;
 
@@ -107,15 +107,15 @@ bool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
                 extra_frozen.push(v);
             } }
 
-        result = eliminate(turn_off_simp);
+        result = lbool(eliminate(turn_off_simp));
     }
 
-    if (result)
+    if (result == l_True)
         result = Solver::solve_();
     else if (verbosity >= 1)
         printf("===============================================================================\n");
 
-    if (result) 
+    if (result == l_True)
         extendModel();
 
     if (do_simp)

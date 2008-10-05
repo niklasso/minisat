@@ -40,6 +40,8 @@ static IntOption     opt_ccmin_mode       (_cat, "ccmin-mode", "Controls conflic
 static IntOption     opt_restart_luby_start 
                                           (_cat, "luby", "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT64_MAX));
 static DoubleOption  opt_restart_luby_inc (_cat, "luby-inc", "", 2, DoubleRange(1, false, HUGE_VAL, false));
+static IntOption     opt_conflict_budget   (_cat, "conf-budget", "Maximum number of conflicts (-1 = unbounded).", -1, IntRange(-1, INT32_MAX));
+static IntOption     opt_propagation_budget(_cat, "prop-budget", "Maximum number of propagations (-1 = unbounded).", -1, IntRange(-1, INT32_MAX));
 
 
 //=================================================================================================
@@ -84,6 +86,11 @@ Solver::Solver() :
   , progress_estimate  (0)
   , remove_satisfied   (true)
   , extra_clause_field (false)
+
+    // Rresources constraints:
+    //
+  , conflict_budget    (opt_conflict_budget)
+  , propagation_budget (opt_propagation_budget)
 {}
 
 
@@ -626,7 +633,8 @@ lbool Solver::search(int nof_conflicts)
         }else{
             // NO CONFLICT
 
-            if (nof_conflicts >= 0 && conflictC >= nof_conflicts){
+            if (nof_conflicts >= 0 && conflictC >= nof_conflicts || 
+                conflict_budget >= 0 && conflicts >= (uint64_t)conflict_budget){
                 // Reached bound on number of conflicts:
                 progress_estimate = progressEstimate();
                 cancelUntil(0);
@@ -717,7 +725,7 @@ static double luby(double y, int x){
 }
 
 // NOTE: assumptions passed in member-variable 'assumptions'.
-bool Solver::solve_()
+lbool Solver::solve_()
 {
     model.clear();
     conflict.clear();
@@ -742,6 +750,8 @@ bool Solver::solve_()
     while (status == l_Undef){
         int nof_conflicts = (int)(luby(restart_luby_inc, curr_restarts) * restart_luby_start);
         status = search(nof_conflicts);
+        if (conflict_budget <= (int64_t)conflicts)
+            break;
         curr_restarts++;
     }
 
@@ -753,12 +763,9 @@ bool Solver::solve_()
         // Extend & copy model:
         model.growTo(nVars());
         for (int i = 0; i < nVars(); i++) model[i] = value(i);
-    }else{
-        assert(status == l_False);
-        if (conflict.size() == 0)
-            ok = false;
-    }
+    }else if (status == l_False && conflict.size() == 0)
+        ok = false;
 
     cancelUntil(0);
-    return status == l_True;
+    return status;
 }

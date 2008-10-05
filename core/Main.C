@@ -114,24 +114,27 @@ int main(int argc, char** argv)
         exit(20);
     }
 
-    bool ret = S.solve();
+    vec<Lit> dummy;
+    lbool ret = S.solveLimited(dummy);
     if (S.verbosity > 0){
         printStats(S);
         printf("\n"); }
-    printf(ret ? "SATISFIABLE\n" : "UNSATISFIABLE\n");
+    printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
     if (res != NULL){
-        if (ret){
+        if (ret == l_True){
             fprintf(res, "SAT\n");
             for (int i = 0; i < S.nVars(); i++)
                 if (S.model[i] != l_Undef)
                     fprintf(res, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
             fprintf(res, " 0\n");
-        }else
+        }else if (ret == l_False)
             fprintf(res, "UNSAT\n");
+        else
+            fprintf(res, "INDET\n");
         fclose(res);
     }
 
 #ifdef NDEBUG
-    exit(ret ? 10 : 20);     // (faster than "return", which will invoke the destructor for 'Solver')
+    exit(ret == l_True ? 10 : ret == l_False ? 20 : 0);     // (faster than "return", which will invoke the destructor for 'Solver')
 #endif
 }

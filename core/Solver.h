@@ -59,6 +59,7 @@ public:
     //
     bool    simplify     ();                        // Removes already satisfied clauses.
     bool    solve        (const vec<Lit>& assumps); // Search for a model that respects a given set of assumptions.
+    lbool   solveLimited (const vec<Lit>& assumps); // Search for a model that respects a given set of assumptions (With resource constraints).
     bool    solve        ();                        // Search without assumptions.
     bool    solve        (Lit p);                   // Search for a model that respects a single assumption.
     bool    solve        (Lit p, Lit q);            // Search for a model that respects two assumptions.
@@ -81,6 +82,12 @@ public:
     int     nLearnts   ()      const;       // The current number of learnt clauses.
     int     nVars      ()      const;       // The current number of variables.
     int     nFreeVars  ()      const;
+
+    // Resource contraints:
+    //
+    void    setConfBudget(int x);
+    void    setPropBudget(int x);
+    void    budgetOff();
 
     // Extra results: (read-only member variable)
     //
@@ -172,6 +179,11 @@ protected:
 
     bool                extra_clause_field;
 
+    // Resource contraints:
+    //
+    int64_t             conflict_budget;
+    int64_t             propagation_budget;
+
     // Main internal methods:
     //
     void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.
@@ -185,7 +197,7 @@ protected:
     void     analyzeFinal     (Lit p, vec<Lit>& out_conflict);                         // COULD THIS BE IMPLEMENTED BY THE ORDINARIY "analyze" BY SOME REASONABLE GENERALIZATION?
     bool     litRedundant     (Lit p, uint32_t abstract_levels);                       // (helper method for 'analyze()')
     lbool    search           (int nof_conflicts);                                     // Search for a given number of conflicts.
-    bool     solve_           ();                                                      // Main solve method (assumptions given in 'assumptions').
+    lbool    solve_           ();                                                      // Main solve method (assumptions given in 'assumptions').
     void     reduceDB         ();                                                      // Reduce the set of learnt clauses.
     void     removeSatisfied  (vec<Clause*>& cs);                                      // Shrink 'cs' to contain only non-satisfied clauses.
     void     rebuildOrderHeap ();
@@ -290,12 +302,16 @@ inline void     Solver::setDecisionVar(Var v, bool b)
     decision[v] = b;
     insertVarOrder(v);
 }
-inline bool     Solver::solve         ()                    { assumptions.clear(); return solve_(); }
-inline bool     Solver::solve         (Lit p)               { assumptions.clear(); assumptions.push(p); return solve_(); }
-inline bool     Solver::solve         (Lit p, Lit q)        { assumptions.clear(); assumptions.push(p); assumptions.push(q); return solve_(); }
-inline bool     Solver::solve         (Lit p, Lit q, Lit r) { assumptions.clear(); assumptions.push(p); assumptions.push(q); assumptions.push(r); return solve_(); }
-inline bool     Solver::solve         (const vec<Lit>& assumps) {
-    assumps.copyTo(assumptions); return solve_(); }
+
+inline void     Solver::setConfBudget(int x){ conflict_budget = conflicts + x; }
+inline void     Solver::setPropBudget(int x){ propagation_budget = propagations + x; }
+inline void     Solver::budgetOff(){ conflict_budget = propagation_budget = -1; }
+inline bool     Solver::solve         ()                    { budgetOff(); assumptions.clear(); return solve_() == l_True; }
+inline bool     Solver::solve         (Lit p)               { budgetOff(); assumptions.clear(); assumptions.push(p); return solve_() == l_True; }
+inline bool     Solver::solve         (Lit p, Lit q)        { budgetOff(); assumptions.clear(); assumptions.push(p); assumptions.push(q); return solve_() == l_True; }
+inline bool     Solver::solve         (Lit p, Lit q, Lit r) { budgetOff(); assumptions.clear(); assumptions.push(p); assumptions.push(q); assumptions.push(r); return solve_() == l_True; }
+inline bool     Solver::solve         (const vec<Lit>& assumps){ budgetOff(); assumps.copyTo(assumptions); return solve_() == l_True; }
+inline lbool    Solver::solveLimited  (const vec<Lit>& assumps){ assumps.copyTo(assumptions); return solve_(); }
 inline bool     Solver::okay          ()      const   { return ok; }
 
 

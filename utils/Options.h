@@ -142,7 +142,7 @@ class DoubleOption : public Option
     }
 
     virtual void help (bool verbose = false){
-        fprintf(stderr, "  -%-10s = %-8s %c%4.2g .. %4.2g%c (default: %g)\n", 
+        fprintf(stderr, "  -%-12s = %-8s %c%4.2g .. %4.2g%c (default: %g)\n", 
                 name, type_name, 
                 range.begin_inclusive ? '[' : '(', 
                 range.begin,
@@ -199,7 +199,7 @@ class IntOption : public Option
     }
 
     virtual void help (bool verbose = false){
-        fprintf(stderr, "  -%-10s = %-8s [", name, type_name);
+        fprintf(stderr, "  -%-12s = %-8s [", name, type_name);
         if (range.begin == INT32_MIN)
             fprintf(stderr, "imin");
         else
@@ -261,7 +261,7 @@ class Int64Option : public Option
     }
 
     virtual void help (bool verbose = false){
-        fprintf(stderr, "  -%-10s = %-8s [", name, type_name);
+        fprintf(stderr, "  -%-12s = %-8s [", name, type_name);
         if (range.begin == INT64_MIN)
             fprintf(stderr, "imin");
         else
