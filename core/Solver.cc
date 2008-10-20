@@ -31,16 +31,15 @@ using namespace Minisat;
 
 static const char* _cat = "CORE";
 
-static IntOption     opt_verbosity        (_cat, "verb", "Verbosity level (0=silent, 1=some, 2=more).",         1,        IntRange(0, 2));
-static DoubleOption  opt_var_decay        (_cat, "var-decay","The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
-static DoubleOption  opt_clause_decay     (_cat, "cla-decay","The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
-static DoubleOption  opt_random_var_freq  (_cat, "rnd-freq", "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
-static DoubleOption  opt_random_seed      (_cat, "rnd-seed", "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
-static IntOption     opt_ccmin_mode       (_cat, "ccmin-mode", "Controls conflict clause minimization (0=none, 1=basic, 2=deep).", 2, IntRange(0, 2));
-static IntOption     opt_restart_luby_start 
-                                          (_cat, "luby", "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT64_MAX));
-static DoubleOption  opt_restart_luby_inc (_cat, "luby-inc", "", 2, DoubleRange(1, false, HUGE_VAL, false));
-static IntOption     opt_conflict_budget   (_cat, "conf-budget", "Maximum number of conflicts (-1 = unbounded).", -1, IntRange(-1, INT32_MAX));
+static IntOption     opt_verbosity         (_cat, "verb",        "Verbosity level (0=silent, 1=some, 2=more).",         1,      IntRange(0, 2));
+static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
+static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
+static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
+static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
+static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep).", 2, IntRange(0, 2));
+static IntOption     opt_restart_luby_start(_cat, "luby",        "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT32_MAX));
+static DoubleOption  opt_restart_luby_inc  (_cat, "luby-inc",    "The constant that the luby sequence takes the power-of", 2, DoubleRange(1, false, HUGE_VAL, false));
+static IntOption     opt_conflict_budget   (_cat, "conf-budget", "Maximum number of conflicts (-1 = unbounded).",    -1, IntRange(-1, INT32_MAX));
 static IntOption     opt_propagation_budget(_cat, "prop-budget", "Maximum number of propagations (-1 = unbounded).", -1, IntRange(-1, INT32_MAX));
 
 
