@@ -27,6 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include "mtl/Alg.h"
 #include "mtl/Vec.h"
+#include "mtl/Alloc.h"
 
 namespace Minisat {
 
@@ -110,39 +111,10 @@ inline int   toInt  (lbool l) { return l.value; }
 inline lbool toLbool(int   v) { return lbool((uint8_t)v);  }
 
 //=================================================================================================
-// ClauseAllocator -- a simple class for allocating memory for clauses:
-
-typedef int32_t ClauseId;
-
-const ClauseId Clause_NULL = -1;
-
-class Clause;
-class ClauseAllocator {
-    vec<char> memory;
-    int       wasted;
-
- public:
-    ClauseAllocator() : wasted(0) { memory.capacity(1024*1024*4); }
-
-    int            size () const { return memory.size(); }
-    int            wastedBytes() const { return wasted; }
-
-    ClauseId       alloc(int size, bool has_extra);
-    void           free (int size, bool has_extra);
-
-    Clause&        deref(ClauseId cid) { return *(Clause*)&memory[cid]; }
-    const Clause&  deref(ClauseId cid) const { return *(Clause*)&memory[cid]; }
-
-    void           moveTo(ClauseAllocator& to) { 
-        memory.moveTo(to.memory); 
-        to.wasted = wasted;
-    }
-};
-
-
-//=================================================================================================
 // Clause -- a simple class for representing a clause:
 
+class Clause;
+typedef RegionAllocator<Clause>::Ref ClauseId;
 
 class Clause {
     struct {
@@ -153,12 +125,7 @@ class Clause {
         unsigned size      : 27; }                            header;
     union { Lit lit; float act; uint32_t abs; ClauseId rel; } data[0];
 
-public:
-    void calcAbstraction() {
-        uint32_t abstraction = 0;
-        for (int i = 0; i < size(); i++)
-            abstraction |= 1 << (var(data[i].lit) & 31);
-        data[header.size].abs = abstraction;  }
+    friend class ClauseAllocator;
 
     // NOTE: This constructor cannot be used directly (doesn't allocate enough memory).
     template<class V>
@@ -179,8 +146,13 @@ public:
                 calcAbstraction(); }
     }
 
-    // -- use this function instead:
-    inline friend ClauseId Clause_new(ClauseAllocator& ca, const vec<Lit>& ps, bool learnt = false, bool use_extra = true);
+public:
+    void calcAbstraction() {
+        uint32_t abstraction = 0;
+        for (int i = 0; i < size(); i++)
+            abstraction |= 1 << (var(data[i].lit) & 31);
+        data[header.size].abs = abstraction;  }
+
 
     int          size        ()      const   { return header.size; }
     void         shrink      (int i)         { assert(i <= size()); if (header.has_extra) data[header.size-i] = data[header.size]; header.size -= i; }
@@ -208,37 +180,38 @@ public:
     void         strengthen  (Lit p);
 };
 
-inline ClauseId Clause_new(ClauseAllocator& ca, const vec<Lit>& ps, bool learnt, bool use_extra) {
-    assert(sizeof(Lit)      == sizeof(uint32_t));
-    assert(sizeof(float)    == sizeof(uint32_t));
-    use_extra |= learnt;
-    
-    ClauseId cid = ca.alloc(ps.size(), use_extra);
-    new (&ca.deref(cid)) Clause(ps, use_extra, learnt); 
-    return cid; }
+
+//=================================================================================================
+// ClauseAllocator -- a simple class for allocating memory for clauses:
 
 
-inline void Clause_free(ClauseAllocator& ca, ClauseId cid) {
-    Clause& c = ca.deref(cid);
-    ca.free(c.size(), c.has_extra()); }
+const ClauseId Clause_NULL = RegionAllocator<Clause>::Ref_Undef;
+class ClauseAllocator : public RegionAllocator<Clause>
+{
+    static int clauseWord32Size(int size, bool has_extra){
+        return (sizeof(Clause) + (sizeof(Lit) * (size + (int)has_extra))) / sizeof(uint32_t); }
+ public:
+
+    template<class Lits>
+    ClauseId alloc(const Lits& ps, bool learnt = false, bool use_extra = true)
+    {
+        assert(sizeof(Lit)      == sizeof(uint32_t));
+        assert(sizeof(float)    == sizeof(uint32_t));
+        use_extra |= learnt;
+
+        ClauseId cid = RegionAllocator<Clause>::alloc(clauseWord32Size(ps.size(), use_extra));
+        new (lea(cid)) Clause(ps, use_extra, learnt);
+
+        return cid;
+    }
 
 
-inline void ClauseAllocator::free(int size, bool has_extra){ 
-    wasted += sizeof(Clause) + (size + (int)has_extra) * sizeof(Lit); }
-
-inline ClauseId ClauseAllocator::alloc(int size, bool has_extra) { 
-    int end   = memory.size();
-    
-    //int cap = memory.capacity();
-
-    int bsize = sizeof(Clause) + (size + (int)has_extra) * sizeof(Lit);
-    memory.growTo(memory.size() + bsize);
-
-    //if (cap < memory.capacity())
-    //    fprintf(stderr, "new capacity: %8d (%p)\n", memory.capacity(), (char*)memory);
-
-    return end;
-}
+    void free(ClauseId cid)
+    {
+        Clause& c = drf(cid);
+        RegionAllocator<Clause>::free(clauseWord32Size(c.size(), c.has_extra()));
+    }
+};
 
 
 /*_________________________________________________________________________________________________

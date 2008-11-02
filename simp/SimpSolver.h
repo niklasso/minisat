@@ -164,7 +164,7 @@ inline void SimpSolver::cleanOcc(Var v) {
     ClauseId *end = begin + occurs[v].size();
     ClauseId *i, *j;
     for (i = begin, j = end; i < j; i++)
-        if (ca.deref(*i).mark() == 1){
+        if (ca.drf(*i).mark() == 1){
             *i = *(--j);
             i--;
         }

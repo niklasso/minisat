@@ -92,6 +92,7 @@ public:
     // Memory managment:
     //
     virtual void garbageCollect();
+    void    checkGarbage();
 
     // Extra results: (read-only member variable)
     //
@@ -279,8 +280,12 @@ inline void Solver::claBumpActivity (Clause& c) {
         if ( (c.activity() += cla_inc) > 1e20 ) {
             // Rescale:
             for (int i = 0; i < learnts.size(); i++)
-                ca.deref(learnts[i]).activity() *= 1e-20;
+                ca.drf(learnts[i]).activity() *= 1e-20;
             cla_inc *= 1e-20; } }
+
+inline void Solver::checkGarbage(){
+    if (ca.wastedBytes() > (ca.size() / 5))
+        garbageCollect(); }
 
 // NOTE: enqueue does not set the ok flag! (only public methods do)
 inline bool     Solver::enqueue         (Lit p, ClauseId from)  { return value(p) != l_Undef ? value(p) != l_False : (uncheckedEnqueue(p, from), true); }
@@ -289,7 +294,7 @@ inline bool     Solver::addEmptyClause  ()                      { add_tmp.clear(
 inline bool     Solver::addClause       (Lit p)                 { add_tmp.clear(); add_tmp.push(p); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q)          { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
-inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && &ca.deref(reason(var(c[0]))) == &c; }
+inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && &ca.drf(reason(var(c[0]))) == &c; }
 inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }
 
 inline int      Solver::decisionLevel ()      const   { return trail_lim.size(); }

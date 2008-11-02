@@ -135,7 +135,7 @@ int main(int argc, char** argv)
         exit(0);
     }
 
-    S.garbageCollect();
+
     vec<Lit> dummy;
     lbool ret = S.solveLimited(dummy);
 
