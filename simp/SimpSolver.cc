@@ -143,13 +143,13 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
         return false;
 
     if (use_simplification && clauses.size() == nclauses + 1){
-        ClauseId      cid = clauses.last();
-        const Clause& c   = ca.drf(cid);
+        CRef          cr = clauses.last();
+        const Clause& c  = ca.drf(cr);
 
-        subsumption_queue.insert(cid);
+        subsumption_queue.insert(cr);
 
         for (int i = 0; i < c.size(); i++){
-            occurs[var(c[i])].push(cid);
+            occurs[var(c[i])].push(cr);
             n_occ[toInt(c[i])]++;
             touched[var(c[i])] = 1;
             if (elim_heap.inHeap(var(c[i])))
@@ -161,9 +161,9 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
 }
 
 
-void SimpSolver::removeClause(ClauseId cid)
+void SimpSolver::removeClause(CRef cr)
 {
-    const Clause& c = ca.drf(cid);
+    const Clause& c = ca.drf(cr);
 
     if (use_simplification)
         for (int i = 0; i < c.size(); i++){
@@ -171,28 +171,28 @@ void SimpSolver::removeClause(ClauseId cid)
             updateElimHeap(var(c[i]));
         }
 
-    Solver::removeClause(cid);
+    Solver::removeClause(cr);
 }
 
 
-bool SimpSolver::strengthenClause(ClauseId cid, Lit l)
+bool SimpSolver::strengthenClause(CRef cr, Lit l)
 {
-    Clause& c = ca.drf(cid);
+    Clause& c = ca.drf(cr);
     assert(decisionLevel() == 0);
     assert(use_simplification);
 
     // FIX: this is too inefficient but would be nice to have (properly implemented)
     // if (!find(subsumption_queue, &c))
-    subsumption_queue.insert(cid);
+    subsumption_queue.insert(cr);
 
     if (c.size() == 2){
-        removeClause(cid);
+        removeClause(cr);
         c.strengthen(l);
     }else{
-        detachClause(cid);
+        detachClause(cr);
         c.strengthen(l);
-        attachClause(cid);
-        remove(occurs[var(l)], cid);
+        attachClause(cr);
+        remove(occurs[var(l)], cr);
         n_occ[toInt(l)]--;
         updateElimHeap(var(l));
     }
@@ -268,7 +268,7 @@ void SimpSolver::gatherTouchedClauses()
     int ntouched = 0;
     for (int i = 0; i < touched.size(); i++)
         if (touched[i]){
-            const vec<ClauseId>& cs = getOccurs(i);
+            const vec<CRef>& cs = getOccurs(i);
             ntouched++;
             for (int j = 0; j < cs.size(); j++)
                 if (ca.drf(cs[j]).mark() == 0){
@@ -321,8 +321,8 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
             ca.drf(bwdsub_tmpunit).calcAbstraction();
             subsumption_queue.insert(bwdsub_tmpunit); }
 
-        ClauseId cid = subsumption_queue.peek(); subsumption_queue.pop();
-        Clause&  c   = ca.drf(cid);
+        CRef    cr = subsumption_queue.peek(); subsumption_queue.pop();
+        Clause& c  = ca.drf(cr);
 
         if (c.mark()) continue;
 
@@ -338,13 +338,13 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
                 best = var(c[i]);
 
         // Search all candidates:
-        vec<ClauseId>& _cs = getOccurs(best);
-        ClauseId*       cs = (ClauseId*)_cs;
+        vec<CRef>& _cs = getOccurs(best);
+        CRef*       cs = (CRef*)_cs;
 
         for (int j = 0; j < _cs.size(); j++)
             if (c.mark())
                 break;
-            else if (!ca.drf(cs[j]).mark() &&  cs[j] != cid && (subsumption_lim == -1 || ca.drf(cs[j]).size() < subsumption_lim)){
+            else if (!ca.drf(cs[j]).mark() &&  cs[j] != cr && (subsumption_lim == -1 || ca.drf(cs[j]).size() < subsumption_lim)){
                 Lit l = c.subsumes(ca.drf(cs[j]));
 
                 if (l == lit_Undef)
@@ -366,9 +366,9 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
 }
 
 
-bool SimpSolver::asymm(Var v, ClauseId cid)
+bool SimpSolver::asymm(Var v, CRef cr)
 {
-    Clause& c = ca.drf(cid);
+    Clause& c = ca.drf(cr);
     assert(decisionLevel() == 0);
 
     if (c.mark() || satisfied(c)) return true;
@@ -384,7 +384,7 @@ bool SimpSolver::asymm(Var v, ClauseId cid)
     if (propagate() != NULL){
         cancelUntil(0);
         asymm_lits++;
-        if (!strengthenClause(cid, l))
+        if (!strengthenClause(cr, l))
             return false;
     }else
         cancelUntil(0);
@@ -397,7 +397,7 @@ bool SimpSolver::asymmVar(Var v)
 {
     assert(use_simplification);
 
-    const vec<ClauseId>& cls = getOccurs(v);
+    const vec<CRef>& cls = getOccurs(v);
 
     if (value(v) != l_Undef || cls.size() == 0)
         return true;
@@ -451,8 +451,8 @@ bool SimpSolver::eliminateVar(Var v)
 
     // Split the occurrences into positive and negative:
     //
-    const vec<ClauseId>& cls = getOccurs(v);
-    vec<ClauseId>  pos, neg;
+    const vec<CRef>& cls = getOccurs(v);
+    vec<CRef>        pos, neg;
     for (int i = 0; i < cls.size(); i++)
         (find(ca.drf(cls[i]), mkLit(v)) ? pos : neg).push(cls[i]);
 
@@ -514,7 +514,7 @@ bool SimpSolver::substitute(Var v, Lit x)
 
     eliminated[v] = true;
     setDecisionVar(v, false);
-    const vec<ClauseId>& cls = getOccurs(v);
+    const vec<CRef>& cls = getOccurs(v);
     
     vec<Lit>& subst_clause = add_tmp;
     for (int i = 0; i < cls.size(); i++){

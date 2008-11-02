@@ -113,7 +113,7 @@ Var Solver::newVar(bool sign, bool dvar)
     watches  .push();          // (list for positive literal)
     watches  .push();          // (list for negative literal)
     assigns  .push(l_Undef);
-    vardata  .push(mkVarData(Clause_NULL, 0));
+    vardata  .push(mkVarData(CRef_Undef, 0));
     //activity .push(0);
     activity .push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     seen     .push(0);
@@ -146,40 +146,40 @@ bool Solver::addClause_(vec<Lit>& ps)
         uncheckedEnqueue(ps[0]);
         return ok = (propagate() == NULL);
     }else{
-        ClauseId c = ca.alloc(ps, false, extra_clause_field);
-        clauses.push(c);
-        attachClause(c);
+        CRef cr = ca.alloc(ps, false, extra_clause_field);
+        clauses.push(cr);
+        attachClause(cr);
     }
 
     return true;
 }
 
 
-void Solver::attachClause(ClauseId cid) {
-    const Clause& c = ca.drf(cid);
+void Solver::attachClause(CRef cr) {
+    const Clause& c = ca.drf(cr);
     assert(c.size() > 1);
-    watches[toInt(~c[0])].push(Watcher(cid, c[1]));
-    watches[toInt(~c[1])].push(Watcher(cid, c[0]));
+    watches[toInt(~c[0])].push(Watcher(cr, c[1]));
+    watches[toInt(~c[1])].push(Watcher(cr, c[0]));
     if (c.learnt()) learnts_literals += c.size();
     else            clauses_literals += c.size(); }
 
 
-void Solver::detachClause(ClauseId cid) {
-    const Clause& c = ca.drf(cid);
+void Solver::detachClause(CRef cr) {
+    const Clause& c = ca.drf(cr);
     assert(c.size() > 1);
-    remove(watches[toInt(~c[0])], Watcher(cid, c[1]));
-    remove(watches[toInt(~c[1])], Watcher(cid, c[0])); 
+    remove(watches[toInt(~c[0])], Watcher(cr, c[1]));
+    remove(watches[toInt(~c[1])], Watcher(cr, c[0])); 
     if (c.learnt()) learnts_literals -= c.size();
     else            clauses_literals -= c.size(); }
 
 
-void Solver::removeClause(ClauseId cid) {
-    Clause& c = ca.drf(cid);
-    detachClause(cid);
+void Solver::removeClause(CRef cr) {
+    Clause& c = ca.drf(cr);
+    detachClause(cr);
     // Don't leave pointers to free'd memory!
-    if (locked(c)) vardata[var(c[0])].reason = Clause_NULL;
+    if (locked(c)) vardata[var(c[0])].reason = CRef_Undef;
     c.mark(1); 
-    ca.free(cid);
+    ca.free(cr);
 }
 
 
@@ -190,19 +190,19 @@ bool Solver::satisfied(const Clause& c) const {
     return false; }
 
 
-void Solver::reloc(ClauseId& cid, ClauseAllocator& to)
+void Solver::reloc(CRef& cr, ClauseAllocator& to)
 {
-    Clause& c = ca.drf(cid);
+    Clause& c = ca.drf(cr);
 
-    if (c.reloced()) { cid = c.relocation(); return; }
+    if (c.reloced()) { cr = c.relocation(); return; }
 
-    cid = to.alloc(c, c.learnt(), c.has_extra() & extra_clause_field);
-    c.relocate(cid);
+    cr = to.alloc(c, c.learnt(), c.has_extra() & extra_clause_field);
+    c.relocate(cr);
 
     // Copy extra data-fields: (This could be cleaned-up)
-    to.drf(cid).mark(c.mark());
+    to.drf(cr).mark(c.mark());
     if (c.learnt())
-        to.drf(cid).activity() = c.activity();
+        to.drf(cr).activity() = c.activity();
 }
 
 
@@ -314,14 +314,14 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
             abstract_level |= abstractLevel(var(out_learnt[i])); // (maintain an abstraction of levels involved in conflict)
 
         for (i = j = 1; i < out_learnt.size(); i++)
-            if (reason(var(out_learnt[i])) == Clause_NULL || !litRedundant(out_learnt[i], abstract_level))
+            if (reason(var(out_learnt[i])) == CRef_Undef || !litRedundant(out_learnt[i], abstract_level))
                 out_learnt[j++] = out_learnt[i];
         
     }else if (ccmin_mode == 1){
         for (i = j = 1; i < out_learnt.size(); i++){
             Var x = var(out_learnt[i]);
 
-            if (reason(x) == Clause_NULL)
+            if (reason(x) == CRef_Undef)
                 out_learnt[j++] = out_learnt[i];
             else{
                 Clause& c = ca.drf(reason(var(out_learnt[i])));
@@ -366,13 +366,13 @@ bool Solver::litRedundant(Lit p, uint32_t abstract_levels)
     analyze_stack.clear(); analyze_stack.push(p);
     int top = analyze_toclear.size();
     while (analyze_stack.size() > 0){
-        assert(reason(var(analyze_stack.last())) != Clause_NULL);
+        assert(reason(var(analyze_stack.last())) != CRef_Undef);
         Clause& c = ca.drf(reason(var(analyze_stack.last()))); analyze_stack.pop();
 
         for (int i = 1; i < c.size(); i++){
             Lit p  = c[i];
             if (!seen[var(p)] && level(var(p)) > 0){
-                if (reason(var(p)) != Clause_NULL && (abstractLevel(var(p)) & abstract_levels) != 0){
+                if (reason(var(p)) != CRef_Undef && (abstractLevel(var(p)) & abstract_levels) != 0){
                     seen[var(p)] = 1;
                     analyze_stack.push(p);
                     analyze_toclear.push(p);
@@ -412,7 +412,7 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
     for (int i = trail.size()-1; i >= trail_lim[0]; i--){
         Var x = var(trail[i]);
         if (seen[x]){
-            if (reason(x) == Clause_NULL){
+            if (reason(x) == CRef_Undef){
                 assert(level(x) > 0);
                 out_conflict.push(~trail[i]);
             }else{
@@ -429,7 +429,7 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
 }
 
 
-void Solver::uncheckedEnqueue(Lit p, ClauseId from)
+void Solver::uncheckedEnqueue(Lit p, CRef from)
 {
     assert(value(p) == l_Undef);
     assigns[var(p)] = lbool(!sign(p));
@@ -467,8 +467,8 @@ Clause* Solver::propagate()
                 *j++ = *i++; continue; }
 
             // Make sure the false literal is data[1]:
-            ClauseId cid       = i->cref;
-            Clause&  c         = ca.drf(cid);
+            CRef     cr        = i->cref;
+            Clause&  c         = ca.drf(cr);
             Lit      false_lit = ~p;
             if (c[0] == false_lit)
                 c[0] = c[1], c[1] = false_lit;
@@ -477,7 +477,7 @@ Clause* Solver::propagate()
 
             // If 0th watch is true, then clause is already satisfied.
             Lit     first = c[0];
-            Watcher w     = Watcher(cid, first);
+            Watcher w     = Watcher(cr, first);
             if (first != blocker && value(first) == l_True){
                 *j++ = w; continue; }
 
@@ -497,7 +497,7 @@ Clause* Solver::propagate()
                 while (i < end)
                     *j++ = *i++;
             }else
-                uncheckedEnqueue(first, cid);
+                uncheckedEnqueue(first, cr);
 
         NextClause:;
         }
@@ -521,7 +521,7 @@ Clause* Solver::propagate()
 struct reduceDB_lt { 
     ClauseAllocator& ca;
     reduceDB_lt(ClauseAllocator& ca_) : ca(ca_) {}
-    bool operator () (ClauseId x, ClauseId y) { 
+    bool operator () (CRef x, CRef y) { 
         return ca.drf(x).size() > 2 && (ca.drf(y).size() == 2 || ca.drf(x).activity() < ca.drf(y).activity()); } 
 };
 void Solver::reduceDB()
@@ -544,7 +544,7 @@ void Solver::reduceDB()
 }
 
 
-void Solver::removeSatisfied(vec<ClauseId>& cs)
+void Solver::removeSatisfied(vec<CRef>& cs)
 {
     int i, j;
     for (i = j = 0; i < cs.size(); i++){
@@ -636,11 +636,11 @@ lbool Solver::search(int nof_conflicts)
             if (learnt_clause.size() == 1){
                 uncheckedEnqueue(learnt_clause[0]);
             }else{
-                ClauseId c = ca.alloc(learnt_clause, true);
-                learnts.push(c);
-                attachClause(c);
-                claBumpActivity(ca.drf(c));
-                uncheckedEnqueue(learnt_clause[0], c);
+                CRef cr = ca.alloc(learnt_clause, true);
+                learnts.push(cr);
+                attachClause(cr);
+                claBumpActivity(ca.drf(cr));
+                uncheckedEnqueue(learnt_clause[0], cr);
             }
 
             varDecayActivity();
@@ -812,7 +812,7 @@ void Solver::relocAll(ClauseAllocator& to)
     for (int i = 0; i < trail.size(); i++){
         Var v = var(trail[i]);
 
-        if (reason(v) != Clause_NULL && (ca.drf(reason(v)).reloced() || locked(ca.drf(reason(v)))))
+        if (reason(v) != CRef_Undef && (ca.drf(reason(v)).reloced() || locked(ca.drf(reason(v)))))
             reloc(vardata[v].reason, to);
     }
 

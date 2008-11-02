@@ -114,7 +114,7 @@ inline lbool toLbool(int   v) { return lbool((uint8_t)v);  }
 // Clause -- a simple class for representing a clause:
 
 class Clause;
-typedef RegionAllocator<Clause>::Ref ClauseId;
+typedef RegionAllocator<Clause>::Ref CRef;
 
 class Clause {
     struct {
@@ -123,7 +123,7 @@ class Clause {
         unsigned has_extra : 1;
         unsigned reloced   : 1;
         unsigned size      : 27; }                            header;
-    union { Lit lit; float act; uint32_t abs; ClauseId rel; } data[0];
+    union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];
 
     friend class ClauseAllocator;
 
@@ -164,8 +164,8 @@ public:
     const Lit&   last        ()      const   { return data[header.size-1].lit; }
 
     bool         reloced     ()      const   { return header.reloced; }
-    ClauseId     relocation  ()      const   { return data[0].rel; }
-    void         relocate    (ClauseId c)    { header.reloced = 1; data[0].rel = c; }
+    CRef         relocation  ()      const   { return data[0].rel; }
+    void         relocate    (CRef c)        { header.reloced = 1; data[0].rel = c; }
 
     // NOTE: somewhat unsafe to change the clause in-place! Must manually call 'calcAbstraction' afterwards for
     //       subsumption operations to behave correctly.
@@ -185,7 +185,7 @@ public:
 // ClauseAllocator -- a simple class for allocating memory for clauses:
 
 
-const ClauseId Clause_NULL = RegionAllocator<Clause>::Ref_Undef;
+const CRef CRef_Undef = RegionAllocator<Clause>::Ref_Undef;
 class ClauseAllocator : public RegionAllocator<Clause>
 {
     static int clauseWord32Size(int size, bool has_extra){
@@ -193,20 +193,20 @@ class ClauseAllocator : public RegionAllocator<Clause>
  public:
 
     template<class Lits>
-    ClauseId alloc(const Lits& ps, bool learnt = false, bool use_extra = true)
+    CRef alloc(const Lits& ps, bool learnt = false, bool use_extra = true)
     {
         assert(sizeof(Lit)      == sizeof(uint32_t));
         assert(sizeof(float)    == sizeof(uint32_t));
         use_extra |= learnt;
 
-        ClauseId cid = RegionAllocator<Clause>::alloc(clauseWord32Size(ps.size(), use_extra));
+        CRef cid = RegionAllocator<Clause>::alloc(clauseWord32Size(ps.size(), use_extra));
         new (lea(cid)) Clause(ps, use_extra, learnt);
 
         return cid;
     }
 
 
-    void free(ClauseId cid)
+    void free(CRef cid)
     {
         Clause& c = drf(cid);
         RegionAllocator<Clause>::free(clauseWord32Size(c.size(), c.has_extra()));

@@ -130,13 +130,13 @@ protected:
 
     // Helper structures:
     //
-    struct VarData { ClauseId reason; int level; };
-    static inline VarData mkVarData(ClauseId r, int l){ VarData d = {r, l}; return d; }
+    struct VarData { CRef reason; int level; };
+    static inline VarData mkVarData(CRef cr, int l){ VarData d = {cr, l}; return d; }
 
     struct Watcher {
-        ClauseId cref;
-        Lit      blocker;
-        Watcher(ClauseId c, Lit p) : cref(c), blocker(p) {}
+        CRef cref;
+        Lit  blocker;
+        Watcher(CRef cr, Lit p) : cref(cr), blocker(p) {}
         bool operator==(const Watcher& w) const { return cref == w.cref; }
         bool operator!=(const Watcher& w) const { return cref != w.cref; }
     };
@@ -150,8 +150,8 @@ protected:
     // Solver state:
     //
     bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
-    vec<ClauseId>       clauses;          // List of problem clauses.
-    vec<ClauseId>       learnts;          // List of learnt clauses.
+    vec<CRef>           clauses;          // List of problem clauses.
+    vec<CRef>           learnts;          // List of learnt clauses.
     double              cla_inc;          // Amount to bump next clause with.
     vec<double>         activity;         // A heuristic measurement of the activity of a variable.
     double              var_inc;          // Amount to bump next variable with.
@@ -196,8 +196,8 @@ protected:
     void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.
     Lit      pickBranchLit    ();                                                      // Return the next decision variable.
     void     newDecisionLevel ();                                                      // Begins a new decision level.
-    void     uncheckedEnqueue (Lit p, ClauseId from = Clause_NULL);                    // Enqueue a literal. Assumes value of literal is undefined.
-    bool     enqueue          (Lit p, ClauseId from = Clause_NULL);                    // Test if fact 'p' contradicts current state, enqueue otherwise.
+    void     uncheckedEnqueue (Lit p, CRef from = CRef_Undef);                         // Enqueue a literal. Assumes value of literal is undefined.
+    bool     enqueue          (Lit p, CRef from = CRef_Undef);                         // Test if fact 'p' contradicts current state, enqueue otherwise.
     Clause*  propagate        ();                                                      // Perform unit propagation. Returns possibly conflicting clause.
     void     cancelUntil      (int level);                                             // Backtrack until a certain level.
     void     analyze          (Clause* confl, vec<Lit>& out_learnt, int& out_btlevel); // (bt = backtrack)
@@ -206,7 +206,7 @@ protected:
     lbool    search           (int nof_conflicts);                                     // Search for a given number of conflicts.
     lbool    solve_           ();                                                      // Main solve method (assumptions given in 'assumptions').
     void     reduceDB         ();                                                      // Reduce the set of learnt clauses.
-    void     removeSatisfied  (vec<ClauseId>& cs);                                     // Shrink 'cs' to contain only non-satisfied clauses.
+    void     removeSatisfied  (vec<CRef>& cs);                                         // Shrink 'cs' to contain only non-satisfied clauses.
     void     rebuildOrderHeap ();
 
     // Maintaining Variable/Clause activity:
@@ -219,20 +219,20 @@ protected:
 
     // Operations on clauses:
     //
-    void     attachClause     (ClauseId c);            // Attach a clause to watcher lists.
-    void     detachClause     (ClauseId c);            // Detach a clause to watcher lists.
-    void     removeClause     (ClauseId c);            // Detach and free a clause.
+    void     attachClause     (CRef cr);               // Attach a clause to watcher lists.
+    void     detachClause     (CRef cr);               // Detach a clause to watcher lists.
+    void     removeClause     (CRef cr);               // Detach and free a clause.
     bool     locked           (const Clause& c) const; // Returns TRUE if a clause is a reason for some implication in the current state.
     bool     satisfied        (const Clause& c) const; // Returns TRUE if a clause is satisfied in the current state.
 
-    void     reloc            (ClauseId& c, ClauseAllocator& to);
+    void     reloc            (CRef& cr, ClauseAllocator& to);
     void     relocAll         (ClauseAllocator& to);
 
     // Misc:
     //
     int      decisionLevel    ()      const; // Gives the current decisionlevel.
     uint32_t abstractLevel    (Var x) const; // Used to represent an abstraction of sets of decision levels.
-    ClauseId reason           (Var x) const;
+    CRef     reason           (Var x) const;
     int      level            (Var x) const;
     double   progressEstimate ()      const; // DELETE THIS ?? IT'S NOT VERY USEFUL ...
     bool     withinBudget     ()      const;
@@ -256,8 +256,8 @@ protected:
 //=================================================================================================
 // Implementation of inline methods:
 
-inline ClauseId Solver::reason(Var x) const { return vardata[x].reason; }
-inline int      Solver::level (Var x) const { return vardata[x].level; }
+inline CRef Solver::reason(Var x) const { return vardata[x].reason; }
+inline int  Solver::level (Var x) const { return vardata[x].level; }
 
 inline void Solver::insertVarOrder(Var x) {
     if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x); }
@@ -288,7 +288,7 @@ inline void Solver::checkGarbage(){
         garbageCollect(); }
 
 // NOTE: enqueue does not set the ok flag! (only public methods do)
-inline bool     Solver::enqueue         (Lit p, ClauseId from)  { return value(p) != l_Undef ? value(p) != l_False : (uncheckedEnqueue(p, from), true); }
+inline bool     Solver::enqueue         (Lit p, CRef from)      { return value(p) != l_Undef ? value(p) != l_False : (uncheckedEnqueue(p, from), true); }
 inline bool     Solver::addClause       (const vec<Lit>& ps)    { ps.copyTo(add_tmp); return addClause_(add_tmp); }
 inline bool     Solver::addEmptyClause  ()                      { add_tmp.clear(); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p)                 { add_tmp.clear(); add_tmp.push(p); return addClause_(add_tmp); }
