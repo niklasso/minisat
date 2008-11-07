@@ -27,6 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include "mtl/Alg.h"
 #include "mtl/Vec.h"
+#include "mtl/Map.h"
 #include "mtl/Alloc.h"
 
 namespace Minisat {
@@ -211,6 +212,40 @@ class ClauseAllocator : public RegionAllocator<Clause>
         Clause& c = drf(cid);
         RegionAllocator<Clause>::free(clauseWord32Size(c.size(), c.has_extra()));
     }
+};
+
+
+//=================================================================================================
+// CMap -- a class for mapping clauses to values:
+
+
+template<class T>
+class CMap
+{
+    struct PtrHash {
+        uint32_t operator()(const Clause* ptr){ return (uint32_t)ptr; } };
+
+    typedef Map<const Clause*, T, PtrHash> HashTable;
+    HashTable map;
+        
+ public:
+    // Size-operations:
+    void     clear       ()                           { map.clear(); }
+    int      size        ()                const      { return map.elems(); }
+
+    
+    // Insert/Remove mapping:
+    void     insert      (const Clause& c, const T& t){ map.insert(&c, t); }
+    void     growTo      (const Clause& c, const T& t){ map.insert(&c, t); }
+    void     remove      (const Clause& c)            { map.remove(&c); }
+
+    // Vector interface (the clause 'c' must already exist):
+    const T& operator [] (const Clause& c) const      { return map[&c]; }
+    T&       operator [] (const Clause& c)            { return map[&c]; }
+
+    // TMP debug:
+    void debug(){
+        printf(" --- size = %d, bucket_count = %d\n", size(), map.bucket_count()); }
 };
 
 
