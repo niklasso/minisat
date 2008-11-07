@@ -60,24 +60,31 @@ class Map {
     Map<K,D,H,E>&  operator = (Map<K,D,H,E>& other) { assert(0); }
                    Map        (Map<K,D,H,E>& other) { assert(0); }
 
+    bool    checkCap(int new_size) const { return new_size > cap; }
+
     int32_t index  (const K& k) const { return hash(k) % cap; }
-    void   _insert (const K& k, const D& d) { table[index(k)].push(); table[index(k)].last().key = k; table[index(k)].last().data = d; }
+    void   _insert (const K& k, const D& d) { 
+        vec<Pair>& ps = table[index(k)];
+        ps.push(); ps.last().key = k; ps.last().data = d; }
+
     void    rehash () {
         const vec<Pair>* old = table;
 
+        int old_cap = cap;
         int newsize = primes[0];
         for (int i = 1; newsize <= cap && i < nprimes; i++)
            newsize = primes[i];
 
         table = new vec<Pair>[newsize];
+        cap   = newsize;
 
-        for (int i = 0; i < cap; i++){
+        for (int i = 0; i < old_cap; i++){
             for (int j = 0; j < old[i].size(); j++){
                 _insert(old[i][j].key, old[i][j].data); }}
 
         delete [] old;
 
-        cap = newsize;
+        // printf(" --- rehashing, old-cap=%d, new-cap=%d\n", cap, newsize);
     }
 
     
@@ -87,7 +94,33 @@ class Map {
      Map (const H& h, const E& e) : hash(h), equals(e), table(NULL), cap(0), size(0){}
     ~Map () { delete [] table; }
 
-    void insert (const K& k, const D& d) { if (size+1 > cap / 2) rehash(); _insert(k, d); size++; }
+    // PRECONDITION: the key must already exist in the map.
+    const D& operator [] (const K& k) const
+    {
+        assert(size != 0);
+        const D*         res = NULL;
+        const vec<Pair>& ps  = table[index(k)];
+        for (int i = 0; i < ps.size(); i++)
+            if (equals(ps[i].key, k))
+                res = &ps[i].data;
+        assert(res != NULL);
+        return *res;
+    }
+
+    // PRECONDITION: the key must already exist in the map.
+    D& operator [] (const K& k)
+    {
+        assert(size != 0);
+        D*         res = NULL;
+        vec<Pair>& ps  = table[index(k)];
+        for (int i = 0; i < ps.size(); i++)
+            if (equals(ps[i].key, k))
+                res = &ps[i].data;
+        assert(res != NULL);
+        return *res;
+    }
+
+    void insert (const K& k, const D& d) { if (checkCap(size+1)) rehash(); _insert(k, d); size++; }
     bool peek   (const K& k, D& d) {
         if (size == 0) return false;
         const vec<Pair>& ps = table[index(k)];
@@ -98,7 +131,8 @@ class Map {
         return false;
     }
 
-    void remove (const K& k) {
+    // PRECONDITION: the key must exist in the map.
+    void remove(const K& k) {
         assert(table != NULL);
         vec<Pair>& ps = table[index(k)];
         int j = 0;
@@ -113,6 +147,9 @@ class Map {
         delete [] table;
         table = NULL;
     }
+
+    int  elems() const { return size; }
+    int  bucket_count() const { return cap; }
 };
 
 };
