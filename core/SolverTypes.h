@@ -223,7 +223,7 @@ template<class T>
 class CMap
 {
     struct PtrHash {
-        uint32_t operator()(const Clause* ptr){ return (uint32_t)ptr; } };
+        uint32_t operator()(const Clause* ptr) const { return (uint32_t)ptr; } };
 
     typedef Map<const Clause*, T, PtrHash> HashTable;
     HashTable map;
@@ -234,10 +234,11 @@ class CMap
     int      size        ()                const      { return map.elems(); }
 
     
-    // Insert/Remove mapping:
+    // Insert/Remove/Test mapping:
     void     insert      (const Clause& c, const T& t){ map.insert(&c, t); }
     void     growTo      (const Clause& c, const T& t){ map.insert(&c, t); }
     void     remove      (const Clause& c)            { map.remove(&c); }
+    bool     has         (const Clause& c, T& t)      { return map.peek(&c, t); }
 
     // Vector interface (the clause 'c' must already exist):
     const T& operator [] (const Clause& c) const      { return map[&c]; }
