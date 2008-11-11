@@ -47,8 +47,10 @@ static const int primes [nprimes] = { 31, 73, 151, 313, 643, 1291, 2593, 5233, 1
 
 template<class K, class D, class H = Hash<K>, class E = Equal<K> >
 class Map {
+ public:
     struct Pair { K key; D data; };
 
+ private:
     H          hash;
     E          equals;
 
@@ -88,10 +90,10 @@ class Map {
     }
 
     
-    public:
+ public:
 
-     Map () : table(NULL), cap(0), size(0) {}
-     Map (const H& h, const E& e) : hash(h), equals(e), table(NULL), cap(0), size(0){}
+    Map () : table(NULL), cap(0), size(0) {}
+    Map (const H& h, const E& e) : hash(h), equals(e), table(NULL), cap(0), size(0){}
     ~Map () { delete [] table; }
 
     // PRECONDITION: the key must already exist in the map.
@@ -152,6 +154,21 @@ class Map {
 
     int  elems() const { return size; }
     int  bucket_count() const { return cap; }
+
+    // NOTE: the hash and equality objects are not moved by this method:
+    void moveTo(Map& other){
+        delete [] other.table;
+
+        other.table = table;
+        other.cap   = cap;
+        other.size  = size;
+
+        table = NULL;
+        size = cap = 0;
+    }
+
+    // NOTE: given a bit more time, I could make a more C++-style iterator out of this:
+    const vec<Pair>& bucket(int i) const { return table[i]; }
 };
 
 };
