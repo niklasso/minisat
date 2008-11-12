@@ -141,6 +141,7 @@ class Map {
         assert(j < ps.size());
         ps[j] = ps.last();
         ps.pop();
+        size--;
     }
 
     void clear  () {
