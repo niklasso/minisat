@@ -144,7 +144,7 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
 
     if (use_simplification && clauses.size() == nclauses + 1){
         CRef          cr = clauses.last();
-        const Clause& c  = ca.drf(cr);
+        const Clause& c  = ca[cr];
 
         subsumption_queue.insert(cr);
 
@@ -163,7 +163,7 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
 
 void SimpSolver::removeClause(CRef cr)
 {
-    const Clause& c = ca.drf(cr);
+    const Clause& c = ca[cr];
 
     if (use_simplification)
         for (int i = 0; i < c.size(); i++){
@@ -177,7 +177,7 @@ void SimpSolver::removeClause(CRef cr)
 
 bool SimpSolver::strengthenClause(CRef cr, Lit l)
 {
-    Clause& c = ca.drf(cr);
+    Clause& c = ca[cr];
     assert(decisionLevel() == 0);
     assert(use_simplification);
 
@@ -271,16 +271,16 @@ void SimpSolver::gatherTouchedClauses()
             const vec<CRef>& cs = getOccurs(i);
             ntouched++;
             for (int j = 0; j < cs.size(); j++)
-                if (ca.drf(cs[j]).mark() == 0){
+                if (ca[cs[j]].mark() == 0){
                     subsumption_queue.insert(cs[j]);
-                    ca.drf(cs[j]).mark(2);
+                    ca[cs[j]].mark(2);
                 }
             touched[i] = 0;
         }
 
     //fprintf(stderr, "Touched variables %d of %d yields %d clauses to check\n", ntouched, touched.size(), clauses.size());
     for (int i = 0; i < subsumption_queue.size(); i++)
-        ca.drf(subsumption_queue[i]).mark(0);
+        ca[subsumption_queue[i]].mark(0);
 }
 
 
@@ -317,12 +317,12 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
         // Check top-level assignments by creating a dummy clause and placing it in the queue:
         if (subsumption_queue.size() == 0 && bwdsub_assigns < trail.size()){
             Lit l = trail[bwdsub_assigns++];
-            ca.drf(bwdsub_tmpunit)[0] = l;
-            ca.drf(bwdsub_tmpunit).calcAbstraction();
+            ca[bwdsub_tmpunit][0] = l;
+            ca[bwdsub_tmpunit].calcAbstraction();
             subsumption_queue.insert(bwdsub_tmpunit); }
 
         CRef    cr = subsumption_queue.peek(); subsumption_queue.pop();
-        Clause& c  = ca.drf(cr);
+        Clause& c  = ca[cr];
 
         if (c.mark()) continue;
 
@@ -344,8 +344,8 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
         for (int j = 0; j < _cs.size(); j++)
             if (c.mark())
                 break;
-            else if (!ca.drf(cs[j]).mark() &&  cs[j] != cr && (subsumption_lim == -1 || ca.drf(cs[j]).size() < subsumption_lim)){
-                Lit l = c.subsumes(ca.drf(cs[j]));
+            else if (!ca[cs[j]].mark() &&  cs[j] != cr && (subsumption_lim == -1 || ca[cs[j]].size() < subsumption_lim)){
+                Lit l = c.subsumes(ca[cs[j]]);
 
                 if (l == lit_Undef)
                     subsumed++, removeClause(cs[j]);
@@ -368,7 +368,7 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
 
 bool SimpSolver::asymm(Var v, CRef cr)
 {
-    Clause& c = ca.drf(cr);
+    Clause& c = ca[cr];
     assert(decisionLevel() == 0);
 
     if (c.mark() || satisfied(c)) return true;
@@ -454,7 +454,7 @@ bool SimpSolver::eliminateVar(Var v)
     const vec<CRef>& cls = getOccurs(v);
     vec<CRef>        pos, neg;
     for (int i = 0; i < cls.size(); i++)
-        (find(ca.drf(cls[i]), mkLit(v)) ? pos : neg).push(cls[i]);
+        (find(ca[cls[i]], mkLit(v)) ? pos : neg).push(cls[i]);
 
     // Check wether the increase in number of clauses stays within the allowed ('grow'). Moreover, no
     // clause must exceed the limit on the maximal clause size (if it is set):
@@ -464,7 +464,7 @@ bool SimpSolver::eliminateVar(Var v)
 
     for (int i = 0; i < pos.size(); i++)
         for (int j = 0; j < neg.size(); j++)
-            if (merge(ca.drf(pos[i]), ca.drf(neg[j]), v, clause_size) && 
+            if (merge(ca[pos[i]], ca[neg[j]], v, clause_size) && 
                 (++cnt > cls.size() + grow || (clause_lim != -1 && clause_size > clause_lim)))
                 return true;
 
@@ -475,11 +475,11 @@ bool SimpSolver::eliminateVar(Var v)
 
     if (pos.size() > neg.size()){
         for (int i = 0; i < neg.size(); i++)
-            mkElimClause(elimclauses, v, ca.drf(neg[i]));
+            mkElimClause(elimclauses, v, ca[neg[i]]);
         mkElimClause(elimclauses, mkLit(v));
     }else{
         for (int i = 0; i < pos.size(); i++)
-            mkElimClause(elimclauses, v, ca.drf(pos[i]));
+            mkElimClause(elimclauses, v, ca[pos[i]]);
         mkElimClause(elimclauses, ~mkLit(v));
     }
 
@@ -490,7 +490,7 @@ bool SimpSolver::eliminateVar(Var v)
     vec<Lit>& resolvent = add_tmp;
     for (int i = 0; i < pos.size(); i++)
         for (int j = 0; j < neg.size(); j++)
-            if (merge(ca.drf(pos[i]), ca.drf(neg[j]), v, resolvent) && !addClause_(resolvent))
+            if (merge(ca[pos[i]], ca[neg[j]], v, resolvent) && !addClause_(resolvent))
                 return false;
 
     // Free occurs list for this variable:
@@ -518,7 +518,7 @@ bool SimpSolver::substitute(Var v, Lit x)
     
     vec<Lit>& subst_clause = add_tmp;
     for (int i = 0; i < cls.size(); i++){
-        Clause& c = ca.drf(cls[i]);
+        Clause& c = ca[cls[i]];
 
         subst_clause.clear();
         for (int j = 0; j < c.size(); j++){
@@ -623,8 +623,8 @@ void SimpSolver::cleanUpClauses()
     int      i , j;
     vec<Var> dirty;
     for (i = 0; i < clauses.size(); i++)
-        if (ca.drf(clauses[i]).mark() == 1){
-            Clause& c = ca.drf(clauses[i]);
+        if (ca[clauses[i]].mark() == 1){
+            Clause& c = ca[clauses[i]];
             for (int k = 0; k < c.size(); k++)
                 if (!seen[var(c[k])]){
                     seen[var(c[k])] = 1;
@@ -636,7 +636,7 @@ void SimpSolver::cleanUpClauses()
         seen[dirty[i]] = 0; }
 
     for (i = j = 0; i < clauses.size(); i++)
-        if (ca.drf(clauses[i]).mark() == 0)
+        if (ca[clauses[i]].mark() == 0)
             clauses[j++] = clauses[i];
     clauses.shrink(i - j);
 }
@@ -714,12 +714,12 @@ void SimpSolver::toDimacs(const char* file)
         // to deallocate them at this point. Could be improved.
         int cnt = 0;
         for (int i = 0; i < clauses.size(); i++)
-            if (!satisfied(ca.drf(clauses[i])))
+            if (!satisfied(ca[clauses[i]]))
                 cnt++;
         
         for (int i = 0; i < clauses.size(); i++)
-            if (!satisfied(ca.drf(clauses[i]))){
-                Clause& c = ca.drf(clauses[i]);
+            if (!satisfied(ca[clauses[i]])){
+                Clause& c = ca[clauses[i]];
                 for (int j = 0; j < c.size(); j++)
                     if (value(c[j]) != l_False)
                         mapVar(var(c[j]), map, max);
@@ -728,7 +728,7 @@ void SimpSolver::toDimacs(const char* file)
         fprintf(f, "p cnf %d %d\n", max, cnt);
 
         for (int i = 0; i < clauses.size(); i++)
-            toDimacs(f, ca.drf(clauses[i]), map, max);
+            toDimacs(f, ca[clauses[i]], map, max);
 
         if (verbosity > 0)
             printf("Wrote %d clauses with %d variables.\n", cnt, max);

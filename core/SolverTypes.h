@@ -209,7 +209,7 @@ class ClauseAllocator : public RegionAllocator<Clause>
 
     void free(CRef cid)
     {
-        Clause& c = drf(cid);
+        Clause& c = operator[](cid);
         RegionAllocator<Clause>::free(clauseWord32Size(c.size(), c.has_extra()));
     }
 };

@@ -41,20 +41,21 @@ class RegionAllocator
 
     RegionAllocator() : wasted(0) { memory.capacity(1024*1024); }
 
-    int            size       () const { return memory.size() * sizeof(T); }
-    int            wastedBytes() const { return wasted * sizeof(T); }
+    int      size       () const     { return memory.size() * sizeof(T); }
+    int      wastedBytes() const     { return wasted * sizeof(T); }
 
-    Ref            alloc(int size);
-    void           free (int size)    { wasted += size; }
+    Ref      alloc     (int size);
+    void     free      (int size)    { wasted += size; }
 
     // Deref, Load Effective Address (LEA), Inverse of LEA (AEL):
-    T&             drf  (Ref r)       { return *(T*)&memory[r]; }
-    const T&       drf  (Ref r) const { return *(T*)&memory[r]; }
-    T*             lea  (Ref r)       { return  (T*)&memory[r]; }
-    const T*       lea  (Ref r) const { return  (T*)&memory[r]; }
-    Ref            ael  (const T* t)  { return  (Ref)(t - (T*)&memory[0]); }
+    T&       operator[](Ref r)       { return *(T*)&memory[r]; }
+    const T& operator[](Ref r) const { return *(T*)&memory[r]; }
 
-    void           moveTo(RegionAllocator& to) { 
+    T*       lea       (Ref r)       { return  (T*)&memory[r]; }
+    const T* lea       (Ref r) const { return  (T*)&memory[r]; }
+    Ref      ael       (const T* t)  { return  (Ref)(t - (T*)&memory[0]); }
+
+    void     moveTo(RegionAllocator& to) { 
         memory.moveTo(to.memory); 
         to.wasted = wasted;
     }

@@ -156,7 +156,7 @@ bool Solver::addClause_(vec<Lit>& ps)
 
 
 void Solver::attachClause(CRef cr) {
-    const Clause& c = ca.drf(cr);
+    const Clause& c = ca[cr];
     assert(c.size() > 1);
     watches[toInt(~c[0])].push(Watcher(cr, c[1]));
     watches[toInt(~c[1])].push(Watcher(cr, c[0]));
@@ -165,7 +165,7 @@ void Solver::attachClause(CRef cr) {
 
 
 void Solver::detachClause(CRef cr) {
-    const Clause& c = ca.drf(cr);
+    const Clause& c = ca[cr];
     assert(c.size() > 1);
     remove(watches[toInt(~c[0])], Watcher(cr, c[1]));
     remove(watches[toInt(~c[1])], Watcher(cr, c[0])); 
@@ -174,7 +174,7 @@ void Solver::detachClause(CRef cr) {
 
 
 void Solver::removeClause(CRef cr) {
-    Clause& c = ca.drf(cr);
+    Clause& c = ca[cr];
     detachClause(cr);
     // Don't leave pointers to free'd memory!
     if (locked(c)) vardata[var(c[0])].reason = CRef_Undef;
@@ -192,7 +192,7 @@ bool Solver::satisfied(const Clause& c) const {
 
 void Solver::reloc(CRef& cr, ClauseAllocator& to)
 {
-    Clause& c = ca.drf(cr);
+    Clause& c = ca[cr];
 
     if (c.reloced()) { cr = c.relocation(); return; }
 
@@ -200,9 +200,9 @@ void Solver::reloc(CRef& cr, ClauseAllocator& to)
     c.relocate(cr);
 
     // Copy extra data-fields: (This could be cleaned-up)
-    to.drf(cr).mark(c.mark());
+    to[cr].mark(c.mark());
     if (c.learnt())
-        to.drf(cr).activity() = c.activity();
+        to[cr].activity() = c.activity();
 }
 
 
@@ -297,7 +297,7 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
         // Select next clause to look at:
         while (!seen[var(trail[index--])]);
         p     = trail[index+1];
-        confl = &ca.drf(reason(var(p)));
+        confl = ca.lea(reason(var(p)));
         seen[var(p)] = 0;
         pathC--;
 
@@ -324,7 +324,7 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
             if (reason(x) == CRef_Undef)
                 out_learnt[j++] = out_learnt[i];
             else{
-                Clause& c = ca.drf(reason(var(out_learnt[i])));
+                Clause& c = ca[reason(var(out_learnt[i]))];
                 for (int k = 1; k < c.size(); k++)
                     if (!seen[var(c[k])] && level(var(c[k])) > 0){
                         out_learnt[j++] = out_learnt[i];
@@ -367,7 +367,7 @@ bool Solver::litRedundant(Lit p, uint32_t abstract_levels)
     int top = analyze_toclear.size();
     while (analyze_stack.size() > 0){
         assert(reason(var(analyze_stack.last())) != CRef_Undef);
-        Clause& c = ca.drf(reason(var(analyze_stack.last()))); analyze_stack.pop();
+        Clause& c = ca[reason(var(analyze_stack.last()))]; analyze_stack.pop();
 
         for (int i = 1; i < c.size(); i++){
             Lit p  = c[i];
@@ -416,7 +416,7 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
                 assert(level(x) > 0);
                 out_conflict.push(~trail[i]);
             }else{
-                Clause& c = ca.drf(reason(x));
+                Clause& c = ca[reason(x)];
                 for (int j = 1; j < c.size(); j++)
                     if (level(var(c[j])) > 0)
                         seen[var(c[j])] = 1;
@@ -468,7 +468,7 @@ Clause* Solver::propagate()
 
             // Make sure the false literal is data[1]:
             CRef     cr        = i->cref;
-            Clause&  c         = ca.drf(cr);
+            Clause&  c         = ca[cr];
             Lit      false_lit = ~p;
             if (c[0] == false_lit)
                 c[0] = c[1], c[1] = false_lit;
@@ -522,7 +522,7 @@ struct reduceDB_lt {
     ClauseAllocator& ca;
     reduceDB_lt(ClauseAllocator& ca_) : ca(ca_) {}
     bool operator () (CRef x, CRef y) { 
-        return ca.drf(x).size() > 2 && (ca.drf(y).size() == 2 || ca.drf(x).activity() < ca.drf(y).activity()); } 
+        return ca[x].size() > 2 && (ca[y].size() == 2 || ca[x].activity() < ca[y].activity()); } 
 };
 void Solver::reduceDB()
 {
@@ -533,7 +533,7 @@ void Solver::reduceDB()
     // Don't delete binary or locked clauses. From the rest, delete clauses from the first half
     // and clauses with activity smaller than 'extra_lim':
     for (i = j = 0; i < learnts.size(); i++){
-        Clause& c = ca.drf(learnts[i]);
+        Clause& c = ca[learnts[i]];
         if (c.size() > 2 && !locked(c) && (i < learnts.size() / 2 || c.activity() < extra_lim))
             removeClause(learnts[i]);
         else
@@ -548,7 +548,7 @@ void Solver::removeSatisfied(vec<CRef>& cs)
 {
     int i, j;
     for (i = j = 0; i < cs.size(); i++){
-        Clause& c = ca.drf(cs[i]);
+        Clause& c = ca[cs[i]];
         if (satisfied(c))
             removeClause(cs[i]);
         else
@@ -639,7 +639,7 @@ lbool Solver::search(int nof_conflicts)
                 CRef cr = ca.alloc(learnt_clause, true);
                 learnts.push(cr);
                 attachClause(cr);
-                claBumpActivity(ca.drf(cr));
+                claBumpActivity(ca[cr]);
                 uncheckedEnqueue(learnt_clause[0], cr);
             }
 
@@ -812,7 +812,7 @@ void Solver::relocAll(ClauseAllocator& to)
     for (int i = 0; i < trail.size(); i++){
         Var v = var(trail[i]);
 
-        if (reason(v) != CRef_Undef && (ca.drf(reason(v)).reloced() || locked(ca.drf(reason(v)))))
+        if (reason(v) != CRef_Undef && (ca[reason(v)].reloced() || locked(ca[reason(v)])))
             reloc(vardata[v].reason, to);
     }
 
