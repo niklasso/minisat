@@ -136,7 +136,7 @@ class DoubleOption : public Option
             exit(1); }
 
         value = tmp;
-        fprintf(stderr, "READ VALUE: %g\n", value);
+        // fprintf(stderr, "READ VALUE: %g\n", value);
 
         return true;
     }

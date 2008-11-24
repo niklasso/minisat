@@ -114,7 +114,8 @@ Var Solver::newVar(bool sign, bool dvar)
     watches  .push();          // (list for negative literal)
     assigns  .push(l_Undef);
     vardata  .push(mkVarData(NULL, 0));
-    activity .push(0);
+    //activity .push(0);
+    activity .push(drand(random_seed) * 0.00001);
     seen     .push(0);
     polarity .push(sign);
     decision .push();
