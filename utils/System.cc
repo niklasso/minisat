@@ -23,19 +23,23 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #if defined(__linux__)
 
 #include <cstdio>
+#include <cstdlib>
 
 using namespace Minisat;
 
 static inline int memReadStat(int field)
 {
-    char    name[256];
+    char  name[256];
     pid_t pid = getpid();
+    int   value;
+
     sprintf(name, "/proc/%d/statm", pid);
-    FILE*   in = fopen(name, "rb");
+    FILE* in = fopen(name, "rb");
     if (in == NULL) return 0;
-    int     value;
+
     for (; field >= 0; field--)
-        fscanf(in, "%d", &value);
+        if (fscanf(in, "%d", &value) != 1)
+            printf("ERROR! Failed to parse memory statistics from \"/proc\".\n"), exit(1);
     fclose(in);
     return value;
 }
