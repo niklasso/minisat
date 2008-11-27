@@ -20,6 +20,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #ifndef Minisat_Map_h
 #define Minisat_Map_h
 
+#include <stdint.h>
+
 #include "mtl/Vec.h"
 
 namespace Minisat {
@@ -28,11 +30,17 @@ namespace Minisat {
 // Default hash/equals functions
 //
 
-template<class K> struct Hash  { unsigned operator()(const K& k)               const { return hash(k);  } };
+template<class K> struct Hash  { uint32_t operator()(const K& k)               const { return hash(k);  } };
 template<class K> struct Equal { bool     operator()(const K& k1, const K& k2) const { return k1 == k2; } };
 
-template<class K> struct DeepHash  { unsigned operator()(const K* k)               const { return hash(*k);  } };
+template<class K> struct DeepHash  { uint32_t operator()(const K* k)               const { return hash(*k);  } };
 template<class K> struct DeepEqual { bool     operator()(const K* k1, const K* k2) const { return *k1 == *k2; } };
+
+static inline uint32_t hash(uint32_t x){ return x; }
+static inline uint32_t hash(uint64_t x){ return (uint32_t)x; }
+static inline uint32_t hash(int32_t x) { return (uint32_t)x; }
+static inline uint32_t hash(int64_t x) { return (uint32_t)x; }
+
 
 //=================================================================================================
 // Some primes
@@ -124,13 +132,22 @@ class Map {
 
     // PRECONDITION: the key must *NOT* exist in the map.
     void insert (const K& k, const D& d) { if (checkCap(size+1)) rehash(); _insert(k, d); size++; }
-    bool peek   (const K& k, D& d) {
+    bool peek   (const K& k, D& d) const {
         if (size == 0) return false;
         const vec<Pair>& ps = table[index(k)];
         for (int i = 0; i < ps.size(); i++)
             if (equals(ps[i].key, k)){
                 d = ps[i].data;
                 return true; } 
+        return false;
+    }
+
+    bool has   (const K& k) const {
+        if (size == 0) return false;
+        const vec<Pair>& ps = table[index(k)];
+        for (int i = 0; i < ps.size(); i++)
+            if (equals(ps[i].key, k))
+                return true;
         return false;
     }
 
