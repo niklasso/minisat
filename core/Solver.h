@@ -106,6 +106,7 @@ public:
     double    restart_luby_inc;   // The constant that the luby sequence uses powers of                                        (default 2)
     int       ccmin_mode;         // FIXME: describe.
     bool      rnd_pol;            // FIXME: describe.
+    bool      rnd_init_act;       // FIXME: describe.
 
     int       restart_first;      // The initial restart limit.                                                                (default 100)
     double    restart_inc;        // The factor with which the restart limit is multiplied in each restart.                    (default 1.5)

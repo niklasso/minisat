@@ -37,6 +37,7 @@ static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause act
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep).", 2, IntRange(0, 2));
+static BoolOption    opt_rnd_init_act      (_cat, "rnd-init",    "Randomize the initial activity.", false);
 static IntOption     opt_restart_luby_start(_cat, "luby",        "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT32_MAX));
 static DoubleOption  opt_restart_luby_inc  (_cat, "luby-inc",    "The constant that the luby sequence takes the power-of", 2, DoubleRange(1, false, HUGE_VAL, false));
 static IntOption     opt_conflict_budget   (_cat, "conf-budget", "Maximum number of conflicts (-1 = unbounded).",    -1, IntRange(-1, INT32_MAX));
@@ -60,6 +61,7 @@ Solver::Solver() :
   , restart_luby_inc (opt_restart_luby_inc)
   , ccmin_mode       (opt_ccmin_mode)
   , rnd_pol          (false)
+  , rnd_init_act     (opt_rnd_init_act)
 
     // Parameters (the rest):
     //
@@ -115,7 +117,7 @@ Var Solver::newVar(bool sign, bool dvar)
     assigns  .push(l_Undef);
     vardata  .push(mkVarData(NULL, 0));
     //activity .push(0);
-    activity .push(drand(random_seed) * 0.00001);
+    activity .push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     seen     .push(0);
     polarity .push(sign);
     decision .push();
