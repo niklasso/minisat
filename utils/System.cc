@@ -43,7 +43,32 @@ static inline int memReadStat(int field)
     fclose(in);
     return value;
 }
+
+
+static inline int memReadPeak(void)
+{
+    char  name[256];
+    pid_t pid = getpid();
+
+    sprintf(name, "/proc/%d/status", pid);
+    FILE* in = fopen(name, "rb");
+    if (in == NULL) return 0;
+
+    // Find the correct line, beginning with "VmHWM:":
+    uint32_t peak_kb = 0;
+    while (!feof(in) && fscanf(in, "VmHWM: %d kB", &peak_kb) != 1)
+        while (!feof(in) && fgetc(in) != '\n')
+            ;
+    fclose(in);
+
+    return peak_kb;
+}
+
+#if 0
 double Minisat::memUsed() { return (double)memReadStat(0) * (double)getpagesize() / (1024*1024); }
+#else
+double Minisat::memUsed() { return (double)memReadPeak() / 1024; }
+#endif
 
 
 #elif defined(__FreeBSD__)
