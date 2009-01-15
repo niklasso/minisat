@@ -565,8 +565,8 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     //
     while (subsumption_queue.size() > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){
 
-        if (!backwardSubsumptionCheck(true))
-            return ok = false;
+        if (!backwardSubsumptionCheck(true)){
+            ok = false; goto cleanup; }
 
         for (int cnt = 0; !elim_heap.empty(); cnt++){
             Var elim = elim_heap.removeMin();
@@ -580,33 +580,34 @@ bool SimpSolver::eliminate(bool turn_off_elim)
                 // Temporarily freeze variable. Otherwise, it would immediately end up on the queue again:
                 bool was_frozen = frozen[elim];
                 frozen[elim] = true;
-                if (!asymmVar(elim))
-                    return ok = false;
+                if (!asymmVar(elim)){
+                    ok = false; goto cleanup; }
                 frozen[elim] = was_frozen; }
 
             // At this point, the variable may have been set by assymetric branching, so check it
             // again. Also, don't eliminate frozen variables:
-            if (use_elim && value(elim) == l_Undef && !frozen[elim] && !eliminateVar(elim))
-                return ok = false;
+            if (use_elim && value(elim) == l_Undef && !frozen[elim] && !eliminateVar(elim)){
+                ok = false; goto cleanup; }
         }
 
         assert(subsumption_queue.size() == 0);
         gatherTouchedClauses();
     }
-
+ cleanup:
     // Cleanup:
     cleanUpClauses();
     rebuildOrderHeap();
 
     // If no more simplification is needed, free all simplification-related data structures:
     if (turn_off_elim){
-        use_simplification = false;
-        touched.clear(true);
-        occurs.clear(true);
-        n_occ.clear(true);
-        subsumption_queue.clear(true);
+        touched  .clear(true);
+        occurs   .clear(true);
+        n_occ    .clear(true);
         elim_heap.clear(true);
-        remove_satisfied = true;
+        subsumption_queue.clear(true);
+
+        use_simplification = false;
+        remove_satisfied   = true;
         extra_clause_field = false;
     }
 
@@ -615,7 +616,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
                double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
 
     checkGarbage();
-    return true;
+    return ok;
 }
 
 
