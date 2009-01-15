@@ -62,6 +62,7 @@ inline  bool sign      (Lit p)              { return p.x & 1; }
 inline  int  var       (Lit p)              { return p.x >> 1; }
 
 // Mapping Literals to and from compact integers suitable for array indexing:
+inline  int  toInt     (Var v)              { return v; } 
 inline  int  toInt     (Lit p)              { return p.x; } 
 inline  Lit  toLit     (int i)              { Lit p; p.x = i; return p; } 
 
@@ -213,6 +214,64 @@ class ClauseAllocator : public RegionAllocator<Clause>
         RegionAllocator<Clause>::free(clauseWord32Size(c.size(), c.has_extra()));
     }
 };
+
+
+//=================================================================================================
+// OccLists -- a class for maintaining occurence lists with lazy deletion:
+
+template<class Idx, class Vec, class Deleted>
+class OccLists
+{
+    vec<Vec>  occs;
+    vec<char> dirty;
+    vec<Idx>  dirties;
+    Deleted   deleted;
+
+ public:
+    OccLists(const Deleted& d) : deleted(d) {}
+    
+    void  init      (const Idx& idx){ occs.growTo(toInt(idx)+1); dirty.growTo(toInt(idx)+1, 0); }
+    // Vec&  operator[](const Idx& idx){ return occs[toInt(idx)]; }
+    Vec&  operator[](const Idx& idx){ return occs[toInt(idx)]; }
+    Vec&  lookup    (const Idx& idx){ if (dirty[toInt(idx)]) clean(idx); return occs[toInt(idx)]; }
+
+    void  cleanAll  ();
+    void  clean     (const Idx& idx);
+    void  smudge    (const Idx& idx){
+        if (dirty[toInt(idx)] == 0){
+            dirty[toInt(idx)] = 1;
+            dirties.push(idx);
+        }
+    }
+
+    void  clear(bool free = true){
+        occs   .clear(free);
+        dirty  .clear(free);
+        dirties.clear(free);
+    }
+};
+
+
+template<class Idx, class Vec, class Deleted>
+void OccLists<Idx,Vec,Deleted>::cleanAll()
+{
+    for (int i = 0; i < dirties.size(); i++)
+        clean(dirties[i]);
+    dirties.clear();
+}
+
+
+template<class Idx, class Vec, class Deleted>
+void OccLists<Idx,Vec,Deleted>::clean(const Idx& idx)
+{
+    Vec& vec = occs[toInt(idx)];
+    int  i, j;
+    for (i = j = 0; i < vec.size(); i++)
+        if (!deleted(vec[i]))
+            vec[j++] = vec[i];
+    vec.shrink(i - j);
+    dirty[toInt(idx)] = 0;
+}
 
 
 //=================================================================================================

@@ -80,6 +80,7 @@ Solver::Solver() :
   , ok                 (true)
   , cla_inc            (1)
   , var_inc            (1)
+  , watches            (WatcherDeleted(ca))
   , qhead              (0)
   , simpDB_assigns     (-1)
   , simpDB_props       (0)
@@ -110,8 +111,8 @@ Solver::~Solver()
 Var Solver::newVar(bool sign, bool dvar)
 {
     int v = nVars();
-    watches  .push();          // (list for positive literal)
-    watches  .push();          // (list for negative literal)
+    watches  .init(mkLit(v, false));
+    watches  .init(mkLit(v, true ));
     assigns  .push(l_Undef);
     vardata  .push(mkVarData(CRef_Undef, 0));
     //activity .push(0);
@@ -158,17 +159,25 @@ bool Solver::addClause_(vec<Lit>& ps)
 void Solver::attachClause(CRef cr) {
     const Clause& c = ca[cr];
     assert(c.size() > 1);
-    watches[toInt(~c[0])].push(Watcher(cr, c[1]));
-    watches[toInt(~c[1])].push(Watcher(cr, c[0]));
+    watches[~c[0]].push(Watcher(cr, c[1]));
+    watches[~c[1]].push(Watcher(cr, c[0]));
     if (c.learnt()) learnts_literals += c.size();
     else            clauses_literals += c.size(); }
 
 
-void Solver::detachClause(CRef cr) {
+void Solver::detachClause(CRef cr, bool strict) {
     const Clause& c = ca[cr];
     assert(c.size() > 1);
-    remove(watches[toInt(~c[0])], Watcher(cr, c[1]));
-    remove(watches[toInt(~c[1])], Watcher(cr, c[0])); 
+    
+    if (strict){
+        remove(watches[~c[0]], Watcher(cr, c[1]));
+        remove(watches[~c[1]], Watcher(cr, c[0]));
+    }else{
+        // Lazy detaching: (NOTE! Must clean all watcher lists before garbage collecting this clause)
+        watches.smudge(~c[0]);
+        watches.smudge(~c[1]);
+    }
+
     if (c.learnt()) learnts_literals -= c.size();
     else            clauses_literals -= c.size(); }
 
@@ -453,10 +462,11 @@ Clause* Solver::propagate()
 {
     Clause* confl     = NULL;
     int     num_props = 0;
+    watches.cleanAll();
 
     while (qhead < trail.size()){
         Lit            p   = trail[qhead++];     // 'p' is enqueued fact to propagate.
-        vec<Watcher>&  ws  = watches[toInt(p)];
+        vec<Watcher>&  ws  = watches[p];
         Watcher        *i, *j, *end;
         num_props++;
 
@@ -485,7 +495,7 @@ Clause* Solver::propagate()
             for (int k = 2; k < c.size(); k++)
                 if (value(c[k]) != l_False){
                     c[1] = c[k]; c[k] = false_lit;
-                    watches[toInt(~c[1])].push(w);
+                    watches[~c[1]].push(w);
                     goto NextClause; }
 
             // Did not find watch -- clause is unit under assignment:
@@ -591,7 +601,6 @@ bool Solver::simplify()
     if (remove_satisfied)        // Can be turned off.
         removeSatisfied(clauses);
     checkGarbage();
-
     rebuildOrderHeap();
 
     simpDB_assigns = nAssigns();
@@ -803,9 +812,16 @@ void Solver::relocAll(ClauseAllocator& to)
 {
     // All watchers:
     //
-    for (int i = 0; i < watches.size(); i++)
-        for (int j = 0; j < watches[i].size(); j++)
-            reloc(watches[i][j].cref, to);
+    // for (int i = 0; i < watches.size(); i++)
+    watches.cleanAll();
+    for (int v = 0; v < nVars(); v++)
+        for (int s = 0; s < 2; s++){
+            Lit p = mkLit(v, s);
+            // printf(" >>> RELOCING: %s%d\n", sign(p)?"-":"", var(p)+1);
+            vec<Watcher>& ws = watches[p];
+            for (int j = 0; j < ws.size(); j++)
+                reloc(ws[j].cref, to);
+        }
 
     // All reasons:
     //

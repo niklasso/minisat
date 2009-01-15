@@ -53,6 +53,7 @@ SimpSolver::SimpSolver() :
   , eliminated_vars    (0)
   , elimorder          (1)
   , use_simplification (true)
+  , occurs             (ca)
   , elim_heap          (ElimLt(n_occ))
   , bwdsub_assigns     (0)
 {
@@ -77,7 +78,7 @@ Var SimpSolver::newVar(bool sign, bool dvar) {
     if (use_simplification){
         n_occ     .push(0);
         n_occ     .push(0);
-        occurs    .push();
+        occurs    .init(v);
         touched   .push(0);
         elim_heap .insert(v);
     }
@@ -169,6 +170,7 @@ void SimpSolver::removeClause(CRef cr)
         for (int i = 0; i < c.size(); i++){
             n_occ[toInt(c[i])]--;
             updateElimHeap(var(c[i]));
+            occurs.smudge(var(c[i]));
         }
 
     Solver::removeClause(cr);
@@ -189,7 +191,7 @@ bool SimpSolver::strengthenClause(CRef cr, Lit l)
         removeClause(cr);
         c.strengthen(l);
     }else{
-        detachClause(cr);
+        detachClause(cr, true);
         c.strengthen(l);
         attachClause(cr);
         remove(occurs[var(l)], cr);
@@ -264,12 +266,12 @@ bool SimpSolver::merge(const Clause& _ps, const Clause& _qs, Var v, int& size)
 
 void SimpSolver::gatherTouchedClauses()
 {
-    //fprintf(stderr, "Gathering clauses for backwards subsumption\n");
-    int ntouched = 0;
+    for (int i = 0; i < subsumption_queue.size(); i++)
+        ca[subsumption_queue[i]].mark(2);
+
     for (int i = 0; i < touched.size(); i++)
         if (touched[i]){
-            const vec<CRef>& cs = getOccurs(i);
-            ntouched++;
+            const vec<CRef>& cs = occurs.lookup(i);
             for (int j = 0; j < cs.size(); j++)
                 if (ca[cs[j]].mark() == 0){
                     subsumption_queue.insert(cs[j]);
@@ -278,7 +280,6 @@ void SimpSolver::gatherTouchedClauses()
             touched[i] = 0;
         }
 
-    //fprintf(stderr, "Touched variables %d of %d yields %d clauses to check\n", ntouched, touched.size(), clauses.size());
     for (int i = 0; i < subsumption_queue.size(); i++)
         ca[subsumption_queue[i]].mark(0);
 }
@@ -338,7 +339,7 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
                 best = var(c[i]);
 
         // Search all candidates:
-        vec<CRef>& _cs = getOccurs(best);
+        vec<CRef>& _cs = occurs.lookup(best);
         CRef*       cs = (CRef*)_cs;
 
         for (int j = 0; j < _cs.size(); j++)
@@ -397,7 +398,7 @@ bool SimpSolver::asymmVar(Var v)
 {
     assert(use_simplification);
 
-    const vec<CRef>& cls = getOccurs(v);
+    const vec<CRef>& cls = occurs.lookup(v);
 
     if (value(v) != l_Undef || cls.size() == 0)
         return true;
@@ -451,7 +452,7 @@ bool SimpSolver::eliminateVar(Var v)
 
     // Split the occurrences into positive and negative:
     //
-    const vec<CRef>& cls = getOccurs(v);
+    const vec<CRef>& cls = occurs.lookup(v);
     vec<CRef>        pos, neg;
     for (int i = 0; i < cls.size(); i++)
         (find(ca[cls[i]], mkLit(v)) ? pos : neg).push(cls[i]);
@@ -497,8 +498,8 @@ bool SimpSolver::eliminateVar(Var v)
     occurs[v].clear(true);
     
     // Free watchers lists for this variable, if possible:
-    if (watches[toInt( mkLit(v))].size() == 0) watches[toInt( mkLit(v))].clear(true);
-    if (watches[toInt(~mkLit(v))].size() == 0) watches[toInt(~mkLit(v))].clear(true);
+    if (watches[ mkLit(v)].size() == 0) watches[ mkLit(v)].clear(true);
+    if (watches[~mkLit(v)].size() == 0) watches[~mkLit(v)].clear(true);
 
     return backwardSubsumptionCheck();
 }
@@ -514,7 +515,7 @@ bool SimpSolver::substitute(Var v, Lit x)
 
     eliminated[v] = true;
     setDecisionVar(v, false);
-    const vec<CRef>& cls = getOccurs(v);
+    const vec<CRef>& cls = occurs.lookup(v);
     
     vec<Lit>& subst_clause = add_tmp;
     for (int i = 0; i < cls.size(); i++){
@@ -620,21 +621,8 @@ bool SimpSolver::eliminate(bool turn_off_elim)
 
 void SimpSolver::cleanUpClauses()
 {
-    int      i , j;
-    vec<Var> dirty;
-    for (i = 0; i < clauses.size(); i++)
-        if (ca[clauses[i]].mark() == 1){
-            Clause& c = ca[clauses[i]];
-            for (int k = 0; k < c.size(); k++)
-                if (!seen[var(c[k])]){
-                    seen[var(c[k])] = 1;
-                    dirty.push(var(c[k]));
-                } }
-
-    for (i = 0; i < dirty.size(); i++){
-        cleanOcc(dirty[i]);
-        seen[dirty[i]] = 0; }
-
+    occurs.cleanAll();
+    int i,j;
     for (i = j = 0; i < clauses.size(); i++)
         if (ca[clauses[i]].mark() == 0)
             clauses[j++] = clauses[i];
@@ -648,11 +636,16 @@ void SimpSolver::cleanUpClauses()
 
 void SimpSolver::relocAll(ClauseAllocator& to)
 {
+    if (!use_simplification) return;
+
     // All occurs lists:
     //
-    for (int i = 0; i < occurs.size(); i++)
-        for (int j = 0; j < occurs[i].size(); j++)
-            reloc(occurs[i][j], to);
+    occurs.cleanAll();
+    for (int i = 0; i < nVars(); i++){
+        vec<CRef>& cs = occurs[i];
+        for (int j = 0; j < cs.size(); j++)
+            reloc(cs[j], to);
+    }
 
     // Subsumption queue:
     //

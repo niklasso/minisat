@@ -100,8 +100,16 @@ class SimpSolver : public Solver {
         ElimLt(const vec<int>& no) : n_occ(no) {}
         int  cost      (Var x)        const { return n_occ[toInt(mkLit(x))] * n_occ[toInt(~mkLit(x))]; }
         bool operator()(Var x, Var y) const { return cost(x) < cost(y); }
+        // bool operator()(Var x, Var y) const { 
+        //     int c_x = cost(x);
+        //     int c_y = cost(y);
+        //     return c_x < c_y || c_x == c_y && x < y; }
     };
 
+    struct ClauseDeleted {
+        const ClauseAllocator& ca;
+        ClauseDeleted(const ClauseAllocator& _ca) : ca(_ca) {}
+        bool operator()(const CRef& cr) const { return ca[cr].mark() == 1; } };
 
     // Solver state:
     //
@@ -109,13 +117,13 @@ class SimpSolver : public Solver {
     bool                use_simplification;
     vec<uint32_t>       elimclauses;
     vec<char>           touched;
-    vec<vec<CRef> >     occurs;
+    OccLists<Var, vec<CRef>, ClauseDeleted>
+                        occurs;
     vec<int>            n_occ;
     Heap<ElimLt>        elim_heap;
     Queue<CRef>         subsumption_queue;
     vec<char>           frozen;
     vec<char>           eliminated;
-
     int                 bwdsub_assigns;
 
     // Temporaries:
@@ -128,8 +136,6 @@ class SimpSolver : public Solver {
     bool          asymm                    (Var v, CRef cr);
     bool          asymmVar                 (Var v);
     void          updateElimHeap           (Var v);
-    void          cleanOcc                 (Var v);
-    vec<CRef>&    getOccurs                (Var x);
     void          gatherTouchedClauses     ();
     bool          merge                    (const Clause& _ps, const Clause& _qs, Var v, vec<Lit>& out_clause);
     bool          merge                    (const Clause& _ps, const Clause& _qs, Var v, int& size);
@@ -158,22 +164,6 @@ inline void SimpSolver::updateElimHeap(Var v) {
     if (elim_heap.inHeap(v) || (!frozen[v] && !isEliminated(v) && value(v) == l_Undef))
         elim_heap.update(v); }
 
-inline void SimpSolver::cleanOcc(Var v) {
-    assert(use_simplification);
-    CRef *begin = (CRef*)occurs[v];
-    CRef *end = begin + occurs[v].size();
-    CRef *i, *j;
-    for (i = begin, j = end; i < j; i++)
-        if (ca[*i].mark() == 1){
-            *i = *(--j);
-            i--;
-        }
-    //occurs[v].shrink_(end - j);  // This seems slower. Why?!
-    occurs[v].shrink(end - j);
-}
-
-inline vec<CRef>& SimpSolver::getOccurs(Var x) {
-    cleanOcc(x); return occurs[x]; }
 
 inline bool SimpSolver::addClause    (const vec<Lit>& ps)    { ps.copyTo(add_tmp); return addClause_(add_tmp); }
 inline bool SimpSolver::addEmptyClause()                     { add_tmp.clear(); return addClause_(add_tmp); }
