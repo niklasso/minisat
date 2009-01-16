@@ -20,6 +20,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include "mtl/Sort.h"
 #include "simp/SimpSolver.h"
+#include "utils/System.h"
 
 using namespace Minisat;
 
@@ -56,6 +57,7 @@ SimpSolver::SimpSolver() :
   , occurs             (ca)
   , elim_heap          (ElimLt(n_occ))
   , bwdsub_assigns     (0)
+  , n_touched          (0)
 {
     vec<Lit> dummy(1,lit_Undef);
     bwdsub_tmpunit     = ca.alloc(dummy);
@@ -147,12 +149,18 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
         CRef          cr = clauses.last();
         const Clause& c  = ca[cr];
 
+        // NOTE: the clause is added to the queue immediately and then
+        // again during 'gatherTouchedClauses()'. If nothing happens
+        // in between, it will only be checked once. Otherwise, it may
+        // be checked twice unnecessarily. This is an unfortunate
+        // consequence of how backward subsumption is used to mimic
+        // forward subsumption.
         subsumption_queue.insert(cr);
-
         for (int i = 0; i < c.size(); i++){
             occurs[var(c[i])].push(cr);
             n_occ[toInt(c[i])]++;
             touched[var(c[i])] = 1;
+            n_touched++;
             if (elim_heap.inHeap(var(c[i])))
                 elim_heap.increase(var(c[i]));
         }
@@ -266,6 +274,8 @@ bool SimpSolver::merge(const Clause& _ps, const Clause& _qs, Var v, int& size)
 
 void SimpSolver::gatherTouchedClauses()
 {
+    if (n_touched == 0) return;
+
     for (int i = 0; i < subsumption_queue.size(); i++)
         ca[subsumption_queue[i]].mark(2);
 
@@ -282,6 +292,8 @@ void SimpSolver::gatherTouchedClauses()
 
     for (int i = 0; i < subsumption_queue.size(); i++)
         ca[subsumption_queue[i]].mark(0);
+
+    n_touched = 0;
 }
 
 
@@ -563,11 +575,16 @@ bool SimpSolver::eliminate(bool turn_off_elim)
 
     // Main simplification loop:
     //
-    while (subsumption_queue.size() > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){
+    //while (subsumption_queue.size() > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){
+    while (n_touched > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){
 
-        if (!backwardSubsumptionCheck(true)){
+        gatherTouchedClauses();
+        printf("  ## (time = %6.2f s) BWD-SUB: queue = %d, trail = %d\n", cpuTime(), subsumption_queue.size(), trail.size() - bwdsub_assigns);
+        if ((subsumption_queue.size() > 0 || bwdsub_assigns < trail.size()) && 
+            !backwardSubsumptionCheck(true)){
             ok = false; goto cleanup; }
 
+        printf("  ## (time = %6.2f s) ELIM: vars = %d\n", cpuTime(), elim_heap.size());
         for (int cnt = 0; !elim_heap.empty(); cnt++){
             Var elim = elim_heap.removeMin();
 
@@ -591,7 +608,6 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         }
 
         assert(subsumption_queue.size() == 0);
-        gatherTouchedClauses();
     }
  cleanup:
     // Cleanup:
