@@ -145,7 +145,7 @@ bool Solver::addClause_(vec<Lit>& ps)
         return ok = false;
     else if (ps.size() == 1){
         uncheckedEnqueue(ps[0]);
-        return ok = (propagate() == NULL);
+        return ok = (propagate() == CRef_Undef);
     }else{
         CRef cr = ca.alloc(ps, false, extra_clause_field);
         clauses.push(cr);
@@ -273,7 +273,7 @@ Lit Solver::pickBranchLit()
 |        rest of literals. There may be others from the same level though.
 |  
 |________________________________________________________________________________________________@*/
-void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
+void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
 {
     int pathC = 0;
     Lit p     = lit_Undef;
@@ -284,8 +284,8 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
     int index   = trail.size() - 1;
 
     do{
-        assert(confl != NULL);          // (otherwise should be UIP)
-        Clause& c = *confl;
+        assert(confl != CRef_Undef); // (otherwise should be UIP)
+        Clause& c = ca[confl];
 
         if (c.learnt())
             claBumpActivity(c);
@@ -306,7 +306,7 @@ void Solver::analyze(Clause* confl, vec<Lit>& out_learnt, int& out_btlevel)
         // Select next clause to look at:
         while (!seen[var(trail[index--])]);
         p     = trail[index+1];
-        confl = ca.lea(reason(var(p)));
+        confl = reason(var(p));
         seen[var(p)] = 0;
         pathC--;
 
@@ -453,14 +453,14 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
 |  
 |  Description:
 |    Propagates all enqueued facts. If a conflict arises, the conflicting clause is returned,
-|    otherwise NULL.
+|    otherwise CRef_Undef.
 |  
 |    Post-conditions:
 |      * the propagation queue is empty, even if there was a conflict.
 |________________________________________________________________________________________________@*/
-Clause* Solver::propagate()
+CRef Solver::propagate()
 {
-    Clause* confl     = NULL;
+    CRef    confl     = CRef_Undef;
     int     num_props = 0;
     watches.cleanAll();
 
@@ -501,7 +501,7 @@ Clause* Solver::propagate()
             // Did not find watch -- clause is unit under assignment:
             *j++ = w;
             if (value(first) == l_False){
-                confl = &c;
+                confl = cr;
                 qhead = trail.size();
                 // Copy the remaining watches:
                 while (i < end)
@@ -590,7 +590,7 @@ bool Solver::simplify()
 {
     assert(decisionLevel() == 0);
 
-    if (!ok || propagate() != NULL)
+    if (!ok || propagate() != CRef_Undef)
         return ok = false;
 
     if (nAssigns() == simpDB_assigns || (simpDB_props > 0))
@@ -632,8 +632,8 @@ lbool Solver::search(int nof_conflicts)
     starts++;
 
     for (;;){
-        Clause* confl = propagate();
-        if (confl != NULL){
+        CRef confl = propagate();
+        if (confl != CRef_Undef){
             // CONFLICT
             conflicts++; conflictC++;
             if (decisionLevel() == 0) return l_False;
