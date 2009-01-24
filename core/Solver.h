@@ -112,6 +112,7 @@ public:
     int       ccmin_mode;         // FIXME: describe.
     bool      rnd_pol;            // FIXME: describe.
     bool      rnd_init_act;       // FIXME: describe.
+    double    garbage_frac;       // The fraction of wasted memory allowed before a garbage collection is triggered.
 
     int       restart_first;      // The initial restart limit.                                                                (default 100)
     double    restart_inc;        // The factor with which the restart limit is multiplied in each restart.                    (default 1.5)
@@ -292,7 +293,7 @@ inline void Solver::claBumpActivity (Clause& c) {
             cla_inc *= 1e-20; } }
 
 inline void Solver::checkGarbage(){
-    if (ca.wastedBytes() > (ca.size() / 5))
+    if (ca.wastedBytes() > ca.size() * garbage_frac)
         garbageCollect(); }
 
 // NOTE: enqueue does not set the ok flag! (only public methods do)
