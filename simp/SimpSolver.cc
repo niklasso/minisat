@@ -30,12 +30,13 @@ using namespace Minisat;
 
 const char* _cat = "SIMP";
 
-static BoolOption opt_use_asymm       (_cat, "asymm",   "Shrink clauses by asymmetric branching.", false);
-static BoolOption opt_use_rcheck      (_cat, "rcheck",  "Check if a clause is already implied. (costly)", false);
-static BoolOption opt_use_elim        (_cat, "elim",    "Perform variable elimination.", true);
-static IntOption  opt_grow            (_cat, "grow",    "Allow a variable elimination step to grow by a number of clauses.", 0);
-static IntOption  opt_clause_lim      (_cat, "cl-lim",  "Variables are not eliminated if it produces a resolvent with a length above this limit. -1 means no limit", 20,   IntRange(-1, INT32_MAX));
-static IntOption  opt_subsumption_lim (_cat, "sub-lim", "Do not check if subsumption against a clause larger than this. -1 means no limit.", 1000, IntRange(-1, INT32_MAX));
+static BoolOption   opt_use_asymm        (_cat, "asymm",        "Shrink clauses by asymmetric branching.", false);
+static BoolOption   opt_use_rcheck       (_cat, "rcheck",       "Check if a clause is already implied. (costly)", false);
+static BoolOption   opt_use_elim         (_cat, "elim",         "Perform variable elimination.", true);
+static IntOption    opt_grow             (_cat, "grow",         "Allow a variable elimination step to grow by a number of clauses.", 0);
+static IntOption    opt_clause_lim       (_cat, "cl-lim",       "Variables are not eliminated if it produces a resolvent with a length above this limit. -1 means no limit", 20,   IntRange(-1, INT32_MAX));
+static IntOption    opt_subsumption_lim  (_cat, "sub-lim",      "Do not check if subsumption against a clause larger than this. -1 means no limit.", 1000, IntRange(-1, INT32_MAX));
+static DoubleOption opt_simp_garbage_frac(_cat, "simp-gc-frac", "The fraction of wasted memory allowed before a garbage collection is triggered during simplification.",  0.5, DoubleRange(0, false, HUGE_VAL, false));
 
 
 //=================================================================================================
@@ -46,6 +47,7 @@ SimpSolver::SimpSolver() :
     grow               (opt_grow)
   , clause_lim         (opt_clause_lim)
   , subsumption_lim    (opt_subsumption_lim)
+  , simp_garbage_frac  (opt_simp_garbage_frac)
   , use_asymm          (opt_use_asymm)
   , use_rcheck         (opt_use_rcheck)
   , use_elim           (opt_use_elim)
@@ -575,7 +577,6 @@ bool SimpSolver::eliminate(bool turn_off_elim)
 
     // Main simplification loop:
     //
-    //while (subsumption_queue.size() > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){
     while (n_touched > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){
 
         gatherTouchedClauses();
@@ -605,14 +606,13 @@ bool SimpSolver::eliminate(bool turn_off_elim)
             // again. Also, don't eliminate frozen variables:
             if (use_elim && value(elim) == l_Undef && !frozen[elim] && !eliminateVar(elim)){
                 ok = false; goto cleanup; }
+
+            checkGarbage(simp_garbage_frac);
         }
 
         assert(subsumption_queue.size() == 0);
     }
  cleanup:
-    // Cleanup:
-    cleanUpClauses();
-    rebuildOrderHeap();
 
     // If no more simplification is needed, free all simplification-related data structures:
     if (turn_off_elim){
@@ -625,13 +625,20 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         use_simplification = false;
         remove_satisfied   = true;
         extra_clause_field = false;
+
+        // Force full cleanup (this is safe and desirable since it only happens once):
+        rebuildOrderHeap();
+        garbageCollect();
+    }else{
+        // Cheaper cleanup:
+        cleanUpClauses(); // TODO: can we make 'cleanUpClauses()' not be linear in the problem size somehow?
+        checkGarbage();
     }
 
     if (verbosity >= 1 && elimclauses.size() > 0)
         printf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
                double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
 
-    checkGarbage();
     return ok;
 }
 
@@ -657,7 +664,6 @@ void SimpSolver::relocAll(ClauseAllocator& to)
 
     // All occurs lists:
     //
-    occurs.cleanAll();
     for (int i = 0; i < nVars(); i++){
         vec<CRef>& cs = occurs[i];
         for (int j = 0; j < cs.size(); j++)
@@ -677,6 +683,7 @@ void SimpSolver::relocAll(ClauseAllocator& to)
 
 void SimpSolver::garbageCollect()
 {
+    cleanUpClauses();
     int size_before = ca.size();
     ClauseAllocator to;
     relocAll(to);

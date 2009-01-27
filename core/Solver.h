@@ -92,6 +92,7 @@ public:
     // Memory managment:
     //
     virtual void garbageCollect();
+    void    checkGarbage(double gf);
     void    checkGarbage();
 
     // Extra results: (read-only member variable)
@@ -292,8 +293,9 @@ inline void Solver::claBumpActivity (Clause& c) {
                 ca[learnts[i]].activity() *= 1e-20;
             cla_inc *= 1e-20; } }
 
-inline void Solver::checkGarbage(){
-    if (ca.wastedBytes() > ca.size() * garbage_frac)
+inline void Solver::checkGarbage(void){ return checkGarbage(garbage_frac); }
+inline void Solver::checkGarbage(double gf){
+    if (ca.wastedBytes() > ca.size() * gf)
         garbageCollect(); }
 
 // NOTE: enqueue does not set the ok flag! (only public methods do)

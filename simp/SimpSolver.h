@@ -76,14 +76,15 @@ class SimpSolver : public Solver {
 
     // Mode of operation:
     //
-    int     grow;             // Allow a variable elimination step to grow by a number of clauses (default to zero).
-    int     clause_lim;       // Variables are not eliminated if it produces a resolvent with a length above this limit.
-                              // -1 means no limit.
-    int     subsumption_lim;  // Do not check if subsumption against a clause larger than this. -1 means no limit.
+    int     grow;              // Allow a variable elimination step to grow by a number of clauses (default to zero).
+    int     clause_lim;        // Variables are not eliminated if it produces a resolvent with a length above this limit.
+                               // -1 means no limit.
+    int     subsumption_lim;   // Do not check if subsumption against a clause larger than this. -1 means no limit.
+    double  simp_garbage_frac; // A different limit for when to issue a GC during simplification (Also see 'garbage_frac').
 
-    bool    use_asymm;        // Shrink clauses by asymmetric branching.
-    bool    use_rcheck;       // Check if a clause is already implied. Prett costly, and subsumes subsumptions :)
-    bool    use_elim;         // Perform variable elimination.
+    bool    use_asymm;         // Shrink clauses by asymmetric branching.
+    bool    use_rcheck;        // Check if a clause is already implied. Prett costly, and subsumes subsumptions :)
+    bool    use_elim;          // Perform variable elimination.
 
     // Statistics:
     //
