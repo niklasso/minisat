@@ -194,8 +194,6 @@ protected:
     double              learntsize_adjust_confl;
     int                 learntsize_adjust_cnt;
 
-    bool                extra_clause_field;
-
     // Resource contraints:
     //
     int64_t             conflict_budget;
@@ -235,7 +233,6 @@ protected:
     bool     locked           (const Clause& c) const; // Returns TRUE if a clause is a reason for some implication in the current state.
     bool     satisfied        (const Clause& c) const; // Returns TRUE if a clause is satisfied in the current state.
 
-    void     reloc            (CRef& cr, ClauseAllocator& to);
     void     relocAll         (ClauseAllocator& to);
 
     // Misc:

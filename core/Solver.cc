@@ -89,7 +89,6 @@ Solver::Solver() :
   , order_heap         (VarOrderLt(activity))
   , progress_estimate  (0)
   , remove_satisfied   (true)
-  , extra_clause_field (false)
 
     // Rresources constraints:
     //
@@ -149,7 +148,7 @@ bool Solver::addClause_(vec<Lit>& ps)
         uncheckedEnqueue(ps[0]);
         return ok = (propagate() == CRef_Undef);
     }else{
-        CRef cr = ca.alloc(ps, false, extra_clause_field);
+        CRef cr = ca.alloc(ps, false);
         clauses.push(cr);
         attachClause(cr);
     }
@@ -199,22 +198,6 @@ bool Solver::satisfied(const Clause& c) const {
         if (value(c[i]) == l_True)
             return true;
     return false; }
-
-
-void Solver::reloc(CRef& cr, ClauseAllocator& to)
-{
-    Clause& c = ca[cr];
-
-    if (c.reloced()) { cr = c.relocation(); return; }
-
-    cr = to.alloc(c, c.learnt(), c.has_extra() & extra_clause_field);
-    c.relocate(cr);
-
-    // Copy extra data-fields: (This could be cleaned-up)
-    to[cr].mark(c.mark());
-    if (c.learnt())
-        to[cr].activity() = c.activity();
-}
 
 
 // Revert to the state at given level (keeping all assignment at 'level' but not beyond).
@@ -822,7 +805,7 @@ void Solver::relocAll(ClauseAllocator& to)
             // printf(" >>> RELOCING: %s%d\n", sign(p)?"-":"", var(p)+1);
             vec<Watcher>& ws = watches[p];
             for (int j = 0; j < ws.size(); j++)
-                reloc(ws[j].cref, to);
+                ca.reloc(ws[j].cref, to);
         }
 
     // All reasons:
@@ -831,18 +814,18 @@ void Solver::relocAll(ClauseAllocator& to)
         Var v = var(trail[i]);
 
         if (reason(v) != CRef_Undef && (ca[reason(v)].reloced() || locked(ca[reason(v)])))
-            reloc(vardata[v].reason, to);
+            ca.reloc(vardata[v].reason, to);
     }
 
     // All learnt:
     //
     for (int i = 0; i < learnts.size(); i++)
-        reloc(learnts[i], to);
+        ca.reloc(learnts[i], to);
 
     // All original:
     //
     for (int i = 0; i < clauses.size(); i++)
-        reloc(clauses[i], to);
+        ca.reloc(clauses[i], to);
 }
 
 

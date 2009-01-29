@@ -193,13 +193,20 @@ class ClauseAllocator : public RegionAllocator<Clause>
     static int clauseWord32Size(int size, bool has_extra){
         return (sizeof(Clause) + (sizeof(Lit) * (size + (int)has_extra))) / sizeof(uint32_t); }
  public:
+    bool extra_clause_field;
+
+    ClauseAllocator() : extra_clause_field(false){}
+
+    void moveTo(ClauseAllocator& to){
+        to.extra_clause_field = extra_clause_field;
+        RegionAllocator<Clause>::moveTo(to); }
 
     template<class Lits>
-    CRef alloc(const Lits& ps, bool learnt = false, bool use_extra = true)
+    CRef alloc(const Lits& ps, bool learnt = false)
     {
         assert(sizeof(Lit)      == sizeof(uint32_t));
         assert(sizeof(float)    == sizeof(uint32_t));
-        use_extra |= learnt;
+        bool use_extra = learnt | extra_clause_field;
 
         CRef cid = RegionAllocator<Clause>::alloc(clauseWord32Size(ps.size(), use_extra));
         new (lea(cid)) Clause(ps, use_extra, learnt);
@@ -212,6 +219,24 @@ class ClauseAllocator : public RegionAllocator<Clause>
     {
         Clause& c = operator[](cid);
         RegionAllocator<Clause>::free(clauseWord32Size(c.size(), c.has_extra()));
+    }
+
+    void reloc(CRef& cr, ClauseAllocator& to)
+    {
+        Clause& c = operator[](cr);
+        
+        if (c.reloced()) { cr = c.relocation(); return; }
+        
+        cr = to.alloc(c, c.learnt());
+        c.relocate(cr);
+        
+        // Copy extra data-fields: 
+        // (This could be cleaned-up. Generalize Clause-constructor to be applicable here instead?)
+        to[cr].mark(c.mark());
+        if (c.learnt())
+            to[cr].activity() = c.activity();
+        else if (to[cr].has_extra())
+            to[cr].calcAbstraction();
     }
 };
 

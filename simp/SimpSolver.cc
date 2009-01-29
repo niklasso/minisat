@@ -62,9 +62,9 @@ SimpSolver::SimpSolver() :
   , n_touched          (0)
 {
     vec<Lit> dummy(1,lit_Undef);
-    bwdsub_tmpunit     = ca.alloc(dummy);
-    remove_satisfied   = false;
-    extra_clause_field = true;
+    ca.extra_clause_field = true; // NOTE: must happen before allocating the dummy clause below.
+    bwdsub_tmpunit        = ca.alloc(dummy);
+    remove_satisfied      = false;
 }
 
 
@@ -622,9 +622,9 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         elim_heap.clear(true);
         subsumption_queue.clear(true);
 
-        use_simplification = false;
-        remove_satisfied   = true;
-        extra_clause_field = false;
+        use_simplification    = false;
+        remove_satisfied      = true;
+        ca.extra_clause_field = false;
 
         // Force full cleanup (this is safe and desirable since it only happens once):
         rebuildOrderHeap();
@@ -667,17 +667,17 @@ void SimpSolver::relocAll(ClauseAllocator& to)
     for (int i = 0; i < nVars(); i++){
         vec<CRef>& cs = occurs[i];
         for (int j = 0; j < cs.size(); j++)
-            reloc(cs[j], to);
+            ca.reloc(cs[j], to);
     }
 
     // Subsumption queue:
     //
     for (int i = 0; i < subsumption_queue.size(); i++)
-        reloc(subsumption_queue[i], to);
+        ca.reloc(subsumption_queue[i], to);
 
     // Temporary clause:
     //
-    reloc(bwdsub_tmpunit, to);
+    ca.reloc(bwdsub_tmpunit, to);
 }
 
 
@@ -686,6 +686,7 @@ void SimpSolver::garbageCollect()
     cleanUpClauses();
     int size_before = ca.size();
     ClauseAllocator to;
+    to.extra_clause_field = ca.extra_clause_field; // NOTE: this is important to keep (or lose) the extra fields.
     relocAll(to);
     Solver::relocAll(to);
     to.moveTo(ca);
