@@ -150,6 +150,7 @@ class Clause {
 
 public:
     void calcAbstraction() {
+        assert(header.has_extra);
         uint32_t abstraction = 0;
         for (int i = 0; i < size(); i++)
             abstraction |= 1 << (var(data[i].lit) & 31);
@@ -175,8 +176,8 @@ public:
     Lit          operator [] (int i) const   { return data[i].lit; }
     operator const Lit* (void) const         { return (Lit*)data; }
 
-    float&       activity    ()              { return data[header.size].act; }
-    uint32_t     abstraction () const        { return data[header.size].abs; }
+    float&       activity    ()              { assert(header.has_extra); return data[header.size].act; }
+    uint32_t     abstraction () const        { assert(header.has_extra); return data[header.size].abs; }
 
     Lit          subsumes    (const Clause& other) const;
     void         strengthen  (Lit p);
@@ -233,10 +234,8 @@ class ClauseAllocator : public RegionAllocator<Clause>
         // Copy extra data-fields: 
         // (This could be cleaned-up. Generalize Clause-constructor to be applicable here instead?)
         to[cr].mark(c.mark());
-        if (c.learnt())
-            to[cr].activity() = c.activity();
-        else if (to[cr].has_extra())
-            to[cr].calcAbstraction();
+        if (to[cr].learnt())         to[cr].activity() = c.activity();
+        else if (to[cr].has_extra()) to[cr].calcAbstraction();
     }
 };
 
