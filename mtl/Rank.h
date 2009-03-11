@@ -389,6 +389,8 @@ void RankBitVec<IndexT, BlockRankT, WordRankT>::clear(bool dealloc)
 template<typename IndexT, typename BlockRankT, typename WordRankT>
 void RankBitVec<IndexT, BlockRankT, WordRankT>::moveTo(RankBitVec& to)
 {
+    to.total_bits = total_bits;
+    to.next_bit   = next_bit;
     bits  .moveTo(to.bits);
     blocks.moveTo(to.blocks);
     clear();
