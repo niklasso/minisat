@@ -290,6 +290,7 @@ class RankBitVec
 
     void   push      (bool bit);
     void   clear     (bool dealloc = false);
+    void   moveTo    (RankBitVec& to);
 };
 
 
@@ -382,6 +383,15 @@ void RankBitVec<IndexT, BlockRankT, WordRankT>::clear(bool dealloc)
     blocks.push (PrefixedBlockRank<IndexT, BlockRankT>(0));
 
     total_bits = next_bit = 0;
+}
+
+
+template<typename IndexT, typename BlockRankT, typename WordRankT>
+void RankBitVec<IndexT, BlockRankT, WordRankT>::moveTo(RankBitVec& to)
+{
+    bits  .moveTo(to.bits);
+    blocks.moveTo(to.blocks);
+    clear();
 }
 
 
