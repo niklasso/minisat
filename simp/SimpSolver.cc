@@ -278,13 +278,15 @@ void SimpSolver::gatherTouchedClauses()
 {
     if (n_touched == 0) return;
 
-    for (int i = 0; i < subsumption_queue.size(); i++)
-        ca[subsumption_queue[i]].mark(2);
+    int i,j;
+    for (i = j = 0; i < subsumption_queue.size(); i++)
+        if (ca[subsumption_queue[i]].mark() == 0)
+            ca[subsumption_queue[i]].mark(2);
 
-    for (int i = 0; i < touched.size(); i++)
+    for (i = 0; i < touched.size(); i++)
         if (touched[i]){
             const vec<CRef>& cs = occurs.lookup(i);
-            for (int j = 0; j < cs.size(); j++)
+            for (j = 0; j < cs.size(); j++)
                 if (ca[cs[j]].mark() == 0){
                     subsumption_queue.insert(cs[j]);
                     ca[cs[j]].mark(2);
@@ -292,8 +294,9 @@ void SimpSolver::gatherTouchedClauses()
             touched[i] = 0;
         }
 
-    for (int i = 0; i < subsumption_queue.size(); i++)
-        ca[subsumption_queue[i]].mark(0);
+    for (i = 0; i < subsumption_queue.size(); i++)
+        if (ca[subsumption_queue[i]].mark() == 2)
+            ca[subsumption_queue[i]].mark(0);
 
     n_touched = 0;
 }
