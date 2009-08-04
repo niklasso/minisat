@@ -36,6 +36,7 @@ static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause act
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep).", 2, IntRange(0, 2));
+static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full).", 2, IntRange(0, 2));
 static BoolOption    opt_rnd_init_act      (_cat, "rnd-init",    "Randomize the initial activity.", false);
 static IntOption     opt_restart_luby_start(_cat, "luby",        "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT32_MAX));
 static DoubleOption  opt_restart_luby_inc  (_cat, "luby-inc",    "The constant that the luby sequence takes the power-of", 2, DoubleRange(1, false, HUGE_VAL, false));
@@ -58,6 +59,7 @@ Solver::Solver() :
   , restart_luby_start (opt_restart_luby_start)
   , restart_luby_inc (opt_restart_luby_inc)
   , ccmin_mode       (opt_ccmin_mode)
+  , phase_saving     (opt_phase_saving)
   , rnd_pol          (false)
   , rnd_init_act     (opt_rnd_init_act)
   , garbage_frac     (opt_garbage_frac)
@@ -205,7 +207,8 @@ void Solver::cancelUntil(int level) {
         for (int c = trail.size()-1; c >= trail_lim[level]; c--){
             Var      x  = var(trail[c]);
             assigns [x] = l_Undef;
-            polarity[x] = sign(trail[c]);
+            if (phase_saving > 1 || (phase_saving == 1) && c > trail_lim.last())
+                polarity[x] = sign(trail[c]);
             insertVarOrder(x); }
         qhead = trail_lim[level];
         trail.shrink(trail.size() - trail_lim[level]);

@@ -111,7 +111,8 @@ public:
     double    restart_luby_start; // The factor with which the values of the luby sequence is multiplied to get the restart    (default 100)
     double    restart_luby_inc;   // The constant that the luby sequence uses powers of                                        (default 2)
     int       ccmin_mode;         // FIXME: describe.
-    bool      rnd_pol;            // FIXME: describe.
+    int       phase_saving;       // FIXME: describe.
+    bool      rnd_pol;            // FIXME: describe / remove?.
     bool      rnd_init_act;       // FIXME: describe.
     double    garbage_frac;       // The fraction of wasted memory allowed before a garbage collection is triggered.
 
