@@ -23,8 +23,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define Minisat_SolverTypes_h
 
 #include <cassert>
-#include <stdint.h>
 
+#include "mtl/IntTypes.h"
 #include "mtl/Alg.h"
 #include "mtl/Vec.h"
 #include "mtl/Map.h"

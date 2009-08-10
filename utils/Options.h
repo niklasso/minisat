@@ -1,14 +1,12 @@
 #ifndef Minisat_Options_h
 #define Minisat_Options_h
 
-#include <stdint.h>
-#include <inttypes.h>
-
 #include <cstdlib>
 #include <cstdio>
 #include <cmath>
 #include <cstring>
 
+#include "mtl/IntTypes.h"
 #include "mtl/Vec.h"
 #include "utils/ParseUtils.h"
 

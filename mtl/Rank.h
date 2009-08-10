@@ -20,10 +20,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #ifndef Minisat_Rank_h
 #define Minisat_Rank_h
 
-#include <stdint.h>
-#include <inttypes.h>
 #include <climits>
 
+#include "mtl/IntTypes.h"
 #include "mtl/Vec.h"
 
 namespace Minisat {
