@@ -32,7 +32,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #   include <inttypes.h>
     
 #   undef __STDC_LIMIT_MACROS
-#   undef __STDC_FORMAT_MA
+#   undef __STDC_FORMAT_MACROS
     
     
 #else
