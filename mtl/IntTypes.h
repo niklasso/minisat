@@ -22,7 +22,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 // NOTE: __STDC_VERSION__ >= 199901L only seems to work for compiling pure C.
 
-#if defined(__GNUC__) && not defined(__sun)
+#if defined(__GNUC__) &&  !defined(__sun)
     // GCC allows use of C99-standard headers also in C++:
 
 #   define __STDC_LIMIT_MACROS
