@@ -47,6 +47,21 @@ void printStats(Solver& solver)
     printf("CPU time              : %g s\n", cpu_time);
 }
 
+
+#if 1
+
+// This is a nice way to terminate properly, and that does not do bad stuff like IO in the signal
+// handler. The drawback is that currently the solver may take some time to back out gracefully and
+// it thus make take more time to clean up compared to when the signal handler just calls
+// 'exit(1)'.
+Solver* solver;
+static void SIGINT_handler(int signum) { solver->interrupt(); }
+
+#else
+
+// This is the fast, but seemingly unsafe way to interrupt the solving while printing some
+// statistics. For instance on Linux this sometimes (rarely, but consistently)locks up requireing a
+// "kill -9".
 SimpSolver* solver;
 static void SIGINT_handler(int signum) {
     printf("\n"); printf("*** INTERRUPTED ***\n");
@@ -54,6 +69,7 @@ static void SIGINT_handler(int signum) {
         printStats(*solver);
         printf("\n"); printf("*** INTERRUPTED ***\n"); }
     exit(1); }
+#endif
 
 
 //=================================================================================================

@@ -94,6 +94,7 @@ Solver::Solver() :
     //
   , conflict_budget    (opt_conflict_budget)
   , propagation_budget (opt_propagation_budget)
+  , asynch_interrupt   (false)
 {}
 
 

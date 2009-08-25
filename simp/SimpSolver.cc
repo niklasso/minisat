@@ -332,6 +332,12 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
 
     while (subsumption_queue.size() > 0 || bwdsub_assigns < trail.size()){
 
+        // Empty subsumption queue and return immediately on user-interrupt:
+        if (asynch_interrupt){
+            subsumption_queue.clear();
+            bwdsub_assigns = trail.size();
+            break; }
+
         // Check top-level assignments by creating a dummy clause and placing it in the queue:
         if (subsumption_queue.size() == 0 && bwdsub_assigns < trail.size()){
             Lit l = trail[bwdsub_assigns++];
@@ -588,9 +594,19 @@ bool SimpSolver::eliminate(bool turn_off_elim)
             !backwardSubsumptionCheck(true)){
             ok = false; goto cleanup; }
 
+        // Empty elim_heap and return immediately on user-interrupt:
+        if (asynch_interrupt){
+            assert(bwdsub_assigns == trail.size());
+            assert(subsumption_queue.size() == 0);
+            assert(n_touched == 0);
+            elim_heap.clear();
+            goto cleanup; }
+
         printf("  ## (time = %6.2f s) ELIM: vars = %d\n", cpuTime(), elim_heap.size());
         for (int cnt = 0; !elim_heap.empty(); cnt++){
             Var elim = elim_heap.removeMin();
+            
+            if (asynch_interrupt) break;
 
             if (isEliminated(elim) || value(elim) != l_Undef) continue;
 
