@@ -25,6 +25,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <cassert>
 #include <new>
 
+#include "mtl/XAlloc.h"
+
 namespace Minisat {
 
 //=================================================================================================
@@ -66,8 +68,8 @@ public:
     void     clear    (bool dealloc = false);
 
     // Stack interface:
-    void     push  (void)              { if (sz == cap) { cap = nextCap(cap); data = (T*)realloc(data, cap * sizeof(T)); } new (&data[sz]) T(); sz++; }
-    void     push  (const T& elem)     { if (sz == cap) { cap = nextCap(cap); data = (T*)realloc(data, cap * sizeof(T)); } data[sz++] = elem; }
+    void     push  (void)              { if (sz == cap) { cap = nextCap(cap); data = (T*)xrealloc(data, cap * sizeof(T)); } new (&data[sz]) T(); sz++; }
+    void     push  (const T& elem)     { if (sz == cap) { cap = nextCap(cap); data = (T*)xrealloc(data, cap * sizeof(T)); } data[sz++] = elem; }
     void     push_ (const T& elem)     { assert(sz < cap); data[sz++] = elem; }
     void     pop   (void)              { sz--, data[sz].~T(); }
 
@@ -88,7 +90,7 @@ template<class T>
 void vec<T>::capacity(int min_cap) {
     if (sz >= min_cap) return;
     while (cap < min_cap) cap = nextCap(cap);
-    data = (T*)realloc(data, cap * sizeof(T)); }
+    data = (T*)xrealloc(data, cap * sizeof(T)); }
 
 
 template<class T>
