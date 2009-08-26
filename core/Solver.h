@@ -338,6 +338,9 @@ inline bool     Solver::withinBudget() const {
            (conflict_budget    < 0 || conflicts < (uint64_t)conflict_budget) &&
            (propagation_budget < 0 || propagations < (uint64_t)propagation_budget); }
 
+// FIXME: after the introduction of asynchronous interrruptions the solve-versions that return a
+// pure bool do not give a safe interface. Either interrupts must be possible to turn off here, or
+// all calls to solve must return an 'lbool'. I'm not yet sure which I prefer.
 inline bool     Solver::solve         ()                    { budgetOff(); assumptions.clear(); return solve_() == l_True; }
 inline bool     Solver::solve         (Lit p)               { budgetOff(); assumptions.clear(); assumptions.push(p); return solve_() == l_True; }
 inline bool     Solver::solve         (Lit p, Lit q)        { budgetOff(); assumptions.clear(); assumptions.push(p); assumptions.push(q); return solve_() == l_True; }
