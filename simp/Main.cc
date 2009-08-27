@@ -61,7 +61,7 @@ static void SIGINT_handler(int signum) { solver->interrupt(); }
 #else
 
 // This is the fast, but seemingly unsafe way to interrupt the solving while printing some
-// statistics. For instance on Linux this sometimes (rarely, but consistently)locks up requireing a
+// statistics. For instance on Linux this sometimes (rarely, but consistently) locks up requiring a
 // "kill -9".
 SimpSolver* solver;
 static void SIGINT_handler(int signum) {
@@ -111,16 +111,18 @@ int main(int argc, char** argv)
             getrlimit(RLIMIT_CPU, &rl);
             if (rl.rlim_max == RLIM_INFINITY || (rlim_t)cpu_lim < rl.rlim_max){
                 rl.rlim_cur = cpu_lim;
-                setrlimit(RLIMIT_CPU, &rl);
+                if (setrlimit(RLIMIT_CPU, &rl) == -1)
+                    printf("WARNING! Could not set resource limit: CPU-time.\n");
             } }
 
-        // Set limit on memory:
+        // Set limit on virtual memory:
         if (mem_lim != INT32_MAX){
             rlimit rl;
             getrlimit(RLIMIT_AS, &rl);
             if (rl.rlim_max == RLIM_INFINITY || (rlim_t)mem_lim < rl.rlim_max){
                 rl.rlim_cur = mem_lim;
-                setrlimit(RLIMIT_AS, &rl);
+                if (setrlimit(RLIMIT_AS, &rl) == -1)
+                    printf("WARNING! Could not set resource limit: Virtual memory.\n");
             } }
         
         if (argc == 1)
