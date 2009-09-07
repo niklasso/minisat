@@ -85,8 +85,8 @@ public:
 
     // Resource contraints:
     //
-    void    setConfBudget(int x);
-    void    setPropBudget(int x);
+    void    setConfBudget(int64_t x);
+    void    setPropBudget(int64_t x);
     void    budgetOff();
     void    interrupt();          // Trigger a (potentially asynchronous) interruption of the solver.
     void    clearInterrupt();     // Clear interrupt indicator flag.
@@ -198,8 +198,8 @@ protected:
 
     // Resource contraints:
     //
-    int64_t             conflict_budget;
-    int64_t             propagation_budget;
+    int64_t             conflict_budget;    // -1 means no budget.
+    int64_t             propagation_budget; // -1 means no budget.
     bool                asynch_interrupt;
 
     // Main internal methods:
@@ -328,8 +328,8 @@ inline void     Solver::setDecisionVar(Var v, bool b)
     decision[v] = b;
     insertVarOrder(v);
 }
-inline void     Solver::setConfBudget(int x){ conflict_budget = conflicts + x; }
-inline void     Solver::setPropBudget(int x){ propagation_budget = propagations + x; } // TODO: may need to expose the full 64-bit scale here.
+inline void     Solver::setConfBudget(int64_t x){ conflict_budget    = conflicts    + x; }
+inline void     Solver::setPropBudget(int64_t x){ propagation_budget = propagations + x; }
 inline void     Solver::interrupt(){ asynch_interrupt = true; }
 inline void     Solver::clearInterrupt(){ asynch_interrupt = false; }
 inline void     Solver::budgetOff(){ conflict_budget = propagation_budget = -1; }
