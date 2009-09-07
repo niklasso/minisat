@@ -27,6 +27,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 using namespace Minisat;
 
+// TODO: split the memory reading functions into two: one for reading high-watermark of RSS, and
+// one for reading the current virtual memory size.
+
 static inline int memReadStat(int field)
 {
     char  name[256];
