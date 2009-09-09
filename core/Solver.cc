@@ -40,8 +40,6 @@ static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls confl
 static BoolOption    opt_rnd_init_act      (_cat, "rnd-init",    "Randomize the initial activity.", false);
 static IntOption     opt_restart_luby_start(_cat, "luby",        "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT32_MAX));
 static DoubleOption  opt_restart_luby_inc  (_cat, "luby-inc",    "The constant that the luby sequence takes the power-of", 2, DoubleRange(1, false, HUGE_VAL, false));
-static IntOption     opt_conflict_budget   (_cat, "conf-budget", "Maximum number of conflicts (-1 = unbounded).",    -1, IntRange(-1, INT32_MAX));
-static IntOption     opt_propagation_budget(_cat, "prop-budget", "Maximum number of propagations (-1 = unbounded).", -1, IntRange(-1, INT32_MAX));
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
 
 
@@ -92,8 +90,8 @@ Solver::Solver() :
 
     // Rresources constraints:
     //
-  , conflict_budget    (opt_conflict_budget)
-  , propagation_budget (opt_propagation_budget)
+  , conflict_budget    (-1)
+  , propagation_budget (-1)
   , asynch_interrupt   (false)
 {}
 
