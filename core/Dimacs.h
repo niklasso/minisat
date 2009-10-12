@@ -21,7 +21,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #ifndef Minisat_Dimacs_h
 #define Minisat_Dimacs_h
 
-#include <cstdio>
+#include <stdio.h>
 
 #include "utils/ParseUtils.h"
 #include "core/SolverTypes.h"

@@ -20,8 +20,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #ifndef Minisat_Rank_h
 #define Minisat_Rank_h
 
-#include <climits>
-
 #include "mtl/IntTypes.h"
 #include "mtl/Vec.h"
 
@@ -50,6 +48,7 @@ namespace Minisat {
 template<class T>
 static inline int bitCount(T v)
 {
+    static const int CHAR_BIT = 8;                                // Assumes 8-bit characters.
     v = v - ((v >> 1) & (T)~(T)0/3);                              // temp
     v = (v & (T)~(T)0/15*3) + ((v >> 2) & (T)~(T)0/15*3);         // temp
     v = (v + (v >> 4)) & (T)~(T)0/255*15;                         // temp

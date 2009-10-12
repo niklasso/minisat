@@ -1,10 +1,10 @@
 #ifndef Minisat_Options_h
 #define Minisat_Options_h
 
-#include <cstdlib>
-#include <cstdio>
-#include <cmath>
-#include <cstring>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
 
 #include "mtl/IntTypes.h"
 #include "mtl/Vec.h"
