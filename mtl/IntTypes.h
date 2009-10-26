@@ -20,40 +20,21 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #ifndef Minisat_IntTypes_h
 #define Minisat_IntTypes_h
 
-// NOTE: __STDC_VERSION__ >= 199901L only seems to work for compiling pure C.
+#ifdef __sun
+    // Not sure if there are newer versions that support C99 headers. The
+    // needed features are implemented in the headers below though:
 
-#if defined(__GNUC__) &&  !defined(__sun)
-    // GCC allows use of C99-standard headers also in C++:
+#   include <sys/int_types.h>
+#   include <sys/int_fmtio.h>
+#   include <sys/int_limits.h>
 
-#   define __STDC_LIMIT_MACROS
-#   define __STDC_FORMAT_MACROS
+#else
 
 #   include <stdint.h>
 #   include <inttypes.h>
 
-#   undef __STDC_LIMIT_MACROS
-#   undef __STDC_FORMAT_MACROS
-
-
-#else
-    // Workarounds for other compilers:
-
-#   ifdef __sun
-        // Not sure if there are newer versions that support C99 headers. The
-        // needed features are implemented in the headers below though:
-
-#       include <sys/int_types.h>
-#       include <sys/int_fmtio.h>
-#       include <sys/int_limits.h>
-
-#   else
-        // NOTE: Add support for other compilers here.
-
-#       error "Unsupported compiler: needs support for C99-style int-types."
-
-#   endif
-
 #endif
+
 
 //=================================================================================================
 
