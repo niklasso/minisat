@@ -50,25 +50,23 @@ void printStats(Solver& solver)
 
 #if 1
 
-// This is a nice way to terminate properly, and that does not do bad stuff like IO in the signal
-// handler. The drawback is that currently the solver may take some time to back out gracefully and
-// it thus make take more time to clean up compared to when the signal handler just calls
-// 'exit(1)'.
+// Terminate by notifying the solver and back out gracefully. This is mainly to have a test-case
+// for this feature of the Solver as it may take longer than an immediate call to '_exit()'.
 Solver* solver;
 static void SIGINT_handler(int signum) { solver->interrupt(); }
 
 #else
 
-// This is the fast, but seemingly unsafe way to interrupt the solving while printing some
-// statistics. For instance on Linux this sometimes (rarely, but consistently) locks up requiring a
-// "kill -9".
+// Note that '_exit()' rather than 'exit()' has to be used. The reason is that 'exit()' calls
+// destructors and may cause deadlocks if a malloc/free function happens to be running (these
+// functions are guarded by locks for multithreaded use).
 Solver* solver;
 static void SIGINT_handler(int signum) {
     printf("\n"); printf("*** INTERRUPTED ***\n");
     if (solver->verbosity > 0){
         printStats(*solver);
         printf("\n"); printf("*** INTERRUPTED ***\n"); }
-    exit(1); }
+    _exit(1); }
 #endif
 
 //=================================================================================================
