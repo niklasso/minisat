@@ -92,7 +92,7 @@ public:
     explicit lbool(uint8_t v) : value(v) { }
 
     lbool()       : value(0) { }
-    lbool(bool x) : value(!x) { }
+    explicit lbool(bool x) : value(!x) { }
 
     bool  operator == (lbool b) const { return ((b.value&2) & (value&2)) | (!(b.value&2)&(value == b.value)); }
     bool  operator != (lbool b) const { return !(*this == b); }

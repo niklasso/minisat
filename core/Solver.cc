@@ -748,7 +748,7 @@ lbool Solver::solve_()
 {
     model.clear();
     conflict.clear();
-    if (!ok) return false;
+    if (!ok) return l_False;
 
     solves++;
 
