@@ -57,9 +57,9 @@ static inline int memReadPeak(void)
     FILE* in = fopen(name, "rb");
     if (in == NULL) return 0;
 
-    // Find the correct line, beginning with "VmHWM:":
+    // Find the correct line, beginning with "VmPeak:":
     uint32_t peak_kb = 0;
-    while (!feof(in) && fscanf(in, "VmHWM: %d kB", &peak_kb) != 1)
+    while (!feof(in) && fscanf(in, "VmPeak: %d kB", &peak_kb) != 1)
         while (!feof(in) && fgetc(in) != '\n')
             ;
     fclose(in);
