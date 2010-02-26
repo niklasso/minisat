@@ -88,7 +88,7 @@ Solver::Solver() :
   , progress_estimate  (0)
   , remove_satisfied   (true)
 
-    // Rresources constraints:
+    // Resource constraints:
     //
   , conflict_budget    (-1)
   , propagation_budget (-1)
