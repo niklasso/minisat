@@ -48,26 +48,21 @@ void printStats(Solver& solver)
 }
 
 
-#if 1
-
+static Solver* solver;
 // Terminate by notifying the solver and back out gracefully. This is mainly to have a test-case
 // for this feature of the Solver as it may take longer than an immediate call to '_exit()'.
-Solver* solver;
-static void SIGINT_handler(int signum) { solver->interrupt(); }
-
-#else
+static void SIGINT_interrupt(int signum) { solver->interrupt(); }
 
 // Note that '_exit()' rather than 'exit()' has to be used. The reason is that 'exit()' calls
 // destructors and may cause deadlocks if a malloc/free function happens to be running (these
 // functions are guarded by locks for multithreaded use).
-Solver* solver;
-static void SIGINT_handler(int signum) {
+static void SIGINT_exit(int signum) {
     printf("\n"); printf("*** INTERRUPTED ***\n");
     if (solver->verbosity > 0){
         printStats(*solver);
         printf("\n"); printf("*** INTERRUPTED ***\n"); }
     _exit(1); }
-#endif
+
 
 //=================================================================================================
 // Main:
@@ -95,8 +90,10 @@ int main(int argc, char** argv)
         double initial_time = cpuTime();
         
         solver = &S;
-        signal(SIGINT, SIGINT_handler);
-        signal(SIGXCPU,SIGINT_handler);
+        // Use signal handlers that forcibly quit until the solver will be able to respond to
+        // interrupts:
+        signal(SIGINT, SIGINT_exit);
+        signal(SIGXCPU,SIGINT_exit);
 
         // Set limit on CPU-time:
         if (cpu_lim != INT32_MAX){
@@ -141,7 +138,12 @@ int main(int argc, char** argv)
         if (S.verbosity > 0){
             printf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
             printf("|                                                                             |\n"); }
-        
+ 
+        // Change to signal-handlers that will only notify the solver and allow it to terminate
+        // voluntarily:
+        signal(SIGINT, SIGINT_interrupt);
+        signal(SIGXCPU,SIGINT_interrupt);
+       
         if (!S.simplify()){
             if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
             if (S.verbosity > 0){
