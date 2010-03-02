@@ -70,7 +70,11 @@ class SimpSolver : public Solver {
 
     // Generate a (possibly simplified) DIMACS file:
     //
+    void    toDimacs  (const char* file, const vec<Lit>& assumps);
     void    toDimacs  (const char* file);
+    void    toDimacs  (const char* file, Lit p);
+    void    toDimacs  (const char* file, Lit p, Lit q);
+    void    toDimacs  (const char* file, Lit p, Lit q, Lit r);
 
     // Mode of operation:
     //
@@ -184,9 +188,15 @@ inline bool SimpSolver::solve        (Lit p, Lit q, Lit r, bool do_simp, bool tu
 inline bool SimpSolver::solve        (const vec<Lit>& assumps, bool do_simp, bool turn_off_simp){ 
     budgetOff(); assumps.copyTo(assumptions); return solve_(do_simp, turn_off_simp) == l_True; }
 
+
 inline lbool SimpSolver::solveLimited (const vec<Lit>& assumps, bool do_simp, bool turn_off_simp){ 
     assumps.copyTo(assumptions); return solve_(do_simp, turn_off_simp); }
 
+
+inline void SimpSolver::toDimacs     (const char* file){ vec<Lit> as; toDimacs(file, as); }
+inline void SimpSolver::toDimacs     (const char* file, Lit p){ vec<Lit> as; as.push(p); toDimacs(file, as); }
+inline void SimpSolver::toDimacs     (const char* file, Lit p, Lit q){ vec<Lit> as; as.push(p); as.push(q); toDimacs(file, as); }
+inline void SimpSolver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.push(p); as.push(q); as.push(r); toDimacs(file, as); }
 
 //=================================================================================================
 

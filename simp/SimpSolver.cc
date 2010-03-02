@@ -739,8 +739,9 @@ void SimpSolver::toDimacs(FILE* f, Clause& c, vec<Var>& map, Var& max)
     fprintf(f, "0\n");
 }
 
-
-void SimpSolver::toDimacs(const char* file)
+// FIXME: Why are not unit-clauses (from trail) written when the solver is not in preprocessing mode?
+// FIXME: What should happen when assumptions are inconsistent with current top-level assignment?
+void SimpSolver::toDimacs(const char* file, const vec<Lit>& assumptions)
 {
     assert(decisionLevel() == 0);
     FILE* f = fopen(file, "wr");
@@ -762,7 +763,15 @@ void SimpSolver::toDimacs(const char* file)
                         mapVar(var(c[j]), map, max);
             }
 
+        // Assumptions are added as unit clauses:
+        cnt += assumptions.size();
+
         fprintf(f, "p cnf %d %d\n", max, cnt);
+
+        for (int i = 0; i < assumptions.size(); i++){
+            assert(value(assumptions[i]) != l_False);
+            fprintf(f, "%s%d 0\n", sign(assumptions[i]) ? "-" : "", mapVar(var(assumptions[i]), map, max)+1);
+        }
 
         for (int i = 0; i < clauses.size(); i++)
             toDimacs(f, ca[clauses[i]], map, max);
