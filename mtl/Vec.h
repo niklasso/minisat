@@ -44,8 +44,7 @@ class vec {
              vec        (vec<T>& other) { assert(0); }
              
     // Helpers for calculating next capacity:
-    static inline int imax   (int x, int y) { int mask = (y-x) >> (sizeof(int)*8-1); return (x&mask) + (y&(~mask)); }
-    static inline int nextCap(int cap)      { return imax(2, (cap*3+1)>>1); }
+    static inline void nextCap(int& cap){ cap += ((cap >> 1) + 2) & ~1; }
 
 public:
     // Constructors:
@@ -67,8 +66,8 @@ public:
     void     clear    (bool dealloc = false);
 
     // Stack interface:
-    void     push  (void)              { if (sz == cap) { cap = nextCap(cap); data = (T*)xrealloc(data, cap * sizeof(T)); } new (&data[sz]) T(); sz++; }
-    void     push  (const T& elem)     { if (sz == cap) { cap = nextCap(cap); data = (T*)xrealloc(data, cap * sizeof(T)); } data[sz++] = elem; }
+    void     push  (void)              { if (sz == cap) { nextCap(cap); data = (T*)xrealloc(data, cap * sizeof(T)); } new (&data[sz]) T(); sz++; }
+    void     push  (const T& elem)     { if (sz == cap) { nextCap(cap); data = (T*)xrealloc(data, cap * sizeof(T)); } data[sz++] = elem; }
     void     push_ (const T& elem)     { assert(sz < cap); data[sz++] = elem; }
     void     pop   (void)              { sz--, data[sz].~T(); }
 
@@ -88,7 +87,7 @@ public:
 template<class T>
 void vec<T>::capacity(int min_cap) {
     if (sz >= min_cap) return;
-    while (cap < min_cap) cap = nextCap(cap);
+    while (cap < min_cap) nextCap(cap);
     data = (T*)xrealloc(data, cap * sizeof(T)); }
 
 
