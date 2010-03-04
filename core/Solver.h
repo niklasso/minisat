@@ -293,7 +293,7 @@ inline void Solver::claBumpActivity (Clause& c) {
 
 inline void Solver::checkGarbage(void){ return checkGarbage(garbage_frac); }
 inline void Solver::checkGarbage(double gf){
-    if (ca.wastedBytes() > ca.size() * gf)
+    if (ca.wasted() > ca.size() * gf)
         garbageCollect(); }
 
 // NOTE: enqueue does not set the ok flag! (only public methods do)

@@ -702,16 +702,18 @@ void SimpSolver::relocAll(ClauseAllocator& to)
 
 void SimpSolver::garbageCollect()
 {
+    // Initialize the next region to a size corresponding to the estimated utilization degree. This
+    // is not precise but should avoid some unnecessary reallocations for the new region:
+    ClauseAllocator to(ca.size() - ca.wasted()); 
+
     cleanUpClauses();
-    int size_before = ca.size();
-    ClauseAllocator to;
     to.extra_clause_field = ca.extra_clause_field; // NOTE: this is important to keep (or lose) the extra fields.
     relocAll(to);
     Solver::relocAll(to);
-    to.moveTo(ca);
-    int size_after = ca.size();
     if (verbosity >= 2)
-        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", size_before, size_after);
+        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", 
+               ca.size()*ClauseAllocator::Unit_Size, to.size()*ClauseAllocator::Unit_Size);
+    to.moveTo(ca);
 }
 
 

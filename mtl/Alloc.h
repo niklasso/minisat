@@ -32,20 +32,21 @@ template<class T>
 class RegionAllocator
 {
     vec<uint32_t>  memory;
-    int            wasted;
+    int            wasted_;
 
  public:
     // TODO: make this a class for better type-checking?
     typedef uint32_t Ref;
     enum { Ref_Undef = UINT32_MAX };
+    enum { Unit_Size = sizeof(uint32_t) };
 
-    RegionAllocator() : wasted(0) { memory.capacity(1024*1024); }
+    RegionAllocator(uint32_t start_cap = 1024*1024) : wasted_(0) { memory.capacity(start_cap); }
 
-    int      size       () const     { return memory.size() * sizeof(T); }
-    int      wastedBytes() const     { return wasted * sizeof(T); }
+    int      size   () const     { return memory.size(); }
+    int      wasted () const     { return wasted_; }
 
     Ref      alloc     (int size);
-    void     free      (int size)    { wasted += size; }
+    void     free      (int size)    { wasted_ += size; }
 
     // Deref, Load Effective Address (LEA), Inverse of LEA (AEL):
     T&       operator[](Ref r)       { assert(r >= 0 && r < (Ref)memory.size()); return *(T*)&memory[r]; }
@@ -58,7 +59,7 @@ class RegionAllocator
 
     void     moveTo(RegionAllocator& to) { 
         memory.moveTo(to.memory); 
-        to.wasted = wasted;
+        to.wasted_ = wasted_;
     }
 };
 
