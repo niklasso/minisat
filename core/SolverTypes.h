@@ -196,7 +196,8 @@ class ClauseAllocator : public RegionAllocator<Clause>
  public:
     bool extra_clause_field;
 
-    ClauseAllocator(uint32_t start_cap = 1024*1024) : RegionAllocator<Clause>(start_cap), extra_clause_field(false){}
+    ClauseAllocator(uint32_t start_cap) : RegionAllocator<Clause>(start_cap), extra_clause_field(false){}
+    ClauseAllocator() : extra_clause_field(false){}
 
     void moveTo(ClauseAllocator& to){
         to.extra_clause_field = extra_clause_field;
