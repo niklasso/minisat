@@ -58,7 +58,7 @@ static inline int memReadPeak(void)
     if (in == NULL) return 0;
 
     // Find the correct line, beginning with "VmPeak:":
-    uint32_t peak_kb = 0;
+    int peak_kb = 0;
     while (!feof(in) && fscanf(in, "VmPeak: %d kB", &peak_kb) != 1)
         while (!feof(in) && fgetc(in) != '\n')
             ;
