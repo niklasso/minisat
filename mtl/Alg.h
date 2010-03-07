@@ -78,6 +78,7 @@ static inline void copy(const vec<T>& from, vec<T>& to, bool append = false)
 template<class T>
 static inline void append(const vec<T>& from, vec<T>& to){ copy(from, to, true); }
 
-};
+//=================================================================================================
+}
 
 #endif

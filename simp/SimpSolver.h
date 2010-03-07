@@ -198,8 +198,8 @@ inline void SimpSolver::toDimacs     (const char* file, Lit p){ vec<Lit> as; as.
 inline void SimpSolver::toDimacs     (const char* file, Lit p, Lit q){ vec<Lit> as; as.push(p); as.push(q); toDimacs(file, as); }
 inline void SimpSolver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.push(p); as.push(q); as.push(r); toDimacs(file, as); }
 
-//=================================================================================================
 
-};
+//=================================================================================================
+}
 
 #endif

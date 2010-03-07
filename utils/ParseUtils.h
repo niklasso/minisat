@@ -115,6 +115,8 @@ static bool eagerMatch(B& in, const char* str) {
             return false;
     return true; }
 
-};
+
+//=================================================================================================
+}
 
 #endif

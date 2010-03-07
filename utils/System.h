@@ -34,7 +34,7 @@ namespace Minisat {
 static inline double cpuTime(void); // CPU-time in seconds.
 extern double memUsed();            // Memory in mega bytes (returns 0 for unsupported architectures).
 
-};
+}
 
 //-------------------------------------------------------------------------------------------------
 // Implementation of inline functions:
