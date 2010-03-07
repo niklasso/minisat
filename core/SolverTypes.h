@@ -281,7 +281,9 @@ template<class Idx, class Vec, class Deleted>
 void OccLists<Idx,Vec,Deleted>::cleanAll()
 {
     for (int i = 0; i < dirties.size(); i++)
-        clean(dirties[i]);
+        // Dirties may contain duplicates so check here if a variable is already cleaned:
+        if (dirty[toInt(dirties[i])])
+            clean(dirties[i]);
     dirties.clear();
 }
 
