@@ -24,6 +24,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <assert.h>
 #include <new>
 
+#include "mtl/IntTypes.h"
 #include "mtl/XAlloc.h"
 
 namespace Minisat {
@@ -45,6 +46,7 @@ class vec {
              
     // Helpers for calculating next capacity:
     static inline int  imax   (int x, int y) { int mask = (y-x) >> (sizeof(int)*8-1); return (x&mask) + (y&(~mask)); }
+    //static inline void nextCap(int& cap){ cap += ((cap >> 1) + 2) & ~1; }
     static inline void nextCap(int& cap){ cap += ((cap >> 1) + 2) & ~1; }
 
 public:
@@ -67,8 +69,8 @@ public:
     void     clear    (bool dealloc = false);
 
     // Stack interface:
-    void     push  (void)              { if (sz == cap) { nextCap(cap); data = (T*)xrealloc(data, cap * sizeof(T)); } new (&data[sz]) T(); sz++; }
-    void     push  (const T& elem)     { if (sz == cap) { nextCap(cap); data = (T*)xrealloc(data, cap * sizeof(T)); } data[sz++] = elem; }
+    void     push  (void)              { if (sz == cap) capacity(sz+1); new (&data[sz]) T(); sz++; }
+    void     push  (const T& elem)     { if (sz == cap) capacity(sz+1); data[sz++] = elem; }
     void     push_ (const T& elem)     { assert(sz < cap); data[sz++] = elem; }
     void     pop   (void)              { assert(sz > 0); sz--, data[sz].~T(); }
 
@@ -88,8 +90,15 @@ public:
 template<class T>
 void vec<T>::capacity(int min_cap) {
     if (cap >= min_cap) return;
-    cap += imax((min_cap - cap + 1) & ~1, ((cap >> 1) + 2) & ~1);
-    data = (T*)xrealloc(data, cap * sizeof(T)); }
+    //cap += imax((min_cap - cap + 1) & ~1, ((cap >> 1) + 2) & ~1);
+    //data = (T*)xrealloc(data, cap * sizeof(T)); 
+
+    int add = imax((min_cap - cap + 1) & ~1, ((cap >> 1) + 2) & ~1);   // NOTE: grow by approximately 3/2
+    //int add = imax((min_cap - cap + 1) & ~1, ((cap >> 2) + 2) & ~1); // NOTE: grow by approximately 5/4
+    //int add = imax((min_cap - cap + 1) & ~1, cap);                   // NOTE: grow by approximately 2
+    if (add > INT_MAX - cap || ((data = (T*)::realloc(data, (cap += add) * sizeof(T))) == NULL) && errno == ENOMEM)
+        throw OutOfMemoryException();
+ }
 
 
 template<class T>
