@@ -100,7 +100,7 @@ class SimpSolver : public Solver {
     //
     struct ElimLt {
         const vec<int>& n_occ;
-        ElimLt(const vec<int>& no) : n_occ(no) {}
+        explicit ElimLt(const vec<int>& no) : n_occ(no) {}
 
         // TODO: are 64-bit operations here noticably bad on 32-bit platforms? Could use a saturating
         // 32-bit implementation instead then, but this will have to do for now.
@@ -116,7 +116,7 @@ class SimpSolver : public Solver {
 
     struct ClauseDeleted {
         const ClauseAllocator& ca;
-        ClauseDeleted(const ClauseAllocator& _ca) : ca(_ca) {}
+        explicit ClauseDeleted(const ClauseAllocator& _ca) : ca(_ca) {}
         bool operator()(const CRef& cr) const { return ca[cr].mark() == 1; } };
 
     // Solver state:

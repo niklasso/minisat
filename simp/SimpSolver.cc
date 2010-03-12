@@ -56,7 +56,7 @@ SimpSolver::SimpSolver() :
   , eliminated_vars    (0)
   , elimorder          (1)
   , use_simplification (true)
-  , occurs             (ca)
+  , occurs             (ClauseDeleted(ca))
   , elim_heap          (ElimLt(n_occ))
   , bwdsub_assigns     (0)
   , n_touched          (0)

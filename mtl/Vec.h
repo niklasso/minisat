@@ -51,10 +51,10 @@ class vec {
 
 public:
     // Constructors:
-    vec(void)                   : data(NULL) , sz(0)   , cap(0)    { }
-    vec(int size)               : data(NULL) , sz(0)   , cap(0)    { growTo(size); }
+    vec()                       : data(NULL) , sz(0)   , cap(0)    { }
+    explicit vec(int size)      : data(NULL) , sz(0)   , cap(0)    { growTo(size); }
     vec(int size, const T& pad) : data(NULL) , sz(0)   , cap(0)    { growTo(size, pad); }
-   ~vec(void)                                                      { clear(true); }
+   ~vec()                                                          { clear(true); }
 
     // Pointer to first element:
     operator T*       (void)           { return data; }
