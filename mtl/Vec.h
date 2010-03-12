@@ -70,6 +70,7 @@ public:
     void     clear    (bool dealloc = false);
 
     // Stack interface:
+    // TODO: handle possible overflow here.
     void     push  (void)              { if (sz == cap) capacity(sz+1); new (&data[sz]) T(); sz++; }
     void     push  (const T& elem)     { if (sz == cap) capacity(sz+1); data[sz++] = elem; }
     void     push_ (const T& elem)     { assert(sz < cap); data[sz++] = elem; }
