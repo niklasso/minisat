@@ -198,7 +198,7 @@ int main(int argc, char** argv)
 #ifdef NDEBUG
         exit(ret == l_True ? 10 : ret == l_False ? 20 : 0);     // (faster than "return", which will invoke the destructor for 'Solver')
 #endif
-    } catch (OutOfMemoryException& e){
+    } catch (OutOfMemoryException&){
         printf("===============================================================================\n");
         printf("INDETERMINATE\n");
         exit(0);
