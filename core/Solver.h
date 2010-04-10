@@ -109,10 +109,10 @@ public:
     double    random_var_freq;
     double    random_seed;
     bool      luby_restart;
-    int       ccmin_mode;         // FIXME: describe.
-    int       phase_saving;       // FIXME: describe.
-    bool      rnd_pol;            // FIXME: describe / remove?.
-    bool      rnd_init_act;       // FIXME: describe.
+    int       ccmin_mode;         // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
+    int       phase_saving;       // Controls the level of phase saving (0=none, 1=limited, 2=full).
+    bool      rnd_pol;            // Use random polarities for branching heuristics.
+    bool      rnd_init_act;       // Initialize variable activities with a small random value.
     double    garbage_frac;       // The fraction of wasted memory allowed before a garbage collection is triggered.
 
     int       restart_first;      // The initial restart limit.                                                                (default 100)
