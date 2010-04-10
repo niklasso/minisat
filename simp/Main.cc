@@ -81,6 +81,7 @@ int main(int argc, char** argv)
 #endif
         // Extra options:
         //
+        IntOption    verb   ("MAIN", "verb",   "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 2));
         BoolOption   pre    ("MAIN", "pre",    "Completely turn on/off any preprocessing.", true);
         StringOption dimacs ("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
         IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
@@ -92,6 +93,8 @@ int main(int argc, char** argv)
         double      initial_time = cpuTime();
 
         if (!pre) S.eliminate(true);
+
+        S.verbosity = verb;
         
         solver = &S;
         // Use signal handlers that forcibly quit until the solver will be able to respond to
