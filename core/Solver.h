@@ -108,8 +108,7 @@ public:
     double    clause_decay;
     double    random_var_freq;
     double    random_seed;
-    double    restart_luby_start; // The factor with which the values of the luby sequence is multiplied to get the restart    (default 100)
-    double    restart_luby_inc;   // The constant that the luby sequence uses powers of                                        (default 2)
+    bool      luby_restart;
     int       ccmin_mode;         // FIXME: describe.
     int       phase_saving;       // FIXME: describe.
     bool      rnd_pol;            // FIXME: describe / remove?.

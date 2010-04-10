@@ -35,11 +35,12 @@ static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable a
 static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
-static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep).", 2, IntRange(0, 2));
-static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full).", 2, IntRange(0, 2));
-static BoolOption    opt_rnd_init_act      (_cat, "rnd-init",    "Randomize the initial activity.", false);
-static IntOption     opt_restart_luby_start(_cat, "luby",        "The factor with which the values of the luby sequence is multiplied to get the restart", 100, IntRange(1, INT32_MAX));
-static DoubleOption  opt_restart_luby_inc  (_cat, "luby-inc",    "The constant that the luby sequence takes the power-of", 2, DoubleRange(1, false, HUGE_VAL, false));
+static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
+static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
+static BoolOption    opt_rnd_init_act      (_cat, "rnd-init",    "Randomize the initial activity", false);
+static BoolOption    opt_luby_restart      (_cat, "luby",        "Use the Luby restart sequence", true);
+static IntOption     opt_restart_first     (_cat, "rfirst",      "The base restart interval", 100, IntRange(1, INT32_MAX));
+static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interval increase factor", 2, DoubleRange(1, false, HUGE_VAL, false));
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
 
 
@@ -56,17 +57,18 @@ Solver::Solver() :
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
   , random_seed      (opt_random_seed)
-  , restart_luby_start (opt_restart_luby_start)
-  , restart_luby_inc (opt_restart_luby_inc)
+  , luby_restart     (opt_luby_restart)
   , ccmin_mode       (opt_ccmin_mode)
   , phase_saving     (opt_phase_saving)
   , rnd_pol          (false)
   , rnd_init_act     (opt_rnd_init_act)
   , garbage_frac     (opt_garbage_frac)
+  , restart_first    (opt_restart_first)
+  , restart_inc      (opt_restart_inc)
 
     // Parameters (the rest):
     //
-  , restart_first(100), restart_inc(1.5), learntsize_factor((double)1/(double)3), learntsize_inc(1.1)
+  , learntsize_factor((double)1/(double)3), learntsize_inc(1.1)
 
     // Parameters (experimental):
     //
@@ -769,8 +771,8 @@ lbool Solver::solve_()
     // Search:
     int curr_restarts = 0;
     while (status == l_Undef){
-        int nof_conflicts = (int)(luby(restart_luby_inc, curr_restarts) * restart_luby_start);
-        status = search(nof_conflicts);
+        double rest_base = luby_restart ? luby(restart_inc, curr_restarts) : pow(restart_inc, curr_restarts);
+        status = search(rest_base * restart_first);
         if (!withinBudget()) break;
         curr_restarts++;
     }
