@@ -368,7 +368,7 @@ class BoolOption : public Option
 
         fprintf(stderr, "  -%s, -no-%s", name, name);
 
-        for (uint32_t i = 0; i < 30 - strlen(name)*2; i++)
+        for (uint32_t i = 0; i < 32 - strlen(name)*2; i++)
             fprintf(stderr, " ");
 
         fprintf(stderr, " ");
