@@ -792,6 +792,78 @@ lbool Solver::solve_()
     return status;
 }
 
+//=================================================================================================
+// Writing CNF to DIMACS:
+// 
+// FIXME: this needs to be rewritten completely.
+
+static Var mapVar(Var x, vec<Var>& map, Var& max)
+{
+    if (map.size() <= x || map[x] == -1){
+        map.growTo(x+1, -1);
+        map[x] = max++;
+    }
+    return map[x];
+}
+
+
+void Solver::toDimacs(FILE* f, Clause& c, vec<Var>& map, Var& max)
+{
+    if (satisfied(c)) return;
+
+    for (int i = 0; i < c.size(); i++)
+        if (value(c[i]) != l_False)
+            fprintf(f, "%s%d ", sign(c[i]) ? "-" : "", mapVar(var(c[i]), map, max)+1);
+    fprintf(f, "0\n");
+}
+
+
+void Solver::toDimacs(const char *file, const vec<Lit>& assumps)
+{
+    FILE* f = fopen(file, "wr");
+    if (f == NULL)
+        fprintf(stderr, "could not open file %s\n", file), exit(1);
+    toDimacs(f, assumps);
+    fclose(f);
+}
+
+
+void Solver::toDimacs(FILE* f, const vec<Lit>& assumps)
+{
+    vec<Var> map; Var max = 0;
+
+    // Cannot use removeClauses here because it is not safe
+    // to deallocate them at this point. Could be improved.
+    int cnt = 0;
+    for (int i = 0; i < clauses.size(); i++)
+        if (!satisfied(ca[clauses[i]]))
+            cnt++;
+        
+    for (int i = 0; i < clauses.size(); i++)
+        if (!satisfied(ca[clauses[i]])){
+            Clause& c = ca[clauses[i]];
+            for (int j = 0; j < c.size(); j++)
+                if (value(c[j]) != l_False)
+                    mapVar(var(c[j]), map, max);
+        }
+
+    // Assumptions are added as unit clauses:
+    cnt += assumptions.size();
+
+    fprintf(f, "p cnf %d %d\n", max, cnt);
+
+    for (int i = 0; i < assumptions.size(); i++){
+        assert(value(assumptions[i]) != l_False);
+        fprintf(f, "%s%d 0\n", sign(assumptions[i]) ? "-" : "", mapVar(var(assumptions[i]), map, max)+1);
+    }
+
+    for (int i = 0; i < clauses.size(); i++)
+        toDimacs(f, ca[clauses[i]], map, max);
+
+    if (verbosity > 0)
+        printf("Wrote %d clauses with %d variables.\n", cnt, max);
+}
+
 
 //=================================================================================================
 // Garbage Collection methods:
