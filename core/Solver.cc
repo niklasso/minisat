@@ -830,6 +830,11 @@ void Solver::toDimacs(const char *file, const vec<Lit>& assumps)
 
 void Solver::toDimacs(FILE* f, const vec<Lit>& assumps)
 {
+    // Handle case when solver is in contradictory state:
+    if (!ok){
+        fprintf(f, "p cnf 1 2\n1 0\n-1 0\n");
+        return; }
+
     vec<Var> map; Var max = 0;
 
     // Cannot use removeClauses here because it is not safe
