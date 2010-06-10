@@ -98,13 +98,15 @@ public:
     bool  operator != (lbool b) const { return !(*this == b); }
     lbool operator ^  (bool  b) const { return lbool((uint8_t)(value^(uint8_t)b)); }
 
-    // FIXME: make these more efficient
-    lbool operator && (lbool b) const { return (*this == l_False || b == l_False) ? l_False
-                                             : (*this == l_True  && b == l_True)  ? l_True
-                                             : l_Undef; }
-    lbool operator || (lbool b) const { return (*this == l_True  || b == l_True)  ? l_True
-                                             : (*this == l_False && b == l_False) ? l_False
-                                             : l_Undef; }
+    lbool operator && (lbool b) const { 
+        uint8_t sel = (this->value << 1) | (b.value << 3);
+        uint8_t v   = (0xF7F755F4 >> sel) & 3;
+        return lbool(v); }
+
+    lbool operator || (lbool b) const {
+        uint8_t sel = (this->value << 1) | (b.value << 3);
+        uint8_t v   = (0xFCFCF400 >> sel) & 3;
+        return lbool(v); }
 
     friend int   toInt  (lbool l);
     friend lbool toLbool(int   v);
