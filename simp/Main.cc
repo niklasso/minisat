@@ -38,7 +38,7 @@ using namespace Minisat;
 void printStats(Solver& solver)
 {
     double cpu_time = cpuTime();
-    double mem_used = memUsed();
+    double mem_used = memUsedPeak();
     printf("restarts              : %"PRIu64"\n", solver.starts);
     printf("conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts   , solver.conflicts   /cpu_time);
     printf("decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);

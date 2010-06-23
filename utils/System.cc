@@ -67,12 +67,10 @@ static inline int memReadPeak(void)
     return peak_kb;
 }
 
-#if 0
 double Minisat::memUsed() { return (double)memReadStat(0) * (double)getpagesize() / (1024*1024); }
-#else
-double Minisat::memUsed() { return (double)memReadPeak() / 1024; }
-#endif
-
+double Minisat::memUsedPeak() { 
+    double peak = memReadPeak() / 1024;
+    return peak == 0 ? memUsed() : peak; }
 
 #elif defined(__FreeBSD__)
 
@@ -80,6 +78,7 @@ double Minisat::memUsed(void) {
     struct rusage ru;
     getrusage(RUSAGE_SELF, &ru);
     return (double)ru.ru_maxrss / 1024; }
+double MiniSat::memUsedPeak(void) { return memUsed(); }
 
 
 #elif defined(__APPLE__)
