@@ -32,7 +32,7 @@ namespace Minisat {
 template<class T>
 class RegionAllocator
 {
-    uint32_t* memory;
+    T*        memory;
     uint32_t  sz;
     uint32_t  cap;
     uint32_t  wasted_;
@@ -45,7 +45,6 @@ class RegionAllocator
     enum { Ref_Undef = UINT32_MAX };
     enum { Unit_Size = sizeof(uint32_t) };
 
-    // explicit RegionAllocator(uint32_t start_cap = 0) : memory(NULL), sz(0), cap(0), wasted_(0){
     explicit RegionAllocator(uint32_t start_cap = 1024*1024) : memory(NULL), sz(0), cap(0), wasted_(0){ capacity(start_cap); }
     ~RegionAllocator()
     {
@@ -61,13 +60,13 @@ class RegionAllocator
     void     free      (int size)    { wasted_ += size; }
 
     // Deref, Load Effective Address (LEA), Inverse of LEA (AEL):
-    T&       operator[](Ref r)       { assert(r >= 0 && r < sz); return *(T*)&memory[r]; }
-    const T& operator[](Ref r) const { assert(r >= 0 && r < sz); return *(T*)&memory[r]; }
+    T&       operator[](Ref r)       { assert(r >= 0 && r < sz); return memory[r]; }
+    const T& operator[](Ref r) const { assert(r >= 0 && r < sz); return memory[r]; }
 
-    T*       lea       (Ref r)       { assert(r >= 0 && r < sz); return  (T*)&memory[r]; }
-    const T* lea       (Ref r) const { assert(r >= 0 && r < sz); return  (T*)&memory[r]; }
+    T*       lea       (Ref r)       { assert(r >= 0 && r < sz); return &memory[r]; }
+    const T* lea       (Ref r) const { assert(r >= 0 && r < sz); return &memory[r]; }
     Ref      ael       (const T* t)  { assert((void*)t >= (void*)&memory[0] && (void*)t < (void*)&memory[sz-1]);
-        return  (Ref)(t - (T*)&memory[0]); }
+        return  (Ref)(t - &memory[0]); }
 
     void     moveTo(RegionAllocator& to) {
         if (to.memory != NULL) ::free(to.memory);
@@ -103,7 +102,7 @@ void RegionAllocator<T>::capacity(uint32_t min_cap)
     // printf(" .. (%p) cap = %u\n", this, cap);
 
     assert(cap > 0);
-    memory = (uint32_t*)xrealloc(memory, sizeof(uint32_t)*cap);
+    memory = (T*)xrealloc(memory, sizeof(T)*cap);
 }
 
 
