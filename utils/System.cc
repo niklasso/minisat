@@ -27,9 +27,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 using namespace Minisat;
 
-// TODO: split the memory reading functions into two: one for reading high-watermark of RSS, and
-// one for reading the current virtual memory size.
-
 static inline int memReadStat(int field)
 {
     char  name[256];
@@ -74,22 +71,23 @@ double Minisat::memUsedPeak() {
 
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__gnu_hurd__)
 
-double Minisat::memUsed(void) {
+double Minisat::memUsed() {
     struct rusage ru;
     getrusage(RUSAGE_SELF, &ru);
     return (double)ru.ru_maxrss / 1024; }
-double Minisat::memUsedPeak(void) { return memUsed(); }
+double Minisat::memUsedPeak() { return memUsed(); }
 
 
 #elif defined(__APPLE__)
 #include <malloc/malloc.h>
 
-double Minisat::memUsed(void) {
+double Minisat::memUsed() {
     malloc_statistics_t t;
     malloc_zone_statistics(NULL, &t);
     return (double)t.max_size_in_use / (1024*1024); }
+double Minisat::memUsedPeak() { return memUsed(); }
 
 #else
-double Minisat::memUsed() { 
-    return 0; }
+double Minisat::memUsed()     { return 0; }
+double Minisat::memUsedPeak() { return 0; }
 #endif
