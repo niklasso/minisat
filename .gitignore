@@ -1,0 +1,8 @@
+depend.mk
+*.o
+*.op
+*.od
+*.or
+minisat
+minisat_*
+
