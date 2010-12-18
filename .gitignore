@@ -1,8 +1,5 @@
-depend.mk
+*.d
 *.o
-*.op
-*.od
-*.or
 minisat
-minisat_*
-
+minisat_core
+config.mk
