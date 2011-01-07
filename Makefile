@@ -1,7 +1,8 @@
 ## TODO ###########################################################################################
 #
 
-.PHONY:	r d p sh cr cd cp csh lr ld lp lsh config all install install-headers install-lib
+.PHONY:	r d p sh cr cd cp csh lr ld lp lsh config all install install-headers install-lib clean \
+	distclean
 all:	r lr lsh
 
 ## Load Previous Configuration ####################################################################
@@ -126,7 +127,7 @@ $(BUILD_DIR)/release/%.o:	%.cc
 	$(VERB)  mkdir -p $(dir $@) $(dir $(BUILD_DIR)/dep/$*.d)
 	$(VERB)  $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/dep/$*.d
 
-BUILD_DIR)/profile/%.o:	%.cc
+$(BUILD_DIR)/profile/%.o:	%.cc
 	$(SHORT) echo Compiling: $@
 	$(VERB)  mkdir -p $(dir $@) $(dir $(BUILD_DIR)/dep/$*.d)
 	$(VERB)  $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/dep/$*.d
@@ -186,6 +187,16 @@ install-lib: $(BUILD_DIR)/release/lib/$(MINISAT_SLIB) $(BUILD_DIR)/dynamic/lib/$
 #	$(INSTALL) -m 644 $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR) $(DESTDIR)$(libdir)
 #	$(INSTALL) -m 644 $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB) $(DESTDIR)$(libdir)
 	$(INSTALL) -m 644 $(BUILD_DIR)/release/lib/$(MINISAT_SLIB) $(DESTDIR)$(libdir)
+
+clean:
+	rm -f $(foreach t, release debug profile dynamic, $(foreach o, $(SRCS:.cc=.o), $(BUILD_DIR)/$t/$o)) \
+	  $(foreach d, $(SRCS:.cc=.d), $(BUILD_DIR)/dep/$d) \
+	  $(foreach t, release debug profile dynamic, $(BUILD_DIR)/$t/bin/$(MINISAT_CORE) $(BUILD_DIR)/$t/bin/$(MINISAT)) \
+	  $(foreach t, release debug profile, $(BUILD_DIR)/$t/lib/$(MINISAT_SLIB)) \
+	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR).$(SORELEASE)
+
+distclean:	clean
+	rm -f config.mk
 
 ## Include generated dependencies
 ## NOTE: dependencies are assumed to be the same in all build modes at the moment!
