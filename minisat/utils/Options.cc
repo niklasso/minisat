@@ -56,7 +56,7 @@ void Minisat::parseOptions(int& argc, char** argv, bool strict)
 
 void Minisat::setUsageHelp      (const char* str){ Option::getUsageString() = str; }
 void Minisat::setHelpPrefixStr  (const char* str){ Option::getHelpPrefixString() = str; }
-void Minisat::printUsageAndExit (int argc, char** argv, bool verbose)
+void Minisat::printUsageAndExit (int /*argc*/, char** argv, bool verbose)
 {
     const char* usage = Option::getUsageString();
     if (usage != NULL)
