@@ -1,8 +1,8 @@
 ## TODO ###########################################################################################
 #
 
-.PHONY:	r d p sh cr cd cp csh lr ld lp lsh config all install install-headers install-lib clean \
-	distclean
+.PHONY:	r d p sh cr cd cp csh lr ld lp lsh config all install install-headers install-lib\
+        install-bin clean distclean
 all:	r lr lsh
 
 ## Load Previous Configuration ####################################################################
@@ -160,7 +160,7 @@ $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE):
 	$(VERB) mkdir -p $(dir $@)
 	$(VERB) $(CXX) $(MINISAT_LDFLAGS) -o $@ -shared -Wl,-soname,$(MINISAT_DLIB).$(SOMAJOR) $^
 
-install:	install-headers install-lib
+install:	install-headers install-lib install-bin
 
 install-headers:
 #       Create directories
@@ -172,6 +172,10 @@ install-headers:
 	for h in $(HDRS) ; do \
 	  $(INSTALL) -m 644 $$h $(DESTDIR)$(includedir)/$$h ; \
 	done
+
+install-bin:
+	$(INSTALL) -d $(DESTDIR)$(bindir)
+	$(INSTALL) $(BUILD_DIR)/release/bin/$(MINISAT) $(DESTDIR)$(bindir)/
 
 install-lib: $(BUILD_DIR)/release/lib/$(MINISAT_SLIB) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)
 	$(INSTALL) -d $(DESTDIR)$(libdir)
