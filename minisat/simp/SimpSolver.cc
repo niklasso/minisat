@@ -73,8 +73,8 @@ SimpSolver::~SimpSolver()
 }
 
 
-Var SimpSolver::newVar(bool sign, bool dvar) {
-    Var v = Solver::newVar(sign, dvar);
+Var SimpSolver::newVar(lbool upol, bool dvar) {
+    Var v = Solver::newVar(upol, dvar);
 
     frozen    .push((char)false);
     eliminated.push((char)false);

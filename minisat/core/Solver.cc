@@ -111,7 +111,7 @@ Solver::~Solver()
 // Creates a new SAT variable in the solver. If 'decision' is cleared, variable will not be
 // used as a decision variable (NOTE! This has effects on the meaning of a SATISFIABLE result).
 //
-Var Solver::newVar(bool sign, bool dvar)
+Var Solver::newVar(lbool upol, bool dvar)
 {
     int v = nVars();
     watches  .init(mkLit(v, false));
@@ -121,7 +121,8 @@ Var Solver::newVar(bool sign, bool dvar)
     //activity .push(0);
     activity .push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     seen     .push(0);
-    polarity .push(sign);
+    polarity .push(true);
+    user_pol .push(upol);
     decision .push();
     trail    .capacity(v+1);
     setDecisionVar(v, dvar);
@@ -240,7 +241,15 @@ Lit Solver::pickBranchLit()
         }else
             next = order_heap.removeMin();
 
-    return next == var_Undef ? lit_Undef : mkLit(next, rnd_pol ? drand(random_seed) < 0.5 : polarity[next]);
+    // Choose polarity based on different polarity modes (global or per-variable):
+    if (next == var_Undef)
+        return lit_Undef;
+    else if (user_pol[next] != l_Undef)
+        return mkLit(next, user_pol[next] == l_True);
+    else if (rnd_pol)
+        return mkLit(next, drand(random_seed) < 0.5);
+    else
+        return mkLit(next, polarity[next]);
 }
 
 

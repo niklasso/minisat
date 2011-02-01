@@ -39,7 +39,7 @@ class SimpSolver : public Solver {
 
     // Problem specification:
     //
-    Var     newVar    (bool polarity = true, bool dvar = true);
+    Var     newVar    (lbool upol = l_Undef, bool dvar = true);
     bool    addClause (const vec<Lit>& ps);
     bool    addEmptyClause();                // Add the empty clause to the solver.
     bool    addClause (Lit p);               // Add a unit clause to the solver.
