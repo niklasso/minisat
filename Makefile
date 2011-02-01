@@ -98,6 +98,8 @@ $(BUILD_DIR)/dynamic/%.o:			MINISAT_CXXFLAGS +=$(MINISAT_REL) $(MINISAT_FPIC)
 ## Build-type Link-flags:
 $(BUILD_DIR)/profile/bin/$(MINISAT):		MINISAT_LDFLAGS += -pg
 $(BUILD_DIR)/release/bin/$(MINISAT):		MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
+$(BUILD_DIR)/profile/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += -pg
+$(BUILD_DIR)/release/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
 
 ## Executable dependencies
 $(BUILD_DIR)/release/bin/$(MINISAT):	 	$(BUILD_DIR)/release/minisat/simp/Main.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
