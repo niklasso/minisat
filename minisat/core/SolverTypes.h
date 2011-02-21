@@ -126,7 +126,7 @@ class Clause {
         unsigned learnt    : 1;
         unsigned has_extra : 1;
         unsigned reloced   : 1;
-        unsigned size      : 27; }                            header;
+        unsigned size      : 27; }                        header;
     union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];
 
     friend class ClauseAllocator;
@@ -143,11 +143,26 @@ class Clause {
         for (int i = 0; i < ps.size(); i++) 
             data[i].lit = ps[i];
 
-        if (header.has_extra){
+        if (header.has_extra)
             if (header.learnt)
-                data[header.size].act = 0; 
+                data[header.size].act = 0;
+            else
+                calcAbstraction();
+    }
+
+    // NOTE: This constructor cannot be used directly (doesn't allocate enough memory).
+    Clause(const Clause& from, bool use_extra){
+        header           = from.header;
+        header.has_extra = use_extra;   // NOTE: the copied clause may lose the extra field.
+
+        for (int i = 0; i < from.size(); i++)
+            data[i].lit = from[i];
+
+        if (header.has_extra)
+            if (header.learnt)
+                data[header.size].act = from.data[header.size].act;
             else 
-                calcAbstraction(); }
+                data[header.size].abs = from.data[header.size].abs;
     }
 
 public:
@@ -189,7 +204,7 @@ public:
 //=================================================================================================
 // ClauseAllocator -- a simple class for allocating memory for clauses:
 
-
+// TODO: refactor so this class does not use inheritance from RegionAllocator?
 const CRef CRef_Undef = RegionAllocator<uint32_t>::Ref_Undef;
 class ClauseAllocator : public RegionAllocator<uint32_t>
 {
@@ -205,8 +220,7 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
         to.extra_clause_field = extra_clause_field;
         RegionAllocator<uint32_t>::moveTo(to); }
 
-    template<class Lits>
-    CRef alloc(const Lits& ps, bool learnt = false)
+    CRef alloc(const vec<Lit>& ps, bool learnt = false)
     {
         assert(sizeof(Lit)      == sizeof(uint32_t));
         assert(sizeof(float)    == sizeof(uint32_t));
@@ -217,6 +231,13 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
 
         return cid;
     }
+
+    CRef alloc(const Clause& from)
+    {
+        bool use_extra = from.learnt() | extra_clause_field;
+        CRef cid = RegionAllocator<uint32_t>::alloc(clauseWord32Size(from.size(), use_extra));
+        new (lea(cid)) Clause(from, use_extra);
+        return cid; }
 
     // Deref, Load Effective Address (LEA), Inverse of LEA (AEL):
     Clause&       operator[](Ref r)       { return (Clause&)RegionAllocator<uint32_t>::operator[](r); }
@@ -237,14 +258,8 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
         
         if (c.reloced()) { cr = c.relocation(); return; }
         
-        cr = to.alloc(c, c.learnt());
+        cr = to.alloc(c);
         c.relocate(cr);
-        
-        // Copy extra data-fields: 
-        // (This could be cleaned-up. Generalize Clause-constructor to be applicable here instead?)
-        to[cr].mark(c.mark());
-        if (to[cr].learnt())         to[cr].activity() = c.activity();
-        else if (to[cr].has_extra()) to[cr].calcAbstraction();
     }
 };
 
