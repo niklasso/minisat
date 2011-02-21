@@ -132,8 +132,7 @@ class Clause {
     friend class ClauseAllocator;
 
     // NOTE: This constructor cannot be used directly (doesn't allocate enough memory).
-    template<class V>
-    Clause(const V& ps, bool use_extra, bool learnt) {
+    Clause(const vec<Lit>& ps, bool use_extra, bool learnt) {
         header.mark      = 0;
         header.learnt    = learnt;
         header.has_extra = use_extra;
@@ -204,29 +203,32 @@ public:
 //=================================================================================================
 // ClauseAllocator -- a simple class for allocating memory for clauses:
 
-// TODO: refactor so this class does not use inheritance from RegionAllocator?
 const CRef CRef_Undef = RegionAllocator<uint32_t>::Ref_Undef;
-class ClauseAllocator : public RegionAllocator<uint32_t>
+class ClauseAllocator
 {
-    static int clauseWord32Size(int size, bool has_extra){
+    RegionAllocator<uint32_t> ra;
+
+    static uint32_t clauseWord32Size(int size, bool has_extra){
         return (sizeof(Clause) + (sizeof(Lit) * (size + (int)has_extra))) / sizeof(uint32_t); }
+
  public:
+    enum { Unit_Size = RegionAllocator<uint32_t>::Unit_Size };
+
     bool extra_clause_field;
 
-    ClauseAllocator(uint32_t start_cap) : RegionAllocator<uint32_t>(start_cap), extra_clause_field(false){}
+    ClauseAllocator(uint32_t start_cap) : ra(start_cap), extra_clause_field(false){}
     ClauseAllocator() : extra_clause_field(false){}
 
     void moveTo(ClauseAllocator& to){
         to.extra_clause_field = extra_clause_field;
-        RegionAllocator<uint32_t>::moveTo(to); }
+        ra.moveTo(to.ra); }
 
     CRef alloc(const vec<Lit>& ps, bool learnt = false)
     {
         assert(sizeof(Lit)      == sizeof(uint32_t));
         assert(sizeof(float)    == sizeof(uint32_t));
         bool use_extra = learnt | extra_clause_field;
-
-        CRef cid = RegionAllocator<uint32_t>::alloc(clauseWord32Size(ps.size(), use_extra));
+        CRef cid       = ra.alloc(clauseWord32Size(ps.size(), use_extra));
         new (lea(cid)) Clause(ps, use_extra, learnt);
 
         return cid;
@@ -235,21 +237,24 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
     CRef alloc(const Clause& from)
     {
         bool use_extra = from.learnt() | extra_clause_field;
-        CRef cid = RegionAllocator<uint32_t>::alloc(clauseWord32Size(from.size(), use_extra));
+        CRef cid       = ra.alloc(clauseWord32Size(from.size(), use_extra));
         new (lea(cid)) Clause(from, use_extra);
         return cid; }
 
+    uint32_t size      () const      { return ra.size(); }
+    uint32_t wasted    () const      { return ra.wasted(); }
+
     // Deref, Load Effective Address (LEA), Inverse of LEA (AEL):
-    Clause&       operator[](Ref r)       { return (Clause&)RegionAllocator<uint32_t>::operator[](r); }
-    const Clause& operator[](Ref r) const { return (Clause&)RegionAllocator<uint32_t>::operator[](r); }
-    Clause*       lea       (Ref r)       { return (Clause*)RegionAllocator<uint32_t>::lea(r); }
-    const Clause* lea       (Ref r) const { return (Clause*)RegionAllocator<uint32_t>::lea(r); }
-    Ref           ael       (const Clause* t){ return RegionAllocator<uint32_t>::ael((uint32_t*)t); }
+    Clause&       operator[](CRef r)         { return (Clause&)ra[r]; }
+    const Clause& operator[](CRef r) const   { return (Clause&)ra[r]; }
+    Clause*       lea       (CRef r)         { return (Clause*)ra.lea(r); }
+    const Clause* lea       (CRef r) const   { return (Clause*)ra.lea(r);; }
+    CRef          ael       (const Clause* t){ return ra.ael((uint32_t*)t); }
 
     void free(CRef cid)
     {
         Clause& c = operator[](cid);
-        RegionAllocator<uint32_t>::free(clauseWord32Size(c.size(), c.has_extra()));
+        ra.free(clauseWord32Size(c.size(), c.has_extra()));
     }
 
     void reloc(CRef& cr, ClauseAllocator& to)
