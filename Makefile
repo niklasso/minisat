@@ -125,23 +125,23 @@ $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
 ## Compile rules (these should be unified, buit I have not yet found a way which works in GNU Make)
 $(BUILD_DIR)/release/%.o:	%.cc
 	$(ECHO) Compiling: $@
-	$(VERB) mkdir -p $(dir $@) $(dir $(BUILD_DIR)/dep/$*.d)
-	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/dep/$*.d
+	$(VERB) mkdir -p $(dir $@)
+	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/release/$*.d
 
 $(BUILD_DIR)/profile/%.o:	%.cc
 	$(ECHO) Compiling: $@
-	$(VERB) mkdir -p $(dir $@) $(dir $(BUILD_DIR)/dep/$*.d)
-	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/dep/$*.d
+	$(VERB) mkdir -p $(dir $@)
+	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/profile/$*.d
 
 $(BUILD_DIR)/debug/%.o:	%.cc
 	$(ECHO) Compiling: $@
-	$(VERB) mkdir -p $(dir $@) $(dir $(BUILD_DIR)/dep/$*.d)
-	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/dep/$*.d
+	$(VERB) mkdir -p $(dir $@)
+	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/debug/$*.d
 
 $(BUILD_DIR)/dynamic/%.o:	%.cc
 	$(ECHO) Compiling: $@
-	$(VERB) mkdir -p $(dir $@) $(dir $(BUILD_DIR)/dep/$*.d)
-	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/dep/$*.d
+	$(VERB) mkdir -p $(dir $@)
+	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/dynamic/$*.d
 
 ## Linking rule
 $(BUILD_DIR)/release/bin/$(MINISAT) $(BUILD_DIR)/debug/bin/$(MINISAT) $(BUILD_DIR)/profile/bin/$(MINISAT) $(BUILD_DIR)/dynamic/bin/$(MINISAT)\
@@ -192,7 +192,7 @@ install-bin: $(BUILD_DIR)/dynamic/bin/$(MINISAT)
 
 clean:
 	rm -f $(foreach t, release debug profile dynamic, $(foreach o, $(SRCS:.cc=.o), $(BUILD_DIR)/$t/$o)) \
-	  $(foreach d, $(SRCS:.cc=.d), $(BUILD_DIR)/dep/$d) \
+          $(foreach t, release debug profile dynamic, $(foreach d, $(SRCS:.cc=.d), $(BUILD_DIR)/$t/$d)) \
 	  $(foreach t, release debug profile dynamic, $(BUILD_DIR)/$t/bin/$(MINISAT_CORE) $(BUILD_DIR)/$t/bin/$(MINISAT)) \
 	  $(foreach t, release debug profile, $(BUILD_DIR)/$t/lib/$(MINISAT_SLIB)) \
 	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
@@ -203,5 +203,7 @@ distclean:	clean
 	rm -f config.mk
 
 ## Include generated dependencies
-## NOTE: dependencies are assumed to be the same in all build modes at the moment!
--include $(foreach s, $(SRCS:.cc=.d), $(BUILD_DIR)/dep/$s)
+-include $(foreach s, $(SRCS:.cc=.d), $(BUILD_DIR)/release/$s)
+-include $(foreach s, $(SRCS:.cc=.d), $(BUILD_DIR)/debug/$s)
+-include $(foreach s, $(SRCS:.cc=.d), $(BUILD_DIR)/profile/$s)
+-include $(foreach s, $(SRCS:.cc=.d), $(BUILD_DIR)/dynamic/$s)
