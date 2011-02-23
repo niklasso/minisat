@@ -1,7 +1,2 @@
-*.d
-*.o
-minisat
-minisat_core
 config.mk
-lib*.a
-lib*.so*
+build
