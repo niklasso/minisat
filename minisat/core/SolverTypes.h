@@ -268,6 +268,36 @@ class ClauseAllocator
     }
 };
 
+//=================================================================================================
+// Simple iterator classes (for iterating over clauses and top-level assignments):
+
+class ClauseIterator {
+    const ClauseAllocator& ca;
+    const CRef*            crefs;
+public:
+    ClauseIterator(const ClauseAllocator& _ca, const CRef* _crefs) : ca(_ca), crefs(_crefs){}
+
+    void operator++(){ crefs++; }
+    const Clause& operator*() const { return ca[*crefs]; }
+
+    // NOTE: does not compare that references use the same clause-allocator:
+    bool operator==(const ClauseIterator& ci) const { return crefs == ci.crefs; }
+    bool operator!=(const ClauseIterator& ci) const { return crefs != ci.crefs; }
+};
+
+
+class TrailIterator {
+    const Lit* lits;
+public:
+    TrailIterator(const Lit* _lits) : lits(_lits){}
+
+    void operator++()   { lits++; }
+    Lit  operator*() const { return *lits; }
+
+    bool operator==(const TrailIterator& ti) const { return lits == ti.lits; }
+    bool operator!=(const TrailIterator& ti) const { return lits != ti.lits; }
+};
+
 
 //=================================================================================================
 // OccLists -- a class for maintaining occurence lists with lazy deletion:
