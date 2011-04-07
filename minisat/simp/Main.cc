@@ -35,20 +35,6 @@ using namespace Minisat;
 //=================================================================================================
 
 
-void printStats(Solver& solver)
-{
-    double cpu_time = cpuTime();
-    double mem_used = memUsedPeak();
-    printf("restarts              : %"PRIu64"\n", solver.starts);
-    printf("conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts   , solver.conflicts   /cpu_time);
-    printf("decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
-    printf("propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
-    printf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
-    if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
-    printf("CPU time              : %g s\n", cpu_time);
-}
-
-
 static Solver* solver;
 // Terminate by notifying the solver and back out gracefully. This is mainly to have a test-case
 // for this feature of the Solver as it may take longer than an immediate call to '_exit()'.
@@ -60,7 +46,7 @@ static void SIGINT_interrupt(int) { solver->interrupt(); }
 static void SIGINT_exit(int) {
     printf("\n"); printf("*** INTERRUPTED ***\n");
     if (solver->verbosity > 0){
-        printStats(*solver);
+        solver->printStats();
         printf("\n"); printf("*** INTERRUPTED ***\n"); }
     _exit(1); }
 
@@ -164,7 +150,7 @@ int main(int argc, char** argv)
             if (S.verbosity > 0){
                 printf("===============================================================================\n");
                 printf("Solved by simplification\n");
-                printStats(S);
+                S.printStats();
                 printf("\n"); }
             printf("UNSATISFIABLE\n");
             exit(20);
@@ -175,7 +161,7 @@ int main(int argc, char** argv)
                 printf("==============================[ Writing DIMACS ]===============================\n");
             S.toDimacs((const char*)dimacs);
             if (S.verbosity > 0)
-                printStats(S);
+                S.printStats();
             exit(0);
         }
 
@@ -183,7 +169,7 @@ int main(int argc, char** argv)
         lbool ret = S.solveLimited(dummy);
         
         if (S.verbosity > 0){
-            printStats(S);
+            S.printStats();
             printf("\n"); }
         printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
         if (res != NULL){

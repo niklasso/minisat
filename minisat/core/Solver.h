@@ -96,6 +96,7 @@ public:
     int     nLearnts   ()      const;       // The current number of learnt clauses.
     int     nVars      ()      const;       // The current number of variables.
     int     nFreeVars  ()      const;
+    void    printStats ()      const;       // Print some current statistics to standard output.
 
     // Resource contraints:
     //
