@@ -316,12 +316,8 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
     int i, j;
     out_learnt.copyTo(analyze_toclear);
     if (ccmin_mode == 2){
-        uint32_t abstract_level = 0;
-        for (i = 1; i < out_learnt.size(); i++)
-            abstract_level |= abstractLevel(var(out_learnt[i])); // (maintain an abstraction of levels involved in conflict)
-
         for (i = j = 1; i < out_learnt.size(); i++)
-            if (reason(var(out_learnt[i])) == CRef_Undef || !litRedundant(out_learnt[i], abstract_level))
+            if (reason(var(out_learnt[i])) == CRef_Undef || !litRedundant(out_learnt[i]))
                 out_learnt[j++] = out_learnt[i];
         
     }else if (ccmin_mode == 1){
@@ -366,30 +362,59 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
 }
 
 
-// Check if 'p' can be removed. 'abstract_levels' is used to abort early if the algorithm is
-// visiting literals at levels that cannot be removed later.
-bool Solver::litRedundant(Lit p, uint32_t abstract_levels)
+// Check if 'p' can be removed from a conflict clause.
+bool Solver::litRedundant(Lit p)
 {
-    analyze_stack.clear(); analyze_stack.push(p);
-    int top = analyze_toclear.size();
-    while (analyze_stack.size() > 0){
-        assert(reason(var(analyze_stack.last())) != CRef_Undef);
-        Clause& c = ca[reason(var(analyze_stack.last()))]; analyze_stack.pop();
+    enum { seen_undef = 0, seen_source = 1, seen_removable = 2, seen_failed = 3 };
+    assert(seen[var(p)] == seen_undef || seen[var(p)] == seen_source);
+    assert(reason(var(p)) != CRef_Undef);
 
-        for (int i = 1; i < c.size(); i++){
-            Lit p  = c[i];
-            if (!seen[var(p)] && level(var(p)) > 0){
-                if (reason(var(p)) != CRef_Undef && (abstractLevel(var(p)) & abstract_levels) != 0){
-                    seen[var(p)] = 1;
-                    analyze_stack.push(p);
-                    analyze_toclear.push(p);
-                }else{
-                    for (int j = top; j < analyze_toclear.size(); j++)
-                        seen[var(analyze_toclear[j])] = 0;
-                    analyze_toclear.shrink(analyze_toclear.size() - top);
-                    return false;
-                }
+    Clause*               c     = &ca[reason(var(p))];
+    vec<ShrinkStackElem>& stack = analyze_stack;
+    stack.clear();
+
+    for (uint32_t i = 1; ; i++){
+        if (i < (uint32_t)c->size()){
+            // Checking 'p'-parents 'l':
+            Lit l = (*c)[i];
+            
+            // Variable at level 0 or previously removable:
+            if (level(var(l)) == 0 || seen[var(l)] == seen_source || seen[var(l)] == seen_removable){
+                continue; }
+            
+            // Check variable can not be removed for some local reason:
+            if (reason(var(l)) == CRef_Undef || seen[var(l)] == seen_failed){
+                stack.push(ShrinkStackElem(0, p));
+                for (int i = 0; i < stack.size(); i++)
+                    if (seen[var(stack[i].l)] == seen_undef){
+                        seen[var(stack[i].l)] = seen_failed;
+                        analyze_toclear.push(stack[i].l);
+                    }
+                    
+                return false;
             }
+
+            // Recursively check 'l':
+            stack.push(ShrinkStackElem(i, p));
+            i  = 0;
+            p  = l;
+            c  = &ca[reason(var(p))];
+        }else{
+            // Finished with current element 'p' and reason 'c':
+            if (seen[var(p)] == seen_undef){
+                seen[var(p)] = seen_removable;
+                analyze_toclear.push(p);
+            }
+
+            // Terminate with success if stack is empty:
+            if (stack.size() == 0) break;
+            
+            // Continue with top element on stack:
+            i  = stack.last().i;
+            p  = stack.last().l;
+            c  = &ca[reason(var(p))];
+
+            stack.pop();
         }
     }
 

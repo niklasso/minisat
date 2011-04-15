@@ -173,6 +173,12 @@ protected:
         VarOrderLt(const vec<double>&  act) : activity(act) { }
     };
 
+    struct ShrinkStackElem {
+        uint32_t i;
+        Lit      l;
+        ShrinkStackElem(uint32_t _i, Lit _l) : i(_i), l(_l){}
+    };
+
     // Solver state:
     //
     bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
@@ -204,7 +210,7 @@ protected:
     // used, exept 'seen' wich is used in several places.
     //
     vec<char>           seen;
-    vec<Lit>            analyze_stack;
+    vec<ShrinkStackElem>analyze_stack;
     vec<Lit>            analyze_toclear;
     vec<Lit>            add_tmp;
 
@@ -229,7 +235,7 @@ protected:
     void     cancelUntil      (int level);                                             // Backtrack until a certain level.
     void     analyze          (CRef confl, vec<Lit>& out_learnt, int& out_btlevel);    // (bt = backtrack)
     void     analyzeFinal     (Lit p, vec<Lit>& out_conflict);                         // COULD THIS BE IMPLEMENTED BY THE ORDINARIY "analyze" BY SOME REASONABLE GENERALIZATION?
-    bool     litRedundant     (Lit p, uint32_t abstract_levels);                       // (helper method for 'analyze()')
+    bool     litRedundant     (Lit p);                                                 // (helper method for 'analyze()')
     lbool    search           (int nof_conflicts);                                     // Search for a given number of conflicts.
     lbool    solve_           ();                                                      // Main solve method (assumptions given in 'assumptions').
     void     reduceDB         ();                                                      // Reduce the set of learnt clauses.
