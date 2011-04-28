@@ -19,8 +19,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 **************************************************************************************************/
 
 #include <errno.h>
-
-#include <signal.h>
 #include <zlib.h>
 
 #include "minisat/utils/System.h"
@@ -58,18 +56,13 @@ int main(int argc, char** argv)
 {
     try {
         setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n");
-        // printf("This is MiniSat 2.0 beta\n");
-        
-#if defined(__linux__) && defined(_FPU_EXTENDED) && defined(_FPU_DOUBLE) && defined(_FPU_GETCW)
-        fpu_control_t oldcw, newcw;
-        _FPU_GETCW(oldcw); newcw = (oldcw & ~_FPU_EXTENDED) | _FPU_DOUBLE; _FPU_SETCW(newcw);
-        printf("WARNING: for repeatability, setting FPU to use double precision\n");
-#endif
+        setX86FPUPrecision();
+
         // Extra options:
         //
         IntOption    verb   ("MAIN", "verb",   "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 2));
-        IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
-        IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX));
+        IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", 0, IntRange(0, INT32_MAX));
+        IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", 0, IntRange(0, INT32_MAX));
         
         parseOptions(argc, argv, true);
 
@@ -81,30 +74,11 @@ int main(int argc, char** argv)
         solver = &S;
         // Use signal handlers that forcibly quit until the solver will be able to respond to
         // interrupts:
-        signal(SIGINT, SIGINT_exit);
-        signal(SIGTERM,SIGINT_exit);
-        signal(SIGXCPU,SIGINT_exit);
+        sigTerm(SIGINT_exit);
 
-        // Set limit on CPU-time:
-        if (cpu_lim != INT32_MAX){
-            rlimit rl;
-            getrlimit(RLIMIT_CPU, &rl);
-            if (rl.rlim_max == RLIM_INFINITY || (rlim_t)cpu_lim < rl.rlim_max){
-                rl.rlim_cur = cpu_lim;
-                if (setrlimit(RLIMIT_CPU, &rl) == -1)
-                    printf("WARNING! Could not set resource limit: CPU-time.\n");
-            } }
-
-        // Set limit on virtual memory:
-        if (mem_lim != INT32_MAX){
-            rlim_t new_mem_lim = (rlim_t)mem_lim * 1024*1024;
-            rlimit rl;
-            getrlimit(RLIMIT_AS, &rl);
-            if (rl.rlim_max == RLIM_INFINITY || new_mem_lim < rl.rlim_max){
-                rl.rlim_cur = new_mem_lim;
-                if (setrlimit(RLIMIT_AS, &rl) == -1)
-                    printf("WARNING! Could not set resource limit: Virtual memory.\n");
-            } }
+        // Try to set resource limits:
+        limitTime(cpu_lim);
+        limitMemory(mem_lim);
         
         if (argc == 1)
             printf("Reading from standard input... Use '--help' for help.\n");
@@ -132,9 +106,7 @@ int main(int argc, char** argv)
  
         // Change to signal-handlers that will only notify the solver and allow it to terminate
         // voluntarily:
-        signal(SIGINT, SIGINT_interrupt);
-        signal(SIGTERM,SIGINT_interrupt);
-        signal(SIGXCPU,SIGINT_interrupt);
+        sigTerm(SIGINT_interrupt);
        
         if (!S.simplify()){
             if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);

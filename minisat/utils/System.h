@@ -32,8 +32,20 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 namespace Minisat {
 
 static inline double cpuTime(void); // CPU-time in seconds.
+
 extern double memUsed();            // Memory in mega bytes (returns 0 for unsupported architectures).
 extern double memUsedPeak();        // Peak-memory in mega bytes (returns 0 for unsupported architectures).
+
+extern void   setX86FPUPrecision(); // Make sure double's are represented with the same precision
+                                    // in memory and registers.
+
+extern void   limitMemory(uint64_t max_mem_mb); // Set a limit on total memory usage. The exact
+                                                // semantics varies depending on architecture.
+
+extern void   limitTime(uint32_t max_cpu_time); // Set a limit on maximum CPU time. The exact
+                                                // semantics varies depending on architecture.
+
+extern void   sigTerm(void handler(int));      // Set up handling of available termination signals.
 
 }
 
