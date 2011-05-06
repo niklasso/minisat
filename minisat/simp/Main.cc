@@ -80,8 +80,8 @@ int main(int argc, char** argv)
         sigTerm(SIGINT_exit);
 
         // Try to set resource limits:
-        limitTime(cpu_lim);
-        limitMemory(mem_lim);
+        if (cpu_lim != 0) limitTime(cpu_lim);
+        if (mem_lim != 0) limitMemory(mem_lim);
 
         if (argc == 1)
             printf("Reading from standard input... Use '--help' for help.\n");
