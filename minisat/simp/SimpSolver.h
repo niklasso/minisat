@@ -53,6 +53,11 @@ class SimpSolver : public Solver {
     void    setFrozen (Var v, bool b); // If a variable is frozen it will not be eliminated.
     bool    isEliminated(Var v) const;
 
+    // Alternative freeze interface (may replace 'setFrozen()'):
+    void    freezeVar (Var v);         // Freeze one variable so it will not be eliminated.
+    void    thaw      ();              // Thaw all frozen variables.
+
+
     // Solving:
     //
     bool    solve       (const vec<Lit>& assumps, bool do_simp = true, bool turn_off_simp = false);
@@ -133,6 +138,7 @@ class SimpSolver : public Solver {
     Heap<ElimLt>        elim_heap;
     Queue<CRef>         subsumption_queue;
     vec<char>           frozen;
+    vec<Var>            frozen_vars;
     vec<char>           eliminated;
     int                 bwdsub_assigns;
     int                 n_touched;
@@ -180,6 +186,21 @@ inline bool SimpSolver::addClause    (Lit p)                 { add_tmp.clear(); 
 inline bool SimpSolver::addClause    (Lit p, Lit q)          { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); return addClause_(add_tmp); }
 inline bool SimpSolver::addClause    (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
 inline void SimpSolver::setFrozen    (Var v, bool b) { frozen[v] = (char)b; if (use_simplification && !b) { updateElimHeap(v); } }
+
+inline void SimpSolver::freezeVar(Var v){
+    if (!frozen[v]){
+        frozen[v] = 1;
+        frozen_vars.push(v); 
+    } }
+
+inline void SimpSolver::thaw(){
+    for (int i = 0; i < frozen_vars.size(); i++){
+        Var v = frozen_vars[i];
+        frozen[v] = 0;
+        if (use_simplification)
+            updateElimHeap(v);
+    }
+    frozen_vars.clear(); }
 
 inline bool SimpSolver::solve        (                     bool do_simp, bool turn_off_simp)  { budgetOff(); assumptions.clear(); return solve_(do_simp, turn_off_simp) == l_True; }
 inline bool SimpSolver::solve        (Lit p       ,        bool do_simp, bool turn_off_simp)  { budgetOff(); assumptions.clear(); assumptions.push(p); return solve_(do_simp, turn_off_simp) == l_True; }
