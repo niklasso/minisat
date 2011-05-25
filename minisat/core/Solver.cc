@@ -79,7 +79,7 @@ Solver::Solver() :
     // Statistics: (formerly in 'SolverStats')
     //
   , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
-  , dec_vars(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
+  , dec_vars(0), num_clauses(0), num_learnts(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
 
   , ok                 (true)
   , cla_inc            (1)
@@ -161,30 +161,32 @@ bool Solver::addClause_(vec<Lit>& ps)
 }
 
 
-void Solver::attachClause(CRef cr) {
+void Solver::attachClause(CRef cr){
     const Clause& c = ca[cr];
     assert(c.size() > 1);
     watches[~c[0]].push(Watcher(cr, c[1]));
     watches[~c[1]].push(Watcher(cr, c[0]));
-    if (c.learnt()) learnts_literals += c.size();
-    else            clauses_literals += c.size(); }
+    if (c.learnt()) num_learnts++, learnts_literals += c.size();
+    else            num_clauses++, clauses_literals += c.size();
+}
 
 
-void Solver::detachClause(CRef cr, bool strict) {
+void Solver::detachClause(CRef cr, bool strict){
     const Clause& c = ca[cr];
     assert(c.size() > 1);
     
+    // Strict or lazy detaching:
     if (strict){
         remove(watches[~c[0]], Watcher(cr, c[1]));
         remove(watches[~c[1]], Watcher(cr, c[0]));
     }else{
-        // Lazy detaching: (NOTE! Must clean all watcher lists before garbage collecting this clause)
         watches.smudge(~c[0]);
         watches.smudge(~c[1]);
     }
 
-    if (c.learnt()) learnts_literals -= c.size();
-    else            clauses_literals -= c.size(); }
+    if (c.learnt()) num_learnts--, learnts_literals -= c.size();
+    else            num_clauses--, clauses_literals -= c.size();
+}
 
 
 void Solver::removeClause(CRef cr) {
@@ -926,12 +928,10 @@ void Solver::relocAll(ClauseAllocator& to)
 {
     // All watchers:
     //
-    // for (int i = 0; i < watches.size(); i++)
     watches.cleanAll();
     for (int v = 0; v < nVars(); v++)
         for (int s = 0; s < 2; s++){
             Lit p = mkLit(v, s);
-            // printf(" >>> RELOCING: %s%d\n", sign(p)?"-":"", var(p)+1);
             vec<Watcher>& ws = watches[p];
             for (int j = 0; j < ws.size(); j++)
                 ca.reloc(ws[j].cref, to);
@@ -942,19 +942,32 @@ void Solver::relocAll(ClauseAllocator& to)
     for (int i = 0; i < trail.size(); i++){
         Var v = var(trail[i]);
 
-        if (reason(v) != CRef_Undef && (ca[reason(v)].reloced() || locked(ca[reason(v)])))
+        // Note: it is not safe to call 'locked()' on a relocated clause. This is why we keep
+        // 'dangling' reasons here. It is safe and does not hurt.
+        if (reason(v) != CRef_Undef && (ca[reason(v)].reloced() || locked(ca[reason(v)]))){
+            assert(!isRemoved(reason(v)));
             ca.reloc(vardata[v].reason, to);
+        }
     }
 
     // All learnt:
     //
-    for (int i = 0; i < learnts.size(); i++)
-        ca.reloc(learnts[i], to);
+    int i, j;
+    for (i = j = 0; i < learnts.size(); i++)
+        if (!isRemoved(learnts[i])){
+            ca.reloc(learnts[i], to);
+            learnts[j++] = learnts[i];
+        }
+    learnts.shrink(i - j);
 
     // All original:
     //
-    for (int i = 0; i < clauses.size(); i++)
-        ca.reloc(clauses[i], to);
+    for (i = j = 0; i < clauses.size(); i++)
+        if (!isRemoved(clauses[i])){
+            ca.reloc(clauses[i], to);
+            clauses[j++] = clauses[i];
+        }
+    clauses.shrink(i - j);
 }
 
 

@@ -650,7 +650,6 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         garbageCollect();
     }else{
         // Cheaper cleanup:
-        cleanUpClauses(); // TODO: can we make 'cleanUpClauses()' not be linear in the problem size somehow?
         checkGarbage();
     }
 
@@ -659,17 +658,6 @@ bool SimpSolver::eliminate(bool turn_off_elim)
                double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
 
     return ok;
-}
-
-
-void SimpSolver::cleanUpClauses()
-{
-    occurs.cleanAll();
-    int i,j;
-    for (i = j = 0; i < clauses.size(); i++)
-        if (ca[clauses[i]].mark() == 0)
-            clauses[j++] = clauses[i];
-    clauses.shrink(i - j);
 }
 
 
@@ -684,6 +672,7 @@ void SimpSolver::relocAll(ClauseAllocator& to)
     // All occurs lists:
     //
     for (int i = 0; i < nVars(); i++){
+        occurs.clean(i);
         vec<CRef>& cs = occurs[i];
         for (int j = 0; j < cs.size(); j++)
             ca.reloc(cs[j], to);
@@ -691,8 +680,7 @@ void SimpSolver::relocAll(ClauseAllocator& to)
 
     // Subsumption queue:
     //
-    for (int i = 0; i < subsumption_queue.size(); i++)
-        ca.reloc(subsumption_queue[i], to);
+    assert(subsumption_queue.size() == 0);
 
     // Temporary clause:
     //
@@ -706,7 +694,6 @@ void SimpSolver::garbageCollect()
     // is not precise but should avoid some unnecessary reallocations for the new region:
     ClauseAllocator to(ca.size() - ca.wasted()); 
 
-    cleanUpClauses();
     to.extra_clause_field = ca.extra_clause_field; // NOTE: this is important to keep (or lose) the extra fields.
     relocAll(to);
     Solver::relocAll(to);
