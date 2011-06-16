@@ -171,9 +171,11 @@ protected:
     };
 
     struct VarOrderLt {
-        const IntMap<Var, double>&  activity;
-        bool operator () (Var x, Var y) const { return activity[x] > activity[y]; }
-        VarOrderLt(const IntMap<Var, double>&  act) : activity(act) { }
+        const VMap<double>&  activity;
+        bool                 static_order;
+
+        bool operator () (Var x, Var y) const { return static_order ? (x < y) : (activity[x] > activity[y]); }
+        VarOrderLt(const VMap<double>& act, bool _static_order) : activity(act), static_order(_static_order){}
     };
 
     struct ShrinkStackElem {
