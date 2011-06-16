@@ -64,8 +64,10 @@ public:
     bool    solve        (Lit p, Lit q);            // Search for a model that respects two assumptions.
     bool    solve        (Lit p, Lit q, Lit r);     // Search for a model that respects three assumptions.
     bool    okay         () const;                  // FALSE means solver is in a conflicting state
-
     bool    implies      (const vec<Lit>& assumps, vec<Lit>& out);
+
+    // Tracing:
+    void    traceLog     (const char* log_file);    // Log search trace to this file.
 
     // Iterate over clauses and top-level assignments:
     ClauseIterator clausesBegin() const;
@@ -75,7 +77,6 @@ public:
 
     void    toDimacs     (FILE* f, const vec<Lit>& assumps);            // Write CNF to file in DIMACS-format.
     void    toDimacs     (const char *file, const vec<Lit>& assumps);
-    void    toDimacs     (FILE* f, Clause& c, vec<Var>& map, Var& max);
 
     // Convenience versions of 'toDimacs()':
     void    toDimacs     (const char* file);
@@ -212,6 +213,7 @@ protected:
     double              progress_estimate;// Set by 'search()'.
     bool                remove_satisfied; // Indicates whether possibly inefficient linear scan for satisfied clauses should be performed in 'simplify'.
     Var                 next_var;         // Next variable to be created.
+    FILE*               trace_log;        // Log search trace to this file.
     ClauseAllocator     ca;
 
 
@@ -277,6 +279,8 @@ protected:
     double   progressEstimate ()      const; // DELETE THIS ?? IT'S NOT VERY USEFUL ...
     bool     withinBudget     ()      const;
     void     relocAll         (ClauseAllocator& to);
+    void     toDimacs         (FILE* f, Clause& c, vec<Var>& map, Var& max);
+    void     printLits        (FILE* f, const vec<Lit>& c);
 
     // Static helpers:
     //

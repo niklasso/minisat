@@ -63,12 +63,16 @@ int main(int argc, char** argv)
         BoolOption   pre    ("MAIN", "pre",    "Completely turn on/off any preprocessing.", true);
         BoolOption   solve  ("MAIN", "solve",  "Completely turn on/off solving after preprocessing.", true);
         StringOption dimacs ("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
+        StringOption trace  ("MAIN", "trace",  "If given, log searh trace to this file.");
         IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", 0, IntRange(0, INT32_MAX));
         IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", 0, IntRange(0, INT32_MAX));
 
         parseOptions(argc, argv, true);
         
         SimpSolver  S;
+
+        if (trace) S.traceLog(trace);
+
         double      initial_time = cpuTime();
 
         if (!pre) S.eliminate(true);
@@ -157,11 +161,7 @@ int main(int argc, char** argv)
             fclose(res);
         }
 
-#ifdef NDEBUG
-        exit(ret == l_True ? 10 : ret == l_False ? 20 : 0);     // (faster than "return", which will invoke the destructor for 'Solver')
-#else
         return (ret == l_True ? 10 : ret == l_False ? 20 : 0);
-#endif
     } catch (OutOfMemoryException&){
         printf("===============================================================================\n");
         printf("INDETERMINATE\n");

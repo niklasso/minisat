@@ -93,6 +93,7 @@ Solver::Solver() :
   , progress_estimate  (0)
   , remove_satisfied   (true)
   , next_var           (0)
+  , trace_log          (NULL)
 
     // Resource constraints:
     //
@@ -104,6 +105,8 @@ Solver::Solver() :
 
 Solver::~Solver()
 {
+    if (trace_log != NULL)
+        fclose(trace_log);
 }
 
 
@@ -362,6 +365,13 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
     }
 
     for (int j = 0; j < analyze_toclear.size(); j++) seen[var(analyze_toclear[j])] = 0;    // ('seen[]' is now cleared)
+
+    if (trace_log != NULL){
+        fprintf  (trace_log, "%d long clause learned at depth %d: ", out_learnt.size(), decisionLevel());
+        printLits(trace_log, out_learnt);
+        fprintf  (trace_log, "\n");
+        // fflush  (trace_log);
+    }
 }
 
 
@@ -661,7 +671,11 @@ lbool Solver::search(int nof_conflicts)
         if (confl != CRef_Undef){
             // CONFLICT
             conflicts++; conflictC++;
-            if (decisionLevel() == 0) return l_False;
+            if (decisionLevel() == 0){
+                if (trace_log != NULL)
+                    fprintf  (trace_log, "derived empty clause\n");
+                return l_False;
+            }
 
             learnt_clause.clear();
             analyze(confl, learnt_clause, backtrack_level);
@@ -882,6 +896,15 @@ void Solver::toDimacs(FILE* f, Clause& c, vec<Var>& map, Var& max)
 }
 
 
+// Print clause as is with DIMACS variable numbering (without trailing newline).
+void Solver::printLits(FILE* f, const vec<Lit>& c)
+{
+    for (int i = 0; i < c.size(); i++)
+        fprintf(f, "%s%d ", sign(c[i]) ? "-" : "", var(c[i])+1);
+    fprintf(f, "0");
+}
+
+
 void Solver::toDimacs(const char *file, const vec<Lit>& assumps)
 {
     FILE* f = fopen(file, "wr");
@@ -945,6 +968,14 @@ void Solver::printStats() const
     printf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
     printf("CPU time              : %g s\n", cpu_time);
+}
+
+
+void Solver::traceLog(const char* log_file)
+{
+    trace_log = fopen(log_file, "w");
+    if (trace_log == NULL)
+        printf("ERROR! Could not open trace log-file: %s\n", log_file), exit(1);
 }
 
 
