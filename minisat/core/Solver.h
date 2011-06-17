@@ -122,31 +122,35 @@ public:
     vec<Lit>   conflict;          // If problem is unsatisfiable (possibly under assumptions),
                                   // this vector represent the final conflict clause expressed in the assumptions.
 
-    typedef enum { restart_none = 0, restart_fixed = 1, restart_luby = 2, restart_exp = 3 } RestartMode;
 
     // Mode of operation:
     //
-    int       verbosity;
-    double    var_decay;
-    double    clause_decay;
-    double    random_var_freq;
-    double    random_seed;
+    int          verbosity;
+    double       var_decay;
+    double       clause_decay;
+    double       random_var_freq;
+    double       random_seed;
 
-    RestartMode restart_mode;
+    int          ccmin_mode;      // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
+    int          phase_saving;    // Controls the level of phase saving (0=none, 1=limited, 2=full).
+    bool         rnd_pol;         // Use random polarities for branching heuristics.
+    bool         rnd_init_act;    // Initialize variable activities with a small random value.
+    double       garbage_frac;    // The fraction of wasted memory allowed before a garbage collection is triggered.
 
-    int       ccmin_mode;         // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
-    int       phase_saving;       // Controls the level of phase saving (0=none, 1=limited, 2=full).
-    bool      rnd_pol;            // Use random polarities for branching heuristics.
-    bool      rnd_init_act;       // Initialize variable activities with a small random value.
-    double    garbage_frac;       // The fraction of wasted memory allowed before a garbage collection is triggered.
+    typedef enum { restart_none  = 0, restart_fixed = 1, restart_luby = 2, restart_exp = 3 } RestartMode;
+    RestartMode  restart_mode;    // The strategy used for restarts.
+    int          restart_first;   // The initial restart limit.                                                                (default 100)
+    double       restart_inc;     // The factor with which the restart limit is multiplied in each restart.                    (default 1.5)
 
-    int       restart_first;      // The initial restart limit.                                                                (default 100)
-    double    restart_inc;        // The factor with which the restart limit is multiplied in each restart.                    (default 1.5)
-    double    learntsize_factor;  // The intitial limit for learnt clauses is a factor of the original clauses.                (default 1 / 3)
-    double    learntsize_inc;     // The limit for learnt clauses is multiplied with this factor each restart.                 (default 1.1)
+    typedef enum { reducedb_none = 0, reducedb_fixed = 1, reducedb_exp = 2 } ReduceDBMode;
+    ReduceDBMode reducedb_mode;   // The strategy used for learnt clause removal.                                              (default reducedb_exp)
+    int          reducedb_limit;  // The learnt clause limit used in the fixed ReduceDBMode.                                   (default 5000)
+    double       reducedb_factor; // The intitial limit for learnt clauses is a factor of the original clauses.                (default 1 / 3)
+    double       reducedb_inc;    // The limit for learnt clauses is multiplied with this factor each restart.                 (default 1.1)
 
-    int       learntsize_adjust_start_confl;
-    double    learntsize_adjust_inc;
+    // TODO: these should be private?
+    int          reducedb_adjust_start_confl;
+    double       reducedb_adjust_inc;
 
     // Statistics: (read-only member variable)
     //
@@ -230,8 +234,8 @@ protected:
     vec<Lit>            add_tmp;
 
     double              max_learnts;
-    double              learntsize_adjust_confl;
-    int                 learntsize_adjust_cnt;
+    double              reducedb_adjust_confl;
+    int                 reducedb_adjust_cnt;
 
     // Resource contraints:
     //
