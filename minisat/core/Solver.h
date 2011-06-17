@@ -122,6 +122,8 @@ public:
     vec<Lit>   conflict;          // If problem is unsatisfiable (possibly under assumptions),
                                   // this vector represent the final conflict clause expressed in the assumptions.
 
+    typedef enum { restart_none = 0, restart_fixed = 1, restart_luby = 2, restart_exp = 3 } RestartMode;
+
     // Mode of operation:
     //
     int       verbosity;
@@ -129,7 +131,9 @@ public:
     double    clause_decay;
     double    random_var_freq;
     double    random_seed;
-    bool      luby_restart;
+
+    RestartMode restart_mode;
+
     int       ccmin_mode;         // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
     int       phase_saving;       // Controls the level of phase saving (0=none, 1=limited, 2=full).
     bool      rnd_pol;            // Use random polarities for branching heuristics.

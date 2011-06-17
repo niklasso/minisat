@@ -37,9 +37,9 @@ static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause act
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
-static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
+static IntOption     opt_phase_saving      (_cat, "phase-saving","Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
 static BoolOption    opt_rnd_init_act      (_cat, "rnd-init",    "Randomize the initial activity", false);
-static BoolOption    opt_luby_restart      (_cat, "luby",        "Use the Luby restart sequence", true);
+static IntOption     opt_restart_mode      (_cat, "restart-mode","Selects restart sequence (0=none, 1=fixed, 2=luby, 3=exp)", 2, IntRange(0, 2));
 static BoolOption    opt_static_order      (_cat, "static",      "Use a static variable order", false);
 static IntOption     opt_restart_first     (_cat, "rfirst",      "The base restart interval", 100, IntRange(1, INT32_MAX));
 static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interval increase factor", 2, DoubleRange(1, false, HUGE_VAL, false));
@@ -59,7 +59,7 @@ Solver::Solver() :
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
   , random_seed      (opt_random_seed)
-  , luby_restart     (opt_luby_restart)
+  , restart_mode     ((RestartMode)(int)opt_restart_mode)
   , ccmin_mode       (opt_ccmin_mode)
   , phase_saving     (opt_phase_saving)
   , rnd_pol          (false)
@@ -822,8 +822,15 @@ lbool Solver::solve_()
     // Search:
     int curr_restarts = 0;
     while (status == l_Undef){
-        double rest_base = luby_restart ? luby(restart_inc, curr_restarts) : pow(restart_inc, curr_restarts);
-        status = search(rest_base * restart_first);
+        int restart_confl;
+        switch(restart_mode){
+        case restart_fixed: restart_confl = restart_first; break;
+        case restart_luby:  restart_confl = luby(restart_inc, curr_restarts) * restart_first; break;
+        case restart_exp:   restart_confl = pow (restart_inc, curr_restarts) * restart_first; break;
+        default:
+        case restart_none:  restart_confl = -1; break;
+        }
+        status = search(restart_confl);
         if (!withinBudget()) break;
         curr_restarts++;
     }
