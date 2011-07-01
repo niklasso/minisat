@@ -27,6 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "minisat/mtl/IntTypes.h"
 #include "minisat/mtl/Alg.h"
 #include "minisat/mtl/Vec.h"
+#include "minisat/mtl/IntMap.h"
 #include "minisat/mtl/Map.h"
 #include "minisat/mtl/Alloc.h"
 
@@ -72,6 +73,8 @@ inline  Lit  toLit     (int i)              { Lit p; p.x = i; return p; }
 const Lit lit_Undef = { -2 };  // }- Useful special constants.
 const Lit lit_Error = { -1 };  // }
 
+
+template<class T> class VMap : public IntMap<Var, T>{};
 
 //=================================================================================================
 // Lifted booleans:

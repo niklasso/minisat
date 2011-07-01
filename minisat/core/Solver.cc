@@ -119,8 +119,7 @@ Var Solver::newVar(lbool upol, bool dvar)
     watches  .init(mkLit(v, true ));
     assigns  .push(l_Undef);
     vardata  .push(mkVarData(CRef_Undef, 0));
-    //activity .push(0);
-    activity .push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity .insert(v, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     seen     .push(0);
     polarity .push(true);
     user_pol .push(upol);

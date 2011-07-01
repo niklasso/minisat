@@ -24,6 +24,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "minisat/mtl/Vec.h"
 #include "minisat/mtl/Heap.h"
 #include "minisat/mtl/Alg.h"
+#include "minisat/mtl/IntMap.h"
 #include "minisat/utils/Options.h"
 #include "minisat/core/SolverTypes.h"
 
@@ -168,9 +169,9 @@ protected:
     };
 
     struct VarOrderLt {
-        const vec<double>&  activity;
+        const IntMap<Var, double>&  activity;
         bool operator () (Var x, Var y) const { return activity[x] > activity[y]; }
-        VarOrderLt(const vec<double>&  act) : activity(act) { }
+        VarOrderLt(const IntMap<Var, double>&  act) : activity(act) { }
     };
 
     struct ShrinkStackElem {
@@ -185,7 +186,7 @@ protected:
     vec<CRef>           clauses;          // List of problem clauses.
     vec<CRef>           learnts;          // List of learnt clauses.
     double              cla_inc;          // Amount to bump next clause with.
-    vec<double>         activity;         // A heuristic measurement of the activity of a variable.
+    VMap<double>        activity;         // A heuristic measurement of the activity of a variable.
     double              var_inc;          // Amount to bump next variable with.
     OccLists<Lit, vec<Watcher>, WatcherDeleted>
                         watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
