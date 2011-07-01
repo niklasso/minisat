@@ -182,35 +182,39 @@ protected:
 
     // Solver state:
     //
-    bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
     vec<CRef>           clauses;          // List of problem clauses.
     vec<CRef>           learnts;          // List of learnt clauses.
-    double              cla_inc;          // Amount to bump next clause with.
-    VMap<double>        activity;         // A heuristic measurement of the activity of a variable.
-    double              var_inc;          // Amount to bump next variable with.
-    OccLists<Lit, vec<Watcher>, WatcherDeleted>
-                        watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
-    vec<lbool>          assigns;          // The current assignments.
-    vec<char>           polarity;         // The preferred polarity of each variable.
-    vec<lbool>          user_pol;         // The users preferred polarity of each variable.
-    vec<char>           decision;         // Declares if a variable is eligible for selection in the decision heuristic.
     vec<Lit>            trail;            // Assignment stack; stores all assigments made in the order they were made.
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
-    vec<VarData>        vardata;          // Stores reason and level for each variable.
+    vec<Lit>            assumptions;      // Current set of assumptions provided to solve by the user.
+
+    VMap<double>        activity;         // A heuristic measurement of the activity of a variable.
+    VMap<lbool>         assigns;          // The current assignments.
+    VMap<char>          polarity;         // The preferred polarity of each variable.
+    VMap<lbool>         user_pol;         // The users preferred polarity of each variable.
+    VMap<char>          decision;         // Declares if a variable is eligible for selection in the decision heuristic.
+    VMap<VarData>       vardata;          // Stores reason and level for each variable.
+    OccLists<Lit, vec<Watcher>, WatcherDeleted, MkIndexLit>
+                        watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
+
+    Heap<VarOrderLt>    order_heap;       // A priority queue of variables ordered with respect to the variable activity.
+
+    bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
+    double              cla_inc;          // Amount to bump next clause with.
+    double              var_inc;          // Amount to bump next variable with.
     int                 qhead;            // Head of queue (as index into the trail -- no more explicit propagation queue in MiniSat).
     int                 simpDB_assigns;   // Number of top-level assignments since last execution of 'simplify()'.
     int64_t             simpDB_props;     // Remaining number of propagations that must be made before next execution of 'simplify()'.
-    vec<Lit>            assumptions;      // Current set of assumptions provided to solve by the user.
-    Heap<VarOrderLt>    order_heap;       // A priority queue of variables ordered with respect to the variable activity.
     double              progress_estimate;// Set by 'search()'.
     bool                remove_satisfied; // Indicates whether possibly inefficient linear scan for satisfied clauses should be performed in 'simplify'.
-
+    Var                 next_var;         // Next variable to be created.
     ClauseAllocator     ca;
+
 
     // Temporaries (to reduce allocation overhead). Each variable is prefixed by the method in which it is
     // used, exept 'seen' wich is used in several places.
     //
-    vec<char>           seen;
+    VMap<char>          seen;
     vec<ShrinkStackElem>analyze_stack;
     vec<Lit>            analyze_toclear;
     vec<Lit>            add_tmp;
@@ -341,7 +345,7 @@ inline lbool    Solver::modelValue    (Lit p) const   { return model[var(p)] ^ s
 inline int      Solver::nAssigns      ()      const   { return trail.size(); }
 inline int      Solver::nClauses      ()      const   { return num_clauses; }
 inline int      Solver::nLearnts      ()      const   { return num_learnts; }
-inline int      Solver::nVars         ()      const   { return vardata.size(); }
+inline int      Solver::nVars         ()      const   { return next_var; }
 // TODO: nFreeVars() is not quite correct, try to calculate right instead of adapting it like below:
 inline int      Solver::nFreeVars     ()      const   { return (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]); }
 inline void     Solver::setPolarity   (Var v, lbool b){ user_pol[v] = b; }

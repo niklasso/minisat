@@ -81,16 +81,17 @@ Solver::Solver() :
   , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
   , dec_vars(0), num_clauses(0), num_learnts(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
 
+  , watches            (WatcherDeleted(ca))
+  , order_heap         (VarOrderLt(activity))
   , ok                 (true)
   , cla_inc            (1)
   , var_inc            (1)
-  , watches            (WatcherDeleted(ca))
   , qhead              (0)
   , simpDB_assigns     (-1)
   , simpDB_props       (0)
-  , order_heap         (VarOrderLt(activity))
   , progress_estimate  (0)
   , remove_satisfied   (true)
+  , next_var           (0)
 
     // Resource constraints:
     //
@@ -114,16 +115,16 @@ Solver::~Solver()
 //
 Var Solver::newVar(lbool upol, bool dvar)
 {
-    int v = nVars();
+    Var v = next_var++;
     watches  .init(mkLit(v, false));
     watches  .init(mkLit(v, true ));
-    assigns  .push(l_Undef);
-    vardata  .push(mkVarData(CRef_Undef, 0));
+    assigns  .insert(v, l_Undef);
+    vardata  .insert(v, mkVarData(CRef_Undef, 0));
     activity .insert(v, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
-    seen     .push(0);
-    polarity .push(true);
-    user_pol .push(upol);
-    decision .push();
+    seen     .insert(v, 0);
+    polarity .insert(v, true);
+    user_pol .insert(v, upol);
+    decision .reserve(v);
     trail    .capacity(v+1);
     setDecisionVar(v, dvar);
     return v;
