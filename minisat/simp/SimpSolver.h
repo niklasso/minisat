@@ -135,7 +135,7 @@ class SimpSolver : public Solver {
     OccLists<Var, vec<CRef>, ClauseDeleted>
                         occurs;
     LMap<int>           n_occ;
-    Heap<ElimLt>        elim_heap;
+    Heap<Var,ElimLt>    elim_heap;
     Queue<CRef>         subsumption_queue;
     VMap<char>          frozen;
     vec<Var>            frozen_vars;
