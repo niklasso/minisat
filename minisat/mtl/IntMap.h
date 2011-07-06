@@ -34,8 +34,11 @@ namespace Minisat {
     public:
         explicit IntMap(MkIndex _index = MkIndex()) : index(_index){}
         
-        const V& operator[](K k) const { assert(index(k) < map.size()); return map[index(k)]; }
-        V&       operator[](K k)       { assert(index(k) < map.size()); return map[index(k)]; }
+        bool     has       (K k) const { return index(k) < map.size(); }
+
+        const V& operator[](K k) const { assert(has(k)); return map[index(k)]; }
+        V&       operator[](K k)       { assert(has(k)); return map[index(k)]; }
+
 
         void     reserve(K key, V pad)       { map.growTo(index(key)+1, pad); }
         void     reserve(K key)              { map.growTo(index(key)+1); }
