@@ -46,6 +46,7 @@ static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interv
 static IntOption     opt_reducedb_mode     (_cat, "reducedb-mode","Controls learnt clause removal (0=none, 1=fixed, 2=exp)", 2, IntRange(0, 2));
 static IntOption     opt_reducedb_limit    (_cat, "reducedb-lim", "The learnt clause limit used in the fixed strategy", 5000, IntRange(0, INT32_MAX));
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
+static IntOption     opt_random_round      (_cat, "rround", "Use random rounds with this interval (0=off)", 0, IntRange(0, INT32_MAX));
 
 
 //=================================================================================================
@@ -73,6 +74,7 @@ Solver::Solver() :
   , reducedb_limit   (opt_reducedb_limit)
   , reducedb_factor  ((double)1/(double)3)
   , reducedb_inc     (1.1)
+  , random_round     (opt_random_round)
 
     // Parameters (experimental):
     //
@@ -234,31 +236,33 @@ void Solver::cancelUntil(int level) {
 
 Lit Solver::pickBranchLit()
 {
-    Var next = var_Undef;
-
-    // Random decision:
-    if (drand(random_seed) < random_var_freq && !order_heap.empty()){
-        next = order_heap[irand(random_seed,order_heap.size())];
-        if (value(next) == l_Undef && decision[next])
-            rnd_decisions++; }
+    Var  next       = var_Undef;
+    bool random_dec = (random_round > 0) && ((conflicts % random_round) == 0);
 
     // Activity based decision:
     while (next == var_Undef || value(next) != l_Undef || !decision[next])
         if (order_heap.empty()){
             next = var_Undef;
             break;
-        }else
+        }else if (!random_dec)
             next = order_heap.removeMin();
+        else{
+            next = order_heap[irand(random_seed,order_heap.size())];
+            order_heap.remove(next);
+        }
 
     // Choose polarity based on different polarity modes (global or per-variable):
     if (next == var_Undef)
         return lit_Undef;
-    else if (user_pol[next] != l_Undef)
+
+    if (random_dec) rnd_decisions++;
+
+    if (user_pol[next] != l_Undef)
         return mkLit(next, user_pol[next] == l_True);
-    else if (rnd_pol)
+    if (rnd_pol || random_dec)
         return mkLit(next, drand(random_seed) < 0.5);
-    else
-        return mkLit(next, polarity[next]);
+
+    return mkLit(next, polarity[next]);
 }
 
 
@@ -668,9 +672,16 @@ lbool Solver::search(int nof_conflicts)
     vec<Lit>    learnt_clause;
     starts++;
 
+    assert(decisionLevel() == 0);
+    //int         round_begin = 0;
+
     for (;;){
         CRef confl = propagate();
         if (confl != CRef_Undef){
+            // bool random_dec = (random_round > 0) && ((conflicts % random_round) == 0);
+            // printf(" ... round-depth: %d %s\n", decisionLevel() - round_begin,
+            //        random_dec ? "(random)" : "");
+
             // CONFLICT
             conflicts++; conflictC++;
             if (decisionLevel() == 0){
@@ -682,6 +693,8 @@ lbool Solver::search(int nof_conflicts)
             learnt_clause.clear();
             analyze(confl, learnt_clause, backtrack_level);
             cancelUntil(backtrack_level);
+
+            //round_begin = decisionLevel();
 
             if (learnt_clause.size() == 1){
                 uncheckedEnqueue(learnt_clause[0]);

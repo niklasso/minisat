@@ -148,6 +148,9 @@ public:
     double       reducedb_factor; // The intitial limit for learnt clauses is a factor of the original clauses.                (default 1 / 3)
     double       reducedb_inc;    // The limit for learnt clauses is multiplied with this factor each restart.                 (default 1.1)
 
+    int          random_round;    // After each 'random_round' number of conflicts, only random
+                                  // variables are chosen until the next conflict.
+
     // TODO: these should be private?
     int          reducedb_adjust_start_confl;
     double       reducedb_adjust_inc;
