@@ -107,6 +107,23 @@ class Heap {
     }
 
 
+    void remove(K k)
+    {
+        assert(inHeap(k));
+
+        int k_pos  = indices[k];
+        indices[k] = -1;
+
+        if (k_pos < heap.size()-1){
+            heap[k_pos]          = heap.last();
+            indices[heap[k_pos]] = k_pos;
+            heap.pop();
+            percolateDown(k_pos);
+        }else
+            heap.pop();
+    }
+
+
     K removeMin()
     {
         K x              = heap[0];
