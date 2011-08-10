@@ -120,7 +120,9 @@ Var Solver::newVar(lbool upol, bool dvar)
     watches  .init(mkLit(v, true ));
     assigns  .insert(v, l_Undef);
     vardata  .insert(v, mkVarData(CRef_Undef, 0));
-    activity .insert(v, rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity .reserve(v);
+    activity[v].fixed   = 0;
+    activity[v].dynamic = rnd_init_act ? drand(random_seed) * 0.00001 : 0;
     seen     .insert(v, 0);
     polarity .insert(v, true);
     user_pol .insert(v, upol);

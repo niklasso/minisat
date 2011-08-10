@@ -87,6 +87,7 @@ public:
     // 
     void    setPolarity    (Var v, lbool b); // Declare which polarity the decision heuristic should use for a variable. Requires mode 'polarity_user'.
     void    setDecisionVar (Var v, bool b);  // Declare if a variable should be eligible for selection in the decision heuristic.
+    void    setVarOrdering (Var v, int  x);  // Set the fixed ordering for the variable (default is 0).
 
     // Read state:
     //
@@ -170,10 +171,17 @@ protected:
         bool operator()(const Watcher& w) const { return ca[w.cref].mark() == 1; }
     };
 
+    struct VarOrderValue {
+        int    fixed;
+        double dynamic;
+    };
+
     struct VarOrderLt {
-        const IntMap<Var, double>&  activity;
-        bool operator () (Var x, Var y) const { return activity[x] > activity[y]; }
-        VarOrderLt(const IntMap<Var, double>&  act) : activity(act) { }
+        const VMap<VarOrderValue>& activity;
+        bool operator () (Var x, Var y) const { 
+            const VarOrderValue& a = activity[x], b = activity[y];
+            return (a.fixed < b.fixed) || (a.fixed == b.fixed && a.dynamic > b.dynamic); }
+        VarOrderLt(const VMap<VarOrderValue>& act) : activity(act) { }
     };
 
     struct ShrinkStackElem {
@@ -190,7 +198,8 @@ protected:
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
     vec<Lit>            assumptions;      // Current set of assumptions provided to solve by the user.
 
-    VMap<double>        activity;         // A heuristic measurement of the activity of a variable.
+
+    VMap<VarOrderValue> activity;         // TODO: (update) --- A heuristic measurement of the activity of a variable.
     VMap<lbool>         assigns;          // The current assignments.
     VMap<char>          polarity;         // The preferred polarity of each variable.
     VMap<lbool>         user_pol;         // The users preferred polarity of each variable.
@@ -304,10 +313,10 @@ inline void Solver::insertVarOrder(Var x) {
 inline void Solver::varDecayActivity() { var_inc *= (1 / var_decay); }
 inline void Solver::varBumpActivity(Var v) { varBumpActivity(v, var_inc); }
 inline void Solver::varBumpActivity(Var v, double inc) {
-    if ( (activity[v] += inc) > 1e100 ) {
+    if ( (activity[v].dynamic += inc) > 1e100 ) {
         // Rescale:
         for (int i = 0; i < nVars(); i++)
-            activity[i] *= 1e-100;
+            activity[i].dynamic *= 1e-100;
         var_inc *= 1e-100; }
 
     // Update order_heap with respect to new activity:
@@ -359,6 +368,7 @@ inline void     Solver::setDecisionVar(Var v, bool b)
     decision[v] = b;
     insertVarOrder(v);
 }
+inline void     Solver::setVarOrdering(Var v, int  x){ activity[v].fixed = x; }
 inline void     Solver::setConfBudget(int64_t x){ conflict_budget    = conflicts    + x; }
 inline void     Solver::setPropBudget(int64_t x){ propagation_budget = propagations + x; }
 inline void     Solver::interrupt(){ asynch_interrupt = true; }
