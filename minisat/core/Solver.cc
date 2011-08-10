@@ -929,7 +929,7 @@ void Solver::toDimacs(FILE* f, const vec<Lit>& assumps)
         toDimacs(f, ca[clauses[i]], map, max);
 
     if (verbosity > 0)
-        printf("Wrote %d clauses with %d variables.\n", cnt, max);
+        printf("Wrote DIMACS with %d variables and %d clauses.\n", max, cnt);
 }
 
 
