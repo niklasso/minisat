@@ -73,7 +73,7 @@ static inline bool isEof(const char*   in) { return *in == '\0'; }
 
 
 template<class B>
-static void skipWhitespace(B& in) {
+static void skipWhitespace(B& in, bool skip_tabs_and_newlines = true) {
     while ((*in >= 9 && *in <= 13) || *in == 32)
         ++in; }
 
@@ -87,10 +87,10 @@ static void skipLine(B& in) {
 
 
 template<class B>
-static int parseInt(B& in) {
+static int parseInt(B& in, bool skip_tabs_and_newlines = true) {
     int     val = 0;
     bool    neg = false;
-    skipWhitespace(in);
+    skipWhitespace(in, skip_tabs_and_newlines);
     if      (*in == '-') neg = true, ++in;
     else if (*in == '+') ++in;
     if (*in < '0' || *in > '9') fprintf(stderr, "PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
