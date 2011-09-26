@@ -51,6 +51,7 @@ SimpSolver::SimpSolver() :
   , use_asymm          (opt_use_asymm)
   , use_rcheck         (opt_use_rcheck)
   , use_elim           (opt_use_elim)
+  , extend_model       (true)
   , merges             (0)
   , asymm_lits         (0)
   , eliminated_vars    (0)
@@ -131,7 +132,7 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
     else if (verbosity >= 1)
         printf("===============================================================================\n");
 
-    if (result == l_True)
+    if (result == l_True && extend_model)
         extendModel();
 
     if (do_simp)
