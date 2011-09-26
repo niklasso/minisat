@@ -20,6 +20,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include <math.h>
 
+#include "minisat/mtl/Alg.h"
 #include "minisat/mtl/Sort.h"
 #include "minisat/utils/System.h"
 #include "minisat/core/Solver.h"
@@ -115,7 +116,13 @@ Solver::~Solver()
 //
 Var Solver::newVar(lbool upol, bool dvar)
 {
-    Var v = next_var++;
+    Var v;
+    if (free_vars.size() > 0){
+        v = free_vars.last();
+        free_vars.pop();
+    }else
+        v = next_var++;
+
     watches  .init(mkLit(v, false));
     watches  .init(mkLit(v, true ));
     assigns  .insert(v, l_Undef);
@@ -128,6 +135,17 @@ Var Solver::newVar(lbool upol, bool dvar)
     trail    .capacity(v+1);
     setDecisionVar(v, dvar);
     return v;
+}
+
+
+// Note: at the moment, only unassigned variable will be released (this is to avoid duplicate
+// releases of the same variable).
+void Solver::releaseVar(Lit l)
+{
+    if (value(l) == l_Undef){
+        addClause(l);
+        released_vars.push(var(l));
+    }
 }
 
 
@@ -585,8 +603,16 @@ void Solver::removeSatisfied(vec<CRef>& cs)
         Clause& c = ca[cs[i]];
         if (satisfied(c))
             removeClause(cs[i]);
-        else
+        else{
+            // Trim clause:
+            assert(value(c[0]) == l_Undef && value(c[1]) == l_Undef);
+            for (int k = 2; k < c.size(); k++)
+                if (value(c[k]) == l_False){
+                    c[k--] = c[c.size()-1];
+                    c.pop();
+                }
             cs[j++] = cs[i];
+        }
     }
     cs.shrink(i - j);
 }
@@ -622,8 +648,32 @@ bool Solver::simplify()
 
     // Remove satisfied clauses:
     removeSatisfied(learnts);
-    if (remove_satisfied)        // Can be turned off.
+    if (remove_satisfied){       // Can be turned off.
         removeSatisfied(clauses);
+
+        // TODO: what todo in if 'remove_satisfied' is false?
+
+        // Remove all released variables from the trail:
+        for (int i = 0; i < released_vars.size(); i++){
+            assert(seen[released_vars[i]] == 0);
+            seen[released_vars[i]] = 1;
+        }
+
+        int i, j;
+        for (i = j = 0; i < trail.size(); i++)
+            if (seen[var(trail[i])] == 0)
+                trail[j++] = trail[i];
+        trail.shrink(i - j);
+        //printf("trail.size()= %d, qhead = %d\n", trail.size(), qhead);
+        qhead = trail.size();
+
+        for (int i = 0; i < released_vars.size(); i++)
+            seen[released_vars[i]] = 0;
+
+        // Released variables are now ready to be reused:
+        append(released_vars, free_vars);
+        released_vars.clear();
+    }
     checkGarbage();
     rebuildOrderHeap();
 

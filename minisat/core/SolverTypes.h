@@ -321,7 +321,7 @@ class OccLists
         dirty(_index), 
         deleted(d){}
     
-    void  init      (const K& idx){ occs.reserve(idx); dirty.reserve(idx, 0); }
+    void  init      (const K& idx){ occs.reserve(idx); occs[idx].clear(); dirty.reserve(idx, 0); }
     Vec&  operator[](const K& idx){ return occs[idx]; }
     Vec&  lookup    (const K& idx){ if (dirty[idx]) clean(idx); return occs[idx]; }
 

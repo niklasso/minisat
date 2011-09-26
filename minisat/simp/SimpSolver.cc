@@ -89,6 +89,18 @@ Var SimpSolver::newVar(lbool upol, bool dvar) {
     return v; }
 
 
+void SimpSolver::releaseVar(Lit l)
+{
+    assert(!isEliminated(var(l)));
+    if (!use_simplification && var(l) >= max_simp_var)
+        // Note: Guarantees that no references to this variable is
+        // left in model extension datastructure. Could be improved!
+        Solver::releaseVar(l);
+    else
+        // Otherwise, don't allow variable to be reused.
+        Solver::addClause(l);
+}
+
 
 lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
 {
@@ -644,6 +656,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         use_simplification    = false;
         remove_satisfied      = true;
         ca.extra_clause_field = false;
+        max_simp_var          = nVars();
 
         // Force full cleanup (this is safe and desirable since it only happens once):
         rebuildOrderHeap();
