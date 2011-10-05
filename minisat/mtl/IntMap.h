@@ -39,6 +39,10 @@ namespace Minisat {
         const V& operator[](K k) const { assert(has(k)); return map[index(k)]; }
         V&       operator[](K k)       { assert(has(k)); return map[index(k)]; }
 
+        const V* begin  () const { return &map[0]; }
+        const V* end    () const { return &map[map.size()]; }
+        V*       begin  ()       { return &map[0]; }
+        V*       end    ()       { return &map[map.size()]; }
 
         void     reserve(K key, V pad)       { map.growTo(index(key)+1, pad); }
         void     reserve(K key)              { map.growTo(index(key)+1); }
