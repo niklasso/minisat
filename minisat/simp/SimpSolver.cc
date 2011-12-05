@@ -323,7 +323,7 @@ bool SimpSolver::implied(const vec<Lit>& c)
     for (int i = 0; i < c.size(); i++)
         if (value(c[i]) == l_True){
             cancelUntil(0);
-            return false;
+            return true;
         }else if (value(c[i]) != l_False){
             assert(value(c[i]) == l_Undef);
             uncheckedEnqueue(~c[i]);
