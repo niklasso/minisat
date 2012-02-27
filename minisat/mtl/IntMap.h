@@ -49,7 +49,7 @@ namespace Minisat {
         void     insert (K key, V val, V pad){ reserve(key, pad); operator[](key) = val; }
         void     insert (K key, V val)       { reserve(key); operator[](key) = val; }
 
-        void     clear  (bool dispose = false) { map.clear(false); }
+        void     clear  (bool dispose = false) { map.clear(dispose); }
         void     moveTo (IntMap& to)           { map.moveTo(to.map); to.index = index; }
         void     copyTo (IntMap& to) const     { map.copyTo(to.map); to.index = index; }
     };
