@@ -55,6 +55,36 @@ namespace Minisat {
     };
 
 
+    template<class K, class MkIndex = MkIndexDefault<K> >
+    class IntSet
+    {
+        IntMap<K, char, MkIndex> in_set;
+        vec<K>                   xs;
+        
+    public:
+        // Size operations:
+        int      size        (void)      const  { return xs.size(); }
+        void     clear       (bool free = false){
+            if (free)
+                in_set.clear(true); 
+            else
+                for (int i = 0; i < xs.size(); i++)
+                    in_set[xs[i]] = 0;
+            xs.clear(free);
+        }
+
+        // Allow inspecting the internal vector:
+        const vec<K>&
+                 toVec       ()          const  { return xs; }
+        
+        // Vector interface:
+        K        operator [] (int index) const  { return xs[index]; }
+        
+        
+        void     insert      (K k) { in_set.reserve(k, 0); if (!in_set[k]) { in_set[k] = 1; xs.push(k); } }
+        bool     has         (K k) { in_set.reserve(k, 0); return in_set[k]; }
+    };
+
     #if 0
     template<class K, class V, V nil, class MkIndex = MkIndexDefault<K> >
     class IntMapNil {

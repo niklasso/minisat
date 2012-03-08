@@ -451,10 +451,10 @@ bool Solver::litRedundant(Lit p)
 |    Calculates the (possibly empty) set of assumptions that led to the assignment of 'p', and
 |    stores the result in 'out_conflict'.
 |________________________________________________________________________________________________@*/
-void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
+void Solver::analyzeFinal(Lit p, LSet& out_conflict)
 {
     out_conflict.clear();
-    out_conflict.push(p);
+    out_conflict.insert(p);
 
     if (decisionLevel() == 0)
         return;
@@ -466,7 +466,7 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
         if (seen[x]){
             if (reason(x) == CRef_Undef){
                 assert(level(x) > 0);
-                out_conflict.push(~trail[i]);
+                out_conflict.insert(~trail[i]);
             }else{
                 Clause& c = ca[reason(x)];
                 for (int j = 1; j < c.size(); j++)

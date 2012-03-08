@@ -81,6 +81,7 @@ struct MkIndexLit { vec<Lit>::Size operator()(Lit l) const { return vec<Lit>::Si
 
 template<class T> class VMap : public IntMap<Var, T>{};
 template<class T> class LMap : public IntMap<Lit, T, MkIndexLit>{};
+class LSet : public IntSet<Lit, MkIndexLit>{};
 
 //=================================================================================================
 // Lifted booleans:
