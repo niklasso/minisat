@@ -52,6 +52,7 @@ public:
     bool    addClause (Lit p);                                  // Add a unit clause to the solver. 
     bool    addClause (Lit p, Lit q);                           // Add a binary clause to the solver. 
     bool    addClause (Lit p, Lit q, Lit r);                    // Add a ternary clause to the solver. 
+    bool    addClause (Lit p, Lit q, Lit r, Lit s);             // Add a quaternary clause to the solver. 
     bool    addClause_(      vec<Lit>& ps);                     // Add a clause to the solver without making superflous internal copy. Will
                                                                 // change the passed vector 'ps'.
 
@@ -337,6 +338,8 @@ inline bool     Solver::addEmptyClause  ()                      { add_tmp.clear(
 inline bool     Solver::addClause       (Lit p)                 { add_tmp.clear(); add_tmp.push(p); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q)          { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
+inline bool     Solver::addClause       (Lit p, Lit q, Lit r, Lit s){ add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); add_tmp.push(s); return addClause_(add_tmp); }
+
 inline bool     Solver::isRemoved       (CRef cr)         const { return ca[cr].mark() == 1; }
 inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && reason(var(c[0])) != CRef_Undef && ca.lea(reason(var(c[0]))) == &c; }
 inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }
