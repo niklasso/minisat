@@ -696,8 +696,13 @@ void SimpSolver::relocAll(ClauseAllocator& to)
 
     // Subsumption queue:
     //
-    assert(subsumption_queue.size() == 0);
-
+    for (int i = subsumption_queue.size(); i > 0; i--){
+        CRef cr = subsumption_queue.peek(); subsumption_queue.pop();
+        if (ca[cr].mark()) continue;
+        ca.reloc(cr, to);
+        subsumption_queue.insert(cr);
+    }
+        
     // Temporary clause:
     //
     ca.reloc(bwdsub_tmpunit, to);
