@@ -24,7 +24,20 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <zlib.h>
+#ifdef HAS_ZLIB
+#   include <zlib.h>
+#else
+// Zlib is not available. Proceed without it.
+#   include <cstdio>
+    typedef std::FILE* gzFile;
+#   define gzopen fopen
+#   define gzdopen fopen
+#   define gzclose fclose
+    namespace
+    {
+        int gzread(gzFile in, unsigned char* buf, int sz) { return fread(buf, sizeof(unsigned char), sz, in); }
+    }
+#endif
 
 #include "minisat/mtl/XAlloc.h"
 

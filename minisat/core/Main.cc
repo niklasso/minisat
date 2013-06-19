@@ -19,7 +19,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 **************************************************************************************************/
 
 #include <errno.h>
-#include <zlib.h>
 
 #include "minisat/utils/System.h"
 #include "minisat/utils/ParseUtils.h"

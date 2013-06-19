@@ -31,7 +31,16 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #else
 
 #   include <stdint.h>
-#   include <inttypes.h>
+
+#   ifdef WIN32
+
+#       define PRIu64 "u"
+
+#else
+
+#       include <inttypes.h>
+
+#endif
 
 #endif
 

@@ -27,7 +27,13 @@ set(MINISAT_SOVERSION ${MINISAT_SOMAJOR})
 # Dependencies:
 
 find_package(ZLIB)
-include_directories(${ZLIB_INCLUDE_DIR})
+if (ZLIB_FOUND)
+  include_directories(${ZLIB_INCLUDE_DIR})
+  add_definitions(-DHAS_ZLIB=1)
+else (ZLIB_FOUND)
+  message("-- Proceeding without ZLIB.")
+endif (ZLIB_FOUND)
+
 include_directories(${minisat_SOURCE_DIR})
 
 #--------------------------------------------------------------------------------------------------
@@ -47,8 +53,10 @@ set(MINISAT_LIB_SOURCES
 add_library(minisat-lib-static STATIC ${MINISAT_LIB_SOURCES})
 add_library(minisat-lib-shared SHARED ${MINISAT_LIB_SOURCES})
 
-target_link_libraries(minisat-lib-shared ${ZLIB_LIBRARY})
-target_link_libraries(minisat-lib-static ${ZLIB_LIBRARY})
+if (ZLIB_FOUND)
+  target_link_libraries(minisat-lib-shared ${ZLIB_LIBRARY})
+  target_link_libraries(minisat-lib-static ${ZLIB_LIBRARY})
+endif (ZLIB_FOUND)
 
 add_executable(minisat_core minisat/core/Main.cc)
 add_executable(minisat_simp minisat/simp/Main.cc)
