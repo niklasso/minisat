@@ -63,8 +63,8 @@ int main(int argc, char** argv)
         BoolOption   pre    ("MAIN", "pre",    "Completely turn on/off any preprocessing.", true);
         BoolOption   solve  ("MAIN", "solve",  "Completely turn on/off solving after preprocessing.", true);
         StringOption dimacs ("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
-        IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", 0, IntRange(0, INT32_MAX));
-        IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", 0, IntRange(0, INT32_MAX));
+        IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", 0, IntRange(0, std::numeric_limits<int32_t>::max()));
+        IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", 0, IntRange(0, std::numeric_limits<int32_t>::max()));
         BoolOption   strictp("MAIN", "strict", "Validate DIMACS header during parsing.", false);
 
         parseOptions(argc, argv, true);
