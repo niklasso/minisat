@@ -130,7 +130,7 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
     if (result == l_True)
         result = Solver::solve_();
     else if (verbosity >= 1)
-        printf("===============================================================================\n");
+        fprintf(stderr, "===============================================================================\n");
 
     if (result == l_True && extend_model)
         extendModel();
@@ -366,7 +366,7 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
         if (c.mark()) continue;
 
         if (verbose && verbosity >= 2 && cnt++ % 1000 == 0)
-            printf("subsumption left: %10d (%10d subsumed, %10d deleted literals)\r", subsumption_queue.size(), subsumed, deleted_literals);
+            fprintf(stderr, "subsumption left: %10d (%10d subsumed, %10d deleted literals)\r", subsumption_queue.size(), subsumed, deleted_literals);
 
         assert(c.size() > 1 || value(c[0]) == l_True);    // Unit-clauses should have been propagated before this point.
 
@@ -604,7 +604,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     while (n_touched > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){
 
         gatherTouchedClauses();
-        // printf("  ## (time = %6.2f s) BWD-SUB: queue = %d, trail = %d\n", cpuTime(), subsumption_queue.size(), trail.size() - bwdsub_assigns);
+        // fprintf(stderr, "  ## (time = %6.2f s) BWD-SUB: queue = %d, trail = %d\n", cpuTime(), subsumption_queue.size(), trail.size() - bwdsub_assigns);
         if ((subsumption_queue.size() > 0 || bwdsub_assigns < trail.size()) && 
             !backwardSubsumptionCheck(true)){
             ok = false; goto cleanup; }
@@ -617,7 +617,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
             elim_heap.clear();
             goto cleanup; }
 
-        // printf("  ## (time = %6.2f s) ELIM: vars = %d\n", cpuTime(), elim_heap.size());
+        // fprintf(stderr, "  ## (time = %6.2f s) ELIM: vars = %d\n", cpuTime(), elim_heap.size());
         for (int cnt = 0; !elim_heap.empty(); cnt++){
             Var elim = elim_heap.removeMin();
             
@@ -626,7 +626,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
             if (isEliminated(elim) || value(elim) != l_Undef) continue;
 
             if (verbosity >= 2 && cnt % 100 == 0)
-                printf("elimination left: %10d\r", elim_heap.size());
+                fprintf(stderr, "elimination left: %10d\r", elim_heap.size());
 
             if (use_asymm){
                 // Temporarily freeze variable. Otherwise, it would immediately end up on the queue again:
@@ -670,7 +670,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     }
 
     if (verbosity >= 1 && elimclauses.size() > 0)
-        printf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
+        fprintf(stderr, "|  Eliminated clauses:     %10.2f Mb                                      |\n", 
                double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
 
     return ok;
@@ -719,7 +719,7 @@ void SimpSolver::garbageCollect()
     relocAll(to);
     Solver::relocAll(to);
     if (verbosity >= 2)
-        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", 
+        fprintf(stderr, "|  Garbage collection:   %12d bytes => %12d bytes             |\n", 
                ca.size()*ClauseAllocator::Unit_Size, to.size()*ClauseAllocator::Unit_Size);
     to.moveTo(ca);
 }
