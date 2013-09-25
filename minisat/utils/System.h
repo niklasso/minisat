@@ -34,7 +34,7 @@ namespace Minisat {
 static inline double cpuTime(void); // CPU-time in seconds.
 
 extern double memUsed();            // Memory in mega bytes (returns 0 for unsupported architectures).
-extern double memUsedPeak();        // Peak-memory in mega bytes (returns 0 for unsupported architectures).
+extern double memUsedPeak(bool strictlyPeak = false); // Peak-memory in mega bytes (returns 0 for unsupported architectures).
 
 extern void   setX86FPUPrecision(); // Make sure double's are represented with the same precision
                                     // in memory and registers.
