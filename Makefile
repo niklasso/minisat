@@ -8,6 +8,16 @@ all:	r lr lsh
 
 -include config.mk
 
+
+UNAME := $(shell uname)
+
+ifeq ($(UNAME),Darwin)
+	SONAME := -install_name
+else
+	STATIC := -static
+	SONAME := -soname
+endif
+
 ## Configurable options ###########################################################################
 
 # Directory to store object files, libraries, executables, and dependencies:
@@ -18,7 +28,7 @@ MINISAT_RELSYM ?= -g
 
 # Sets of compile flags for different build types
 MINISAT_REL    ?= -O3 -D NDEBUG
-MINISAT_DEB    ?= -O0 -D DEBUG 
+MINISAT_DEB    ?= -O0 -D DEBUG
 MINISAT_PRF    ?= -O3 -D NDEBUG
 MINISAT_FPIC   ?= -fpic
 
@@ -96,9 +106,9 @@ $(BUILD_DIR)/dynamic/%.o:			MINISAT_CXXFLAGS +=$(MINISAT_REL) $(MINISAT_FPIC)
 
 ## Build-type Link-flags:
 $(BUILD_DIR)/profile/bin/$(MINISAT):		MINISAT_LDFLAGS += -pg
-$(BUILD_DIR)/release/bin/$(MINISAT):		MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
+$(BUILD_DIR)/release/bin/$(MINISAT):		MINISAT_LDFLAGS += $(STATIC) $(MINISAT_RELSYM)
 $(BUILD_DIR)/profile/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += -pg
-$(BUILD_DIR)/release/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
+$(BUILD_DIR)/release/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += $(STATIC) $(MINISAT_RELSYM)
 
 ## Executable dependencies
 $(BUILD_DIR)/release/bin/$(MINISAT):	 	$(BUILD_DIR)/release/minisat/simp/Main.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
@@ -162,7 +172,7 @@ $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB):
 	$(ECHO) Linking Shared Library: $@
 	$(VERB) mkdir -p $(dir $@)
-	$(VERB) $(CXX) $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@ -shared -Wl,-soname,$(MINISAT_DLIB).$(SOMAJOR) $^
+	$(VERB) $(CXX) $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@ -shared -Wl,$(SONAME),$(MINISAT_DLIB).$(SOMAJOR) $^
 	$(VERB) ln -sf $(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)
 	$(VERB) ln -sf $(MINISAT_DLIB).$(SOMAJOR) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
 
