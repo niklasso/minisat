@@ -41,10 +41,10 @@ static void SIGINT_interrupt(int) { solver->interrupt(); }
 // destructors and may cause deadlocks if a malloc/free function happens to be running (these
 // functions are guarded by locks for multithreaded use).
 static void SIGINT_exit(int) {
-    printf("\n"); printf("*** INTERRUPTED ***\n");
+    fprintf(stderr, "\n"); fprintf(stderr, "*** INTERRUPTED ***\n");
     if (solver->verbosity > 0){
         solver->printStats();
-        printf("\n"); printf("*** INTERRUPTED ***\n"); }
+        fprintf(stderr, "\n"); fprintf(stderr, "*** INTERRUPTED ***\n"); }
     _exit(1); }
 
 
@@ -82,28 +82,38 @@ int main(int argc, char** argv)
         if (mem_lim != 0) limitMemory(mem_lim);
         
         if (argc == 1)
-            printf("Reading from standard input... Use '--help' for help.\n");
-        
-        gzFile in = (argc == 1) ? gzdopen(0, "rb") : gzopen(argv[1], "rb");
+            fprintf(stderr, "Reading from standard input... Use '--help' for help.\n");
+       
+        gzFile in; 
+        bool is_stdin = false;
+        if (argc == 1 || strcmp(argv[1], "-") == 0) {
+            in = gzdopen(0, "rb");
+            is_stdin = true;
+        }
+        else
+            in = gzopen(argv[1], "rb");
+	
         if (in == NULL)
-            printf("ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
+            fprintf(stderr, "ERROR! Could not open file: %s\n", is_stdin ? "<stdin>" : argv[1]), exit(1);
         
         if (S.verbosity > 0){
-            printf("============================[ Problem Statistics ]=============================\n");
-            printf("|                                                                             |\n"); }
+            fprintf(stderr, "============================[ Problem Statistics ]=============================\n");
+            fprintf(stderr, "|                                                                             |\n"); }
         
         parse_DIMACS(in, S, (bool)strictp);
         gzclose(in);
-        FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
+        FILE* res = NULL;
+        if (argc >= 3)
+            res = (strcmp(argv[2], "-") == 0) ? stdout : fopen(argv[2], "wb");
         
         if (S.verbosity > 0){
-            printf("|  Number of variables:  %12d                                         |\n", S.nVars());
-            printf("|  Number of clauses:    %12d                                         |\n", S.nClauses()); }
+            fprintf(stderr, "|  Number of variables:  %12d                                         |\n", S.nVars());
+            fprintf(stderr, "|  Number of clauses:    %12d                                         |\n", S.nClauses()); }
         
         double parsed_time = cpuTime();
         if (S.verbosity > 0){
-            printf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
-            printf("|                                                                             |\n"); }
+            fprintf(stderr, "|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
+            fprintf(stderr, "|                                                                             |\n"); }
  
         // Change to signal-handlers that will only notify the solver and allow it to terminate
         // voluntarily:
@@ -112,11 +122,11 @@ int main(int argc, char** argv)
         if (!S.simplify()){
             if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
             if (S.verbosity > 0){
-                printf("===============================================================================\n");
-                printf("Solved by unit propagation\n");
+                fprintf(stderr, "===============================================================================\n");
+                fprintf(stderr, "Solved by unit propagation\n");
                 S.printStats();
-                printf("\n"); }
-            printf("UNSATISFIABLE\n");
+                fprintf(stderr, "\n"); }
+            fprintf(stderr, "UNSATISFIABLE\n");
             exit(20);
         }
         
@@ -124,8 +134,8 @@ int main(int argc, char** argv)
         lbool ret = S.solveLimited(dummy);
         if (S.verbosity > 0){
             S.printStats();
-            printf("\n"); }
-        printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
+            fprintf(stderr, "\n"); }
+        fprintf(stderr, ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
         if (res != NULL){
             if (ret == l_True){
                 fprintf(res, "SAT\n");
@@ -146,8 +156,8 @@ int main(int argc, char** argv)
         return (ret == l_True ? 10 : ret == l_False ? 20 : 0);
 #endif
     } catch (OutOfMemoryException&){
-        printf("===============================================================================\n");
-        printf("INDETERMINATE\n");
+        fprintf(stderr, "===============================================================================\n");
+        fprintf(stderr, "INDETERMINATE\n");
         exit(0);
     }
 }
