@@ -18,6 +18,12 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
+// It seems that we trigger a compiler bug in MinGW in the code below, so
+// turn off the optimisations for now
+#if defined(__MINGW32__)
+#pragma GCC optimize "O0"
+#endif
+
 #include <math.h>
 
 #include "minisat/mtl/Alg.h"
