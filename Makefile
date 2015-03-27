@@ -191,9 +191,9 @@ install-lib: $(BUILD_DIR)/release/lib/$(MINISAT_SLIB) $(BUILD_DIR)/dynamic/lib/$
 	ln -sf $(MINISAT_DLIB).$(SOMAJOR) $(DESTDIR)$(libdir)/$(MINISAT_DLIB)
 	$(INSTALL) -m 644 $(BUILD_DIR)/release/lib/$(MINISAT_SLIB) $(DESTDIR)$(libdir)
 
-install-bin: $(BUILD_DIR)/dynamic/bin/$(MINISAT)
+install-bin: $(BUILD_DIR)/release/bin/$(MINISAT)
 	$(INSTALL) -d $(DESTDIR)$(bindir)
-	$(INSTALL) -m 755 $(BUILD_DIR)/dynamic/bin/$(MINISAT) $(DESTDIR)$(bindir)
+	$(INSTALL) -m 755 $(BUILD_DIR)/release/bin/$(MINISAT) $(DESTDIR)$(bindir)
 
 clean:
 	rm -f $(foreach t, release debug profile dynamic, $(foreach o, $(SRCS:.cc=.o), $(BUILD_DIR)/$t/$o)) \
