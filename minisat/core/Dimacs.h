@@ -24,6 +24,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <stdio.h>
 
 #include "minisat/utils/ParseUtils.h"
+#include "minisat/utils/StreamBuffer.h"
 #include "minisat/core/SolverTypes.h"
 
 namespace Minisat {
