@@ -31,6 +31,41 @@ include_directories(${ZLIB_INCLUDE_DIR})
 include_directories(${minisat_SOURCE_DIR})
 
 #--------------------------------------------------------------------------------------------------
+# Optimization:
+
+# Change the default build type from Debug to Release, while still
+# supporting overriding the build type.
+if (NOT CMAKE_BUILD_TYPE)
+  message("-- No build type specified; defaulting to CMAKE_BUILD_TYPE=Release.")
+  set(CMAKE_BUILD_TYPE Release CACHE STRING
+    "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+    FORCE)
+endif (NOT CMAKE_BUILD_TYPE)
+
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+  add_definitions(-DNDEBUG)
+
+  if (CMAKE_COMPILER_IS_GNUCXX)
+      message("-- Optimizing for release mode.")
+      # Linux
+      if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+        message("-- Linux")
+        add_definitions("-march=native -mtune=native")
+      endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+      # Cygwin
+      if (${CMAKE_SYSTEM_NAME} STREQUAL "CYGWIN")
+        message("-- Cygwin")
+        add_definitions("-march=native -mtune=native")
+      endif (${CMAKE_SYSTEM_NAME} STREQUAL "CYGWIN")
+      # Mac OS X
+      if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        message("-- MacOS")
+        add_definitions("-fast -msse3")
+      endif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  endif (CMAKE_COMPILER_IS_GNUCXX)
+endif (CMAKE_BUILD_TYPE STREQUAL "Release")
+
+#--------------------------------------------------------------------------------------------------
 # Compile flags:
 
 add_definitions(-D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
