@@ -62,8 +62,6 @@ build_script:
 
   # minisat
   - cd C:\projects\minisat
-  - cd minisat
-  - echo %cd%
   - mkdir build
   - mkdir myinstall
   - cd build
