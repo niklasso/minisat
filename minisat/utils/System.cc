@@ -77,7 +77,7 @@ double Minisat::memUsed() {
     struct rusage ru;
     getrusage(RUSAGE_SELF, &ru);
     return (double)ru.ru_maxrss / 1024; }
-double Minisat::memUsedPeak() { return memUsed(); }
+double Minisat::memUsedPeak(bool strictlyPeak) { return memUsed(); }
 
 
 #elif defined(__APPLE__)
@@ -91,7 +91,7 @@ double Minisat::memUsedPeak() { return memUsed(); }
 
 #else
 double Minisat::memUsed()     { return 0; }
-double Minisat::memUsedPeak() { return 0; }
+double Minisat::memUsedPeak(bool strictlyPeak) { return 0; }
 #endif
 
 
