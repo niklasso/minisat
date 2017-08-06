@@ -32,12 +32,19 @@ Configuration
 ================================================================================
 Building
 
-  [ TODO: describe seperate build modes ]
+  make all (the default if no target is provided): build static/shared library
+            and executable minisat_core/minisat
+  make install: make install + cp libminisat.a /usr/local/lib/libminisat.a
 
 ================================================================================
 Install
 
-  [ TODO: ? ]
+  ```
+    mkdir build
+    cd build
+    cmake ..
+    make
+  ```
 
 ================================================================================
 Directory Overview:
