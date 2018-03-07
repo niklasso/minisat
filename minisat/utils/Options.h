@@ -290,7 +290,7 @@ class Int64Option : public Option
         else
             fprintf(stderr, "%4" PRIi64, range.end);
 
-        fprintf(stderr, "] (default: %" PRIi64")\n", value);
+        fprintf(stderr, "] (default: %" PRIi64 ")\n", value);
         if (verbose){
             fprintf(stderr, "\n        %s\n", description);
             fprintf(stderr, "\n");
