@@ -101,7 +101,7 @@ void Minisat::setX86FPUPrecision()
     // Only correct FPU precision on Linux architectures that needs and supports it:
     fpu_control_t oldcw, newcw;
     _FPU_GETCW(oldcw); newcw = (oldcw & ~_FPU_EXTENDED) | _FPU_DOUBLE; _FPU_SETCW(newcw);
-    printf("WARNING: for repeatability, setting FPU to use double precision\n");
+    printf("c WARNING: for repeatability, setting FPU to use double precision\n");
 #endif
 }
 
