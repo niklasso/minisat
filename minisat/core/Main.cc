@@ -66,6 +66,7 @@ int main(int argc, char** argv)
         IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", 0, IntRange(0, INT32_MAX));
         IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", 0, IntRange(0, INT32_MAX));
         BoolOption   strictp("MAIN", "strict", "Validate DIMACS header during parsing.", false);
+        BoolOption   model  ("MAIN", "model", "Print the values for the model in case of satisfiable.", true);
         
         parseOptions(argc, argv, true);
 
@@ -128,7 +129,7 @@ int main(int argc, char** argv)
             S.printStats();
             printf("\n"); }
         printf(ret == l_True ? "s SATISFIABLE\n" : ret == l_False ? "s UNSATISFIABLE\n" : "s UNKNOWN\n");
-        if (ret == l_True){
+        if (ret == l_True && model){
                 std::stringstream s;
                 for (int i = 0; i < S.nVars(); i++)
                     s << ((S.model[i]==l_True)?i+1:-i-1) << " ";
