@@ -68,13 +68,15 @@ int main(int argc, char** argv)
         IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", 0, IntRange(0, INT32_MAX));
         IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", 0, IntRange(0, INT32_MAX));
         BoolOption   strictp("MAIN", "strict", "Validate DIMACS header during parsing.", false);
-        BoolOption   model  ("MAIN", "model", "Print the values for the model in case of satisfiable.", true);
+        BoolOption   model  ("MAIN", "model",  "Print the values for the model in case of satisfiable.", true);
+        StringOption proof  ("MAIN", "proof",  "Given a filename, a DRAT proof will be written there.");
 
         parseOptions(argc, argv, true);
         
         SimpSolver  S;
         double      initial_time = cpuTime();
 
+        S.parsing = 1;
         if (!pre) S.eliminate(true);
 
         S.verbosity = verb;
@@ -99,6 +101,12 @@ int main(int argc, char** argv)
             printf("============================[ Problem Statistics ]=============================\n");
             printf("|                                                                             |\n"); }
         
+        if((const char *)proof)
+            if(!S.openProofFile((const char *)proof)){
+                printf("ERROR! Could not open proof file: %s\n", (const char *)proof);
+                exit(1);
+            }
+
         parse_DIMACS(in, S, (bool)strictp);
         gzclose(in);
         FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
@@ -115,6 +123,7 @@ int main(int argc, char** argv)
         // voluntarily:
         sigTerm(SIGINT_interrupt);
 
+        S.parsing = 0;
         S.eliminate(true);
         double simplified_time = cpuTime();
         if (S.verbosity > 0){
@@ -122,6 +131,7 @@ int main(int argc, char** argv)
             printf("|                                                                             |\n"); }
 
         if (!S.okay()){
+            S.finalizeProof(true);
             if (res != NULL) fprintf(res, "s UNSATISFIABLE\n"), fclose(res);
             if (S.verbosity > 0){
                 printf("===============================================================================\n");
@@ -153,6 +163,9 @@ int main(int argc, char** argv)
                     s << ((S.model[i]==l_True)?i+1:-i-1) << " ";
                 printf("v %s0\n", s.str().c_str());
         }
+
+        S.finalizeProof(ret == l_False);
+
         if (res != NULL){
             if (ret == l_True){
                 fprintf(res, "s SATISFIABLE\n");
