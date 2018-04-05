@@ -44,7 +44,8 @@ static DoubleOption opt_simp_garbage_frac(_cat, "simp-gc-frac", "The fraction of
 
 
 SimpSolver::SimpSolver() :
-    grow               (opt_grow)
+    parsing            (0)
+  , grow               (opt_grow)
   , clause_lim         (opt_clause_lim)
   , subsumption_lim    (opt_subsumption_lim)
   , simp_garbage_frac  (opt_simp_garbage_frac)
@@ -160,6 +161,8 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
     if (!Solver::addClause_(ps))
         return false;
 
+    if(!parsing) extendProof(ps);
+
     if (use_simplification && clauses.size() == nclauses + 1){
         CRef          cr = clauses.last();
         const Clause& c  = ca[cr];
@@ -210,10 +213,14 @@ bool SimpSolver::strengthenClause(CRef cr, Lit l)
     // if (!find(subsumption_queue, &c))
     subsumption_queue.insert(cr);
 
+    extendProof(c);
+
     if (c.size() == 2){
         removeClause(cr);
         c.strengthen(l);
     }else{
+        extendProof(c, true);
+
         detachClause(cr, true);
         c.strengthen(l);
         attachClause(cr);

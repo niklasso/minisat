@@ -107,6 +107,8 @@ Solver::Solver() :
   , conflict_budget    (-1)
   , propagation_budget (-1)
   , asynch_interrupt   (false)
+
+  , proofFile          (0)
 {}
 
 
@@ -164,13 +166,30 @@ bool Solver::addClause_(vec<Lit>& ps)
 
     // Check if clause is satisfied and remove false/duplicate literals:
     sort(ps);
-    Lit p; int i, j;
+    Lit p; int i, j, modifiedClause = 0;
+
+    // copy the input clause and check whether it has to be replaced
+    if(proofFile){
+        proofTmp.clear();
+        for (i = j = 0, p = lit_Undef; i < ps.size(); i++) {
+            proofTmp.push(ps[i]);
+            if (value(ps[i]) == l_True || ps[i] == ~ps[i-1 < 0 ? 0 : i-1] || value(ps[i]) == l_False)
+                modifiedClause = 1;
+        }
+    }
+
     for (i = j = 0, p = lit_Undef; i < ps.size(); i++)
         if (value(ps[i]) == l_True || ps[i] == ~p)
             return true;
         else if (value(ps[i]) != l_False && ps[i] != p)
             ps[j++] = p = ps[i];
     ps.shrink(i - j);
+
+    // add this clause to the proof, in case it's modified
+    if (modifiedClause) {
+        extendProof(ps);
+        extendProof(proofTmp, true);
+    }
 
     if (ps.size() == 0)
         return ok = false;
@@ -217,6 +236,9 @@ void Solver::detachClause(CRef cr, bool strict){
 
 void Solver::removeClause(CRef cr) {
     Clause& c = ca[cr];
+
+    extendProof(c, true);
+
     detachClause(cr);
     // Don't leave pointers to free'd memory!
     if (locked(c)) vardata[var(c[0])].reason = CRef_Undef;
@@ -734,6 +756,8 @@ lbool Solver::search(int nof_conflicts)
                 uncheckedEnqueue(learnt_clause[0], cr);
             }
 
+            extendProof(learnt_clause);
+
             varDecayActivity();
             claDecayActivity();
 
@@ -1069,4 +1093,26 @@ void Solver::garbageCollect()
         printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", 
                ca.size()*ClauseAllocator::Unit_Size, to.size()*ClauseAllocator::Unit_Size);
     to.moveTo(ca);
+}
+
+
+bool Solver::openProofFile(const char *path)
+{
+    if(proofFile) return false;
+
+    proofFile = fopen(path, "wb");
+    if(proofFile == 0) return false;
+
+    fprintf(proofFile, "o proof DRUP\n");
+    return true;
+}
+
+bool Solver::finalizeProof(const bool addEmpty)
+{
+    if(!proofFile) return true;
+
+    if(addEmpty) fprintf(proofFile, "0\n");
+
+    if(fclose(proofFile) != 0) return false;
+    return true;
 }
