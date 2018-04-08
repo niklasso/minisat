@@ -43,10 +43,10 @@ static void SIGINT_interrupt(int) { solver->interrupt(); }
 // destructors and may cause deadlocks if a malloc/free function happens to be running (these
 // functions are guarded by locks for multithreaded use).
 static void SIGINT_exit(int) {
-    printf("\n"); printf("*** INTERRUPTED ***\n");
+    printf("c \n"); printf("c *** INTERRUPTED ***\n");
     if (solver->verbosity > 0){
         solver->printStats();
-        printf("\n"); printf("*** INTERRUPTED ***\n"); }
+        printf("c \n"); printf("c *** INTERRUPTED ***\n"); }
     _exit(1); }
 
 
@@ -86,19 +86,19 @@ int main(int argc, char** argv)
         if (mem_lim != 0) limitMemory(mem_lim);
         
         if (argc == 1)
-            printf("Reading from standard input... Use '--help' for help.\n");
+            printf("c Reading from standard input... Use '--help' for help.\n");
         
         gzFile in = (argc == 1) ? gzdopen(0, "rb") : gzopen(argv[1], "rb");
         if (in == NULL)
-            printf("ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
+            printf("c ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
         
         if (S.verbosity > 0){
-            printf("============================[ Problem Statistics ]=============================\n");
-            printf("|                                                                             |\n"); }
+            printf("c ============================[ Problem Statistics ]=============================\n");
+            printf("c |                                                                             |\n"); }
         
         if((const char *)proof)
             if(!S.openProofFile((const char *)proof)){
-                printf("ERROR! Could not open proof file: %s\n", (const char *)proof);
+                printf("c ERROR! Could not open proof file: %s\n", (const char *)proof);
                 exit(1);
             }
 
@@ -107,13 +107,13 @@ int main(int argc, char** argv)
         FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
         
         if (S.verbosity > 0){
-            printf("|  Number of variables:  %12d                                         |\n", S.nVars());
-            printf("|  Number of clauses:    %12d                                         |\n", S.nClauses()); }
+            printf("c |  Number of variables:  %12d                                         |\n", S.nVars());
+            printf("c |  Number of clauses:    %12d                                         |\n", S.nClauses()); }
         
         double parsed_time = cpuTime();
         if (S.verbosity > 0){
-            printf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
-            printf("|                                                                             |\n"); }
+            printf("c |  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
+            printf("c |                                                                             |\n"); }
  
         // Change to signal-handlers that will only notify the solver and allow it to terminate
         // voluntarily:
@@ -123,10 +123,10 @@ int main(int argc, char** argv)
             S.finalizeProof(true);
             if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
             if (S.verbosity > 0){
-                printf("===============================================================================\n");
-                printf("Solved by unit propagation\n");
+                printf("c ===============================================================================\n");
+                printf("c Solved by unit propagation\n");
                 S.printStats();
-                printf("\n"); }
+                printf("c \n"); }
             printf("s UNSATISFIABLE\n");
             exit(20);
         }
@@ -135,7 +135,7 @@ int main(int argc, char** argv)
         lbool ret = S.solveLimited(dummy);
         if (S.verbosity > 0){
             S.printStats();
-            printf("\n"); }
+            printf("c \n"); }
         printf(ret == l_True ? "s SATISFIABLE\n" : ret == l_False ? "s UNSATISFIABLE\n" : "s UNKNOWN\n");
         S.finalizeProof(ret == l_False);
         if (ret == l_True && model){
