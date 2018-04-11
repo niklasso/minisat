@@ -107,6 +107,8 @@ Solver::Solver() :
   , conflict_budget    (-1)
   , propagation_budget (-1)
   , asynch_interrupt   (false)
+
+  , proofFile          (0)
 {}
 
 
@@ -164,13 +166,30 @@ bool Solver::addClause_(vec<Lit>& ps)
 
     // Check if clause is satisfied and remove false/duplicate literals:
     sort(ps);
-    Lit p; int i, j;
+    Lit p; int i, j, modifiedClause = 0;
+
+    // copy the input clause and check whether it has to be replaced
+    if(proofFile){
+        proofTmp.clear();
+        for (i = j = 0, p = lit_Undef; i < ps.size(); i++) {
+            proofTmp.push(ps[i]);
+            if (value(ps[i]) == l_True || ps[i] == ~ps[i-1 < 0 ? 0 : i-1] || value(ps[i]) == l_False)
+                modifiedClause = 1;
+        }
+    }
+
     for (i = j = 0, p = lit_Undef; i < ps.size(); i++)
         if (value(ps[i]) == l_True || ps[i] == ~p)
             return true;
         else if (value(ps[i]) != l_False && ps[i] != p)
             ps[j++] = p = ps[i];
     ps.shrink(i - j);
+
+    // add this clause to the proof, in case it's modified
+    if (modifiedClause) {
+        extendProof(ps);
+        extendProof(proofTmp, true);
+    }
 
     if (ps.size() == 0)
         return ok = false;
@@ -217,6 +236,9 @@ void Solver::detachClause(CRef cr, bool strict){
 
 void Solver::removeClause(CRef cr) {
     Clause& c = ca[cr];
+
+    extendProof(c, true);
+
     detachClause(cr);
     // Don't leave pointers to free'd memory!
     if (locked(c)) vardata[var(c[0])].reason = CRef_Undef;
@@ -734,6 +756,8 @@ lbool Solver::search(int nof_conflicts)
                 uncheckedEnqueue(learnt_clause[0], cr);
             }
 
+            extendProof(learnt_clause);
+
             varDecayActivity();
             claDecayActivity();
 
@@ -743,7 +767,7 @@ lbool Solver::search(int nof_conflicts)
                 max_learnts             *= learntsize_inc;
 
                 if (verbosity >= 1)
-                    printf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", 
+                    printf("c | %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n",
                            (int)conflicts, 
                            (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals, 
                            (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progressEstimate()*100);
@@ -859,10 +883,10 @@ lbool Solver::solve_()
     lbool   status            = l_Undef;
 
     if (verbosity >= 1){
-        printf("============================[ Search Statistics ]==============================\n");
-        printf("| Conflicts |          ORIGINAL         |          LEARNT          | Progress |\n");
-        printf("|           |    Vars  Clauses Literals |    Limit  Clauses Lit/Cl |          |\n");
-        printf("===============================================================================\n");
+        printf("c ============================[ Search Statistics ]==============================\n");
+        printf("c | Conflicts |          ORIGINAL         |          LEARNT          | Progress |\n");
+        printf("c |           |    Vars  Clauses Literals |    Limit  Clauses Lit/Cl |          |\n");
+        printf("c ===============================================================================\n");
     }
 
     // Search:
@@ -875,7 +899,7 @@ lbool Solver::solve_()
     }
 
     if (verbosity >= 1)
-        printf("===============================================================================\n");
+        printf("c ===============================================================================\n");
 
 
     if (status == l_True){
@@ -990,7 +1014,7 @@ void Solver::toDimacs(FILE* f, const vec<Lit>& assumps)
         toDimacs(f, ca[clauses[i]], map, max);
 
     if (verbosity > 0)
-        printf("Wrote DIMACS with %d variables and %d clauses.\n", max, cnt);
+        printf("c Wrote DIMACS with %d variables and %d clauses.\n", max, cnt);
 }
 
 
@@ -998,13 +1022,13 @@ void Solver::printStats() const
 {
     double cpu_time = cpuTime();
     double mem_used = memUsedPeak();
-    printf("restarts              : %" PRIu64"\n", starts);
-    printf("conflicts             : %-12" PRIu64"   (%.0f /sec)\n", conflicts   , conflicts   /cpu_time);
-    printf("decisions             : %-12" PRIu64"   (%4.2f %% random) (%.0f /sec)\n", decisions, (float)rnd_decisions*100 / (float)decisions, decisions   /cpu_time);
-    printf("propagations          : %-12" PRIu64"   (%.0f /sec)\n", propagations, propagations/cpu_time);
-    printf("conflict literals     : %-12" PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
-    if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
-    printf("CPU time              : %g s\n", cpu_time);
+    printf("c restarts              : %" PRIu64"\n", starts);
+    printf("c conflicts             : %-12" PRIu64"   (%.0f /sec)\n", conflicts   , conflicts   /cpu_time);
+    printf("c decisions             : %-12" PRIu64"   (%4.2f %% random) (%.0f /sec)\n", decisions, (float)rnd_decisions*100 / (float)decisions, decisions   /cpu_time);
+    printf("c propagations          : %-12" PRIu64"   (%.0f /sec)\n", propagations, propagations/cpu_time);
+    printf("c conflict literals     : %-12" PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
+    if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
+    printf("c CPU time              : %g s\n", cpu_time);
 }
 
 
@@ -1066,7 +1090,29 @@ void Solver::garbageCollect()
 
     relocAll(to);
     if (verbosity >= 2)
-        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", 
+        printf("c |  Garbage collection:   %12d bytes => %12d bytes             |\n",
                ca.size()*ClauseAllocator::Unit_Size, to.size()*ClauseAllocator::Unit_Size);
     to.moveTo(ca);
+}
+
+
+bool Solver::openProofFile(const char *path)
+{
+    if(proofFile) return false;
+
+    proofFile = fopen(path, "wb");
+    if(proofFile == 0) return false;
+
+    fprintf(proofFile, "o proof DRUP\n");
+    return true;
+}
+
+bool Solver::finalizeProof(const bool addEmpty)
+{
+    if(!proofFile) return true;
+
+    if(addEmpty) fprintf(proofFile, "0\n");
+
+    if(fclose(proofFile) != 0) return false;
+    return true;
 }

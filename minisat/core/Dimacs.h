@@ -62,7 +62,7 @@ static void parse_DIMACS_main(B& in, Solver& S, bool strictp = false) {
                 // if (clauses > 4000000)
                 //     S.eliminate(true);
             }else{
-                printf("PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
+                printf("c PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
             }
         } else if (*in == 'c' || *in == 'p')
             skipLine(in);
@@ -72,7 +72,7 @@ static void parse_DIMACS_main(B& in, Solver& S, bool strictp = false) {
             S.addClause_(lits); }
     }
     if (strictp && cnt != clauses)
-        printf("PARSE ERROR! DIMACS header mismatch: wrong number of clauses\n");
+        printf("c PARSE ERROR! DIMACS header mismatch: wrong number of clauses\n");
 }
 
 // Inserts problem into solver.

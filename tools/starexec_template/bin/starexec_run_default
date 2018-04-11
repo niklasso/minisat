@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# call solver from the directory where this script is located
+SOLVERDIR="$(dirname "${BASH_SOURCE[0]}" )"
+
+# call the solver without a special configuration, no proof will be generated
+"$SOLVERDIR"/minisat $1 -verb=0

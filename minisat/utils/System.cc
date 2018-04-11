@@ -41,7 +41,7 @@ static inline int memReadStat(int field)
 
     for (; field >= 0; field--)
         if (fscanf(in, "%d", &value) != 1)
-            printf("ERROR! Failed to parse memory statistics from \"/proc\".\n"), exit(1);
+            printf("c ERROR! Failed to parse memory statistics from \"/proc\".\n"), exit(1);
     fclose(in);
     return value;
 }
@@ -101,7 +101,7 @@ void Minisat::setX86FPUPrecision()
     // Only correct FPU precision on Linux architectures that needs and supports it:
     fpu_control_t oldcw, newcw;
     _FPU_GETCW(oldcw); newcw = (oldcw & ~_FPU_EXTENDED) | _FPU_DOUBLE; _FPU_SETCW(newcw);
-    printf("WARNING: for repeatability, setting FPU to use double precision\n");
+    printf("c WARNING: for repeatability, setting FPU to use double precision\n");
 #endif
 }
 
@@ -122,7 +122,7 @@ void Minisat::limitMemory(uint64_t max_mem_mb)
         if (rl.rlim_max == RLIM_INFINITY || new_mem_lim < rl.rlim_max){
             rl.rlim_cur = new_mem_lim;
             if (setrlimit(RLIMIT_AS, &rl) == -1)
-                printf("WARNING! Could not set resource limit: Virtual memory.\n");
+                printf("c WARNING! Could not set resource limit: Virtual memory.\n");
         }
     }
 
@@ -133,7 +133,7 @@ void Minisat::limitMemory(uint64_t max_mem_mb)
 #else
 void Minisat::limitMemory(uint64_t /*max_mem_mb*/)
 {
-    printf("WARNING! Memory limit not supported on this architecture.\n");
+    printf("c WARNING! Memory limit not supported on this architecture.\n");
 }
 #endif
 
@@ -147,14 +147,14 @@ void Minisat::limitTime(uint32_t max_cpu_time)
         if (rl.rlim_max == RLIM_INFINITY || (rlim_t)max_cpu_time < rl.rlim_max){
             rl.rlim_cur = max_cpu_time;
             if (setrlimit(RLIMIT_CPU, &rl) == -1)
-                printf("WARNING! Could not set resource limit: CPU-time.\n");
+                printf("c WARNING! Could not set resource limit: CPU-time.\n");
         }
     }
 }
 #else
 void Minisat::limitTime(uint32_t /*max_cpu_time*/)
 {
-    printf("WARNING! CPU-time limit not supported on this architecture.\n");
+    printf("c WARNING! CPU-time limit not supported on this architecture.\n");
 }
 #endif
 

@@ -28,6 +28,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "minisat/utils/Options.h"
 #include "minisat/core/SolverTypes.h"
 
+#include <sstream>
 
 namespace Minisat {
 
@@ -122,6 +123,10 @@ public:
     vec<lbool> model;             // If problem is satisfiable, this vector contains the model (if any).
     LSet       conflict;          // If problem is unsatisfiable (possibly under assumptions),
                                   // this vector represent the final conflict clause expressed in the assumptions.
+
+    // DRAT proof:
+    bool      openProofFile(const char * path);           // Open the given path to write the proof to. Return success.
+    bool      finalizeProof(const bool addEmpty = false); // Close the proof file, if open. Add an empty clause, if requested. Return success.
 
     // Mode of operation:
     //
@@ -271,6 +276,13 @@ protected:
     bool     locked           (const Clause& c) const; // Returns TRUE if a clause is a reason for some implication in the current state.
     bool     satisfied        (const Clause& c) const; // Returns TRUE if a clause is satisfied in the current state.
 
+    // DRAT proof:
+    FILE*     proofFile;          // File handle for the file the proof is written to
+    vec<Lit>  proofTmp;           // Temporary literals for handling proof extension
+
+    template <class T>
+    void      extendProof(const T& clause, bool remove = false); // Extend the proof - if open - with the given clause, and extend with 'd ' if requested
+
     // Misc:
     //
     int      decisionLevel    ()      const; // Gives the current decisionlevel.
@@ -398,6 +410,19 @@ inline void     Solver::toDimacs     (const char* file, Lit p){ vec<Lit> as; as.
 inline void     Solver::toDimacs     (const char* file, Lit p, Lit q){ vec<Lit> as; as.push(p); as.push(q); toDimacs(file, as); }
 inline void     Solver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.push(p); as.push(q); as.push(r); toDimacs(file, as); }
 
+template <class T>
+inline void     Solver::extendProof  (const T& clause, bool remove) {
+    if(!proofFile) return;
+
+    std::stringstream s;
+    if (remove)
+        s << "d ";
+
+    for (int i = 0; i < clause.size(); i++)
+        s << (var(clause[i]) + 1) * (-2 * sign(clause[i]) + 1) << " ";
+
+    fprintf(proofFile, "%s0\n", s.str().c_str());
+}
 
 //=================================================================================================
 // Debug etc:

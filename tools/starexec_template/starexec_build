@@ -1,0 +1,6 @@
+#!/bin/bash
+
+#make minisat
+cd minisat
+make 2>&1
+cp build/release/bin/minisat ../bin/

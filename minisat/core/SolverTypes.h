@@ -415,7 +415,7 @@ class CMap
 
     // TMP debug:
     void debug(){
-        printf(" --- size = %d, bucket_count = %d\n", size(), map.bucket_count()); }
+        printf("c  --- size = %d, bucket_count = %d\n", size(), map.bucket_count()); }
 };
 
 
