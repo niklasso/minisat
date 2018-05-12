@@ -46,6 +46,7 @@ public:
     // Problem specification:
     //
     Var     newVar    (lbool upol = l_Undef, bool dvar = true); // Add a new variable with parameters specifying variable mode.
+    void    reserveVars(Var v);                                 // Reserve space for many variables in continuous fashion.
     void    releaseVar(Lit l);                                  // Make literal true and promise to never refer to variable again.
 
     bool    addClause (const vec<Lit>& ps);                     // Add a clause to the solver. 

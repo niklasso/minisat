@@ -147,6 +147,20 @@ Var Solver::newVar(lbool upol, bool dvar)
     return v;
 }
 
+void Solver::reserveVars(Var v)
+{
+    watches  .init(mkLit(v, false));
+    watches  .init(mkLit(v, true));
+
+    assigns  .reserve(v+1);
+    vardata  .reserve(v+1);
+    activity .reserve(v+1);
+    seen     .reserve(v+1);
+    polarity .reserve(v+1);
+    user_pol .reserve(v+1);
+    decision .reserve(v);
+    trail    .capacity(v+1);
+}
 
 // Note: at the moment, only unassigned variable will be released (this is to avoid duplicate
 // releases of the same variable).
