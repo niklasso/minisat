@@ -34,6 +34,8 @@ include_directories(${PROJECT_SOURCE_DIR})
 # Compile flags:
 
 add_definitions(-D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
+add_cxx_flag_if_supported("-Wno-format-nonliteral")
+
 
 
 #--------------------------------------------------------------------------------------------------
