@@ -1117,7 +1117,6 @@ bool Solver::openProofFile(const char *path)
     proofFile = fopen(path, "wb");
     if(proofFile == 0) return false;
 
-    fprintf(proofFile, "o proof DRUP\n");
     return true;
 }
 
