@@ -118,9 +118,15 @@ inline int   toInt  (lbool l) { return l.value; }
 inline lbool toLbool(int   v) { return lbool((uint8_t)v);  }
 
 #if defined(MINISAT_CONSTANTS_AS_MACROS)
+#ifndef l_True
   #define l_True  (lbool((uint8_t)0)) // gcc does not do constant propagation if these are real constants.
+#endif
+#ifndef l_False
   #define l_False (lbool((uint8_t)1))
+#endif
+#ifndef l_Undef
   #define l_Undef (lbool((uint8_t)2))
+#endif
 #else
   const lbool l_True ((uint8_t)0);
   const lbool l_False((uint8_t)1);
