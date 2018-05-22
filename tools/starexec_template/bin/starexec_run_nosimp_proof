@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+# Run minisat without simplification, and emitting a proof.
+# The proof is written to the file in the directory specified in the second
+# argument, in a file called "proof.out".
+
+# call solver from the directory where this script is located
+SOLVERDIR="$(dirname "${BASH_SOURCE[0]}" )"
+
+# call the solver without a special configuration, no proof will be generated
+"$SOLVERDIR"/minisat "$1" -verb=0 -no-pre -proof="$2"/proof.out

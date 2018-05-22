@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Run minisat with simplification, and without emitting a proof.
+# Run minisat without simplification, and without emitting a proof.
 
 # call solver from the directory where this script is located
 SOLVERDIR="$(dirname "${BASH_SOURCE[0]}" )"
 
 # call the solver without a special configuration, no proof will be generated
-"$SOLVERDIR"/minisat "$1" -verb=0
+"$SOLVERDIR"/minisat "$1" -verb=0 -no-pre
