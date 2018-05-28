@@ -248,10 +248,11 @@ void Solver::detachClause(CRef cr, bool strict){
 }
 
 
-void Solver::removeClause(CRef cr) {
+void Solver::removeClause(CRef cr, bool remove_from_proof) {
     Clause& c = ca[cr];
 
-    extendProof(c, true);
+    if(remove_from_proof)
+        extendProof(c, true);
 
     detachClause(cr);
     // Don't leave pointers to free'd memory!

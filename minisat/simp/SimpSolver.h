@@ -165,7 +165,7 @@ class SimpSolver : public Solver {
     bool          eliminateVar             (Var v);
     void          extendModel              ();
 
-    void          removeClause             (CRef cr);
+    void          removeClause             (CRef cr, bool remove_from_proof = true);
     bool          strengthenClause         (CRef cr, Lit l);
     bool          implied                  (const vec<Lit>& c);
     void          relocAll                 (ClauseAllocator& to);

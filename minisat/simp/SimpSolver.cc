@@ -188,7 +188,7 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
 }
 
 
-void SimpSolver::removeClause(CRef cr)
+void SimpSolver::removeClause(CRef cr, bool remove_from_proof)
 {
     const Clause& c = ca[cr];
 
@@ -199,7 +199,7 @@ void SimpSolver::removeClause(CRef cr)
             occurs.smudge(var(c[i]));
         }
 
-    Solver::removeClause(cr);
+    Solver::removeClause(cr, remove_from_proof);
 }
 
 

@@ -271,8 +271,8 @@ protected:
     // Operations on clauses:
     //
     void     attachClause     (CRef cr);               // Attach a clause to watcher lists.
-    void     detachClause     (CRef cr, bool strict = false); // Detach a clause to watcher lists.
-    void     removeClause     (CRef cr);               // Detach and free a clause.
+    void     detachClause     (CRef cr, bool strict = false);           // Detach a clause to watcher lists.
+    void     removeClause     (CRef cr, bool remove_from_proof = true); // Detach and free a clause.
     bool     isRemoved        (CRef cr) const;         // Test if a clause has been removed.
     bool     locked           (const Clause& c) const; // Returns TRUE if a clause is a reason for some implication in the current state.
     bool     satisfied        (const Clause& c) const; // Returns TRUE if a clause is satisfied in the current state.
