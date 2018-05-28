@@ -530,7 +530,7 @@ bool SimpSolver::eliminateVar(Var v)
     }
 
     for (int i = 0; i < cls.size(); i++)
-        removeClause(cls[i]); 
+        removeClause(cls[i], false);
 
     // Produce clauses in cross product:
     vec<Lit>& resolvent = add_tmp;
@@ -538,6 +538,9 @@ bool SimpSolver::eliminateVar(Var v)
         for (int j = 0; j < neg.size(); j++)
             if (merge(ca[pos[i]], ca[neg[j]], v, resolvent) && !addClause_(resolvent))
                 return false;
+
+    for (int i = 0; i < cls.size(); i++)
+        extendProof(ca[cls[i]], true);
 
     // Free occurs list for this variable:
     occurs[v].clear(true);
