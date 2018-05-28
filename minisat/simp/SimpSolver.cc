@@ -213,7 +213,7 @@ bool SimpSolver::strengthenClause(CRef cr, Lit l)
     // if (!find(subsumption_queue, &c))
     subsumption_queue.insert(cr);
 
-    extendProof(c);
+    extendProof(c, false, l);
 
     if (c.size() == 2){
         removeClause(cr);
