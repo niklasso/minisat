@@ -282,7 +282,7 @@ protected:
     vec<Lit>  proofTmp;           // Temporary literals for handling proof extension
 
     template <class T>
-    void      extendProof(const T& clause, bool remove = false); // Extend the proof - if open - with the given clause, and extend with 'd ' if requested
+    void      extendProof(const T& clause, bool remove = false, Lit drop = lit_Undef); // Extend the proof - if open - with the given clause, and extend with 'd ' if requested. Drop the drop literal from the clause, in case it's specified.
 
     // Misc:
     //
@@ -412,7 +412,7 @@ inline void     Solver::toDimacs     (const char* file, Lit p, Lit q){ vec<Lit> 
 inline void     Solver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.push(p); as.push(q); as.push(r); toDimacs(file, as); }
 
 template <class T>
-inline void     Solver::extendProof  (const T& clause, bool remove) {
+inline void     Solver::extendProof  (const T& clause, bool remove, Lit drop) {
     if(!proofFile) return;
 
     std::stringstream s;
@@ -420,7 +420,11 @@ inline void     Solver::extendProof  (const T& clause, bool remove) {
         s << "d ";
 
     for (int i = 0; i < clause.size(); i++)
+    {
+        if(drop == clause[i])
+            continue;
         s << (var(clause[i]) + 1) * (-2 * sign(clause[i]) + 1) << " ";
+    }
 
     fprintf(proofFile, "%s0\n", s.str().c_str());
 }
