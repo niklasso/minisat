@@ -158,10 +158,10 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
     if (use_rcheck && implied(ps))
         return true;
 
+    if(!parsing) extendProof(ps);
+
     if (!Solver::addClause_(ps))
         return false;
-
-    if(!parsing) extendProof(ps);
 
     if (use_simplification && clauses.size() == nclauses + 1){
         CRef          cr = clauses.last();
