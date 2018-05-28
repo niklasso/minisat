@@ -158,10 +158,10 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
     if (use_rcheck && implied(ps))
         return true;
 
+    if(!parsing) extendProof(ps);
+
     if (!Solver::addClause_(ps))
         return false;
-
-    if(!parsing) extendProof(ps);
 
     if (use_simplification && clauses.size() == nclauses + 1){
         CRef          cr = clauses.last();
@@ -188,7 +188,7 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
 }
 
 
-void SimpSolver::removeClause(CRef cr)
+void SimpSolver::removeClause(CRef cr, bool remove_from_proof)
 {
     const Clause& c = ca[cr];
 
@@ -199,7 +199,7 @@ void SimpSolver::removeClause(CRef cr)
             occurs.smudge(var(c[i]));
         }
 
-    Solver::removeClause(cr);
+    Solver::removeClause(cr, remove_from_proof);
 }
 
 
@@ -213,7 +213,7 @@ bool SimpSolver::strengthenClause(CRef cr, Lit l)
     // if (!find(subsumption_queue, &c))
     subsumption_queue.insert(cr);
 
-    extendProof(c);
+    extendProof(c, false, l);
 
     if (c.size() == 2){
         removeClause(cr);
@@ -530,7 +530,7 @@ bool SimpSolver::eliminateVar(Var v)
     }
 
     for (int i = 0; i < cls.size(); i++)
-        removeClause(cls[i]); 
+        removeClause(cls[i], false);
 
     // Produce clauses in cross product:
     vec<Lit>& resolvent = add_tmp;
@@ -538,6 +538,9 @@ bool SimpSolver::eliminateVar(Var v)
         for (int j = 0; j < neg.size(); j++)
             if (merge(ca[pos[i]], ca[neg[j]], v, resolvent) && !addClause_(resolvent))
                 return false;
+
+    for (int i = 0; i < cls.size(); i++)
+        extendProof(ca[cls[i]], true);
 
     // Free occurs list for this variable:
     occurs[v].clear(true);
