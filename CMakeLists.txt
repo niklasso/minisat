@@ -23,6 +23,13 @@ else()
 endif()
 set(MINISAT_SOVERSION ${MINISAT_SOMAJOR})
 
+# Reference specific library paths used during linking for install
+if (POLICY CMP0042)
+  # Enable `MACOSX_RPATH` by default.
+  cmake_policy(SET CMP0042 NEW)
+endif()
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 #--------------------------------------------------------------------------------------------------
 # Dependencies:
 
