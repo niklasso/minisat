@@ -751,6 +751,7 @@ bool Solver::addClause_(vec<Lit>& ps)
 
 void Solver::attachClause(CRef cr) {
     const Clause& c = ca[cr];
+    statistics.solveSteps ++;
     assert(c.size() > 1);
     OccLists<Lit, vec<Watcher>, WatcherDeleted>& ws = c.size() == 2 ? watches_bin : watches;
     ws[~c[0]].push(Watcher(cr, c[1]));
@@ -762,8 +763,11 @@ void Solver::attachClause(CRef cr) {
 void Solver::detachClause(CRef cr, bool strict) {
     const Clause& c = ca[cr];
     assert(c.size() > 1);
+
     OccLists<Lit, vec<Watcher>, WatcherDeleted>& ws = c.size() == 2 ? watches_bin : watches;
-    
+    statistics.solveSteps ++;
+
+    // Strict or lazy detaching:
     if (strict){
         remove(ws[~c[0]], Watcher(cr, c[1]));
         remove(ws[~c[1]], Watcher(cr, c[0]));
@@ -779,6 +783,7 @@ void Solver::detachClause(CRef cr, bool strict) {
 
 void Solver::removeClause(CRef cr) {
     Clause& c = ca[cr];
+    statistics.solveSteps ++;
 
     if (drup_file){
         if (c.mark() != 1){
@@ -991,6 +996,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel, int& ou
     do{
         assert(confl != CRef_Undef); // (otherwise should be UIP)
         Clause& c = ca[confl];
+        statistics.solveSteps ++;
 
         // For binary clauses, we don't rearrange literals in propagate(), so check and make sure the first is an implied lit.
         if (p != lit_Undef && c.size() == 2 && value(c[0]) == l_False){
@@ -1071,6 +1077,8 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel, int& ou
                 out_learnt[j++] = out_learnt[i];
             else{
                 Clause& c = ca[reason(var(out_learnt[i]))];
+
+                statistics.solveSteps ++;
                 for (int k = c.size() == 2 ? 0 : 1; k < c.size(); k++)
                     if (!seen[var(c[k])] && level(var(c[k])) > 0){
                         out_learnt[j++] = out_learnt[i];
@@ -1141,6 +1149,7 @@ bool Solver::binResMinimize(vec<Lit>& out_learnt)
 
     // Get the list of binary clauses containing 'out_learnt[0]'.
     const vec<Watcher>& ws = watches_bin[~out_learnt[0]];
+    statistics.solveSteps ++;
 
     int to_remove = 0;
     for (int i = 0; i < ws.size(); i++){
@@ -1187,6 +1196,7 @@ bool Solver::litRedundant(Lit p, uint32_t abstract_levels)
                     seen[var(p)] = 1;
                     analyze_stack.push(p);
                     analyze_toclear.push(p);
+                    statistics.solveSteps ++;
                 }else{
                     for (int j = top; j < analyze_toclear.size(); j++)
                         seen[var(analyze_toclear[j])] = 0;
@@ -1231,6 +1241,7 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
                 for (int j = c.size() == 2 ? 0 : 1; j < c.size(); j++)
                     if (level(var(c[j])) > 0)
                         seen[var(c[j])] = 1;
+                statistics.solveSteps ++;
             }
             seen[x] = 0;
         }
@@ -1318,6 +1329,7 @@ CRef Solver::propagate()
             // Make sure the false literal is data[1]:
             const CRef     cr        = i->cref;
             Clause&  c         = ca[cr];
+            statistics.solveSteps ++;
             const Lit      false_lit = ~p;
             if (c[0] == false_lit)
                 c[0] = c[1], c[1] = false_lit;
@@ -1428,8 +1440,8 @@ void Solver::reduceDB()
                 c.removable(true);
                 learnts_local[j++] = learnts_local[i]; }
     }
+    statistics.solveSteps += learnts.size();
     learnts_local.shrink(i - j);
-
     checkGarbage();
 }
 void Solver::reduceDB_Tier2()
@@ -1534,6 +1546,7 @@ void Solver::removeSatisfied(vec<CRef>& cs)
         else
             cs[j++] = cs[i];
     }
+    statistics.solveSteps += cs.size();
     cs.shrink(i - j);
 }
 
@@ -1817,6 +1830,7 @@ lbool Solver::search(int& nof_conflicts)
                     learnts_local.push(cr);
                     claBumpActivity(ca[cr]); }
                 attachClause(cr);
+                statistics.solveSteps ++;
 
                 uncheckedEnqueue(learnt_clause[0], backtrack_level, cr);
 #ifdef PRINT_OUT
@@ -1974,6 +1988,8 @@ lbool Solver::solve_()
     if (!ok) return l_False;
 
     solves++;
+
+    double solve_start = cpuTime();
     systematic_branching_state = 1;
 
     max_learnts               = nClauses() * learntsize_factor;
@@ -2039,7 +2055,10 @@ lbool Solver::solve_()
         ok = false;
 
     cancelUntil(0);
+
     systematic_branching_state = 0;
+    statistics.solveSeconds += cpuTime() - solve_start; // stop timer and record time consumed until now
+
     return status;
 }
 
@@ -2148,8 +2167,12 @@ void Solver::relocAll(ClauseAllocator& to)
     for (int i = 0; i < trail.size(); i++){
         Var v = var(trail[i]);
 
-        if (reason(v) != CRef_Undef && (ca[reason(v)].reloced() || locked(ca[reason(v)])))
+        // Note: it is not safe to call 'locked()' on a relocated clause. This is why we keep
+        // 'dangling' reasons here. It is safe and does not hurt.
+        if (reason(v) != CRef_Undef && statistics.solveSteps ++ && (ca[reason(v)].reloced() || locked(ca[reason(v)]))){
+            assert(!isRemoved(reason(v)));
             ca.reloc(vardata[v].reason, to);
+        }
     }
 
     // All learnt:

@@ -219,6 +219,16 @@ public:
     int64_t VSIDS_conflicts;      // conflicts after which we want to switch back to VSIDS
     int64_t VSIDS_propagations;   // propagated literals after which we want to switch back to VSIDS
 
+    /// Single object to hold most statistics
+    struct SolverStats
+    {
+      double simpSeconds, solveSeconds;
+      uint64_t simpSteps, solveSteps;
+
+      SolverStats() : simpSeconds(0), solveSeconds(0), simpSteps(0), solveSteps(0) {}
+
+    } statistics;
+
 protected:
 
     // Helper structures:
