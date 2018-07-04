@@ -45,6 +45,7 @@ static IntOption    opt_grow             (_cat, "grow",         "Allow a variabl
 static IntOption    opt_clause_lim       (_cat, "cl-lim",       "Variables are not eliminated if it produces a resolvent with a length above this limit. -1 means no limit", 20,   IntRange(-1, INT32_MAX));
 static IntOption    opt_subsumption_lim  (_cat, "sub-lim",      "Do not check if subsumption against a clause larger than this. -1 means no limit.", 1000, IntRange(-1, INT32_MAX));
 static DoubleOption opt_simp_garbage_frac(_cat, "simp-gc-frac", "The fraction of wasted memory allowed before a garbage collection is triggered during simplification.",  0.5, DoubleRange(0, false, HUGE_VAL, false));
+static Int64Option  opt_max_simplify_step(_cat, "max-simp-steps","Do not perform more simplification steps than this. -1 means no limit.", -1, Int64Range(-1, INT64_MAX));
 
 
 //=================================================================================================
@@ -57,6 +58,7 @@ SimpSolver::SimpSolver() :
   , clause_lim         (opt_clause_lim)
   , subsumption_lim    (opt_subsumption_lim)
   , simp_garbage_frac  (opt_simp_garbage_frac)
+  , max_simp_steps     (opt_max_simplify_step)
   , use_asymm          (opt_use_asymm)
   , use_rcheck         (opt_use_rcheck)
   , use_elim           (opt_use_elim)
@@ -367,7 +369,7 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
     while (subsumption_queue.size() > 0 || bwdsub_assigns < trail.size()){
 
         // Empty subsumption queue and return immediately on user-interrupt:
-        if (asynch_interrupt){
+        if (asynch_interrupt || !isInSimpLimit()){
             subsumption_queue.clear();
             bwdsub_assigns = trail.size();
             break; }
@@ -738,6 +740,8 @@ bool SimpSolver::eliminate_()
     //
     while (n_touched > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){
 
+        if(!isInSimpLimit()) break;
+
         gatherTouchedClauses();
         // printf("  ## (time = %6.2f s) BWD-SUB: queue = %d, trail = %d\n", cpuTime(), subsumption_queue.size(), trail.size() - bwdsub_assigns);
         if ((subsumption_queue.size() > 0 || bwdsub_assigns < trail.size()) && 
@@ -745,7 +749,7 @@ bool SimpSolver::eliminate_()
             ok = false; goto cleanup; }
 
         // Empty elim_heap and return immediately on user-interrupt:
-        if (asynch_interrupt){
+        if (asynch_interrupt || !isInSimpLimit()){
             assert(bwdsub_assigns == trail.size());
             assert(subsumption_queue.size() == 0);
             assert(n_touched == 0);
@@ -756,7 +760,7 @@ bool SimpSolver::eliminate_()
         for (int cnt = 0; !elim_heap.empty(); cnt++){
             Var elim = elim_heap.removeMin();
             
-            if (asynch_interrupt) break;
+            if (asynch_interrupt || !isInSimpLimit()) break;
 
             if (isEliminated(elim) || value(elim) != l_Undef) continue;
 

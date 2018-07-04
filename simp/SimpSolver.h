@@ -99,6 +99,8 @@ class SimpSolver : public Solver {
                                // -1 means no limit.
     int     subsumption_lim;   // Do not check if subsumption against a clause larger than this. -1 means no limit.
     double  simp_garbage_frac; // A different limit for when to issue a GC during simplification (Also see 'garbage_frac').
+    int64_t max_simp_steps;    // Simplification is stopped if the number of performed steps exceeds this value. -1 means
+                               // no limit.
 
     bool    use_asymm;         // Shrink clauses by asymmetric branching.
     bool    use_rcheck;        // Check if a clause is already implied. Prett costly, and subsumes subsumptions :)
@@ -172,12 +174,13 @@ class SimpSolver : public Solver {
     bool          strengthenClause         (CRef cr, Lit l);
     bool          implied                  (const vec<Lit>& c);
     void          relocAll                 (ClauseAllocator& to);
+
+    bool          isInSimpLimit            ();
 };
 
 
 //=================================================================================================
 // Implementation of inline methods:
-
 
 inline bool SimpSolver::isEliminated (Var v) const { return eliminated[v]; }
 inline void SimpSolver::updateElimHeap(Var v) {
@@ -203,6 +206,9 @@ inline bool SimpSolver::solve        (const vec<Lit>& assumps, bool do_simp, boo
 
 inline lbool SimpSolver::solveLimited (const vec<Lit>& assumps, bool do_simp, bool turn_off_simp){ 
     assumps.copyTo(assumptions); return solve_(do_simp, turn_off_simp); }
+
+inline bool SimpSolver::isInSimpLimit() {
+    return max_simp_steps == -1 || statistics.simpSteps < (uint64_t)max_simp_steps; }
 
 //=================================================================================================
 }
