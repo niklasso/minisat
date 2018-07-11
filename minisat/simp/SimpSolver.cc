@@ -53,7 +53,8 @@ static Int64Option  opt_max_simplify_step(_cat, "max-simp-steps","Do not perform
 
 
 SimpSolver::SimpSolver() :
-    parsing            (false)
+    simp_reparsed_options(updateOptions())
+  , parsing            (false)
   , grow               (opt_grow)
   , clause_lim         (opt_clause_lim)
   , subsumption_lim    (opt_subsumption_lim)

@@ -114,6 +114,7 @@ Solver::Solver() :
     // Parameters (user settable):
     //
     drup_file        (NULL)
+  , reparsed_options (updateOptions())
   , verbosity        (0)
   , step_size        (opt_step_size)
   , step_size_dec    (opt_step_size_dec)

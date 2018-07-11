@@ -93,6 +93,7 @@ class SimpSolver : public Solver {
 
     // Mode of operation:
     //
+    bool    simp_reparsed_options; // Indicate whether the update parameter method has been used
     bool    parsing;
     int     grow;              // Allow a variable elimination step to grow by a number of clauses (default to zero).
     int     clause_lim;        // Variables are not eliminated if it produces a resolvent with a length above this limit.

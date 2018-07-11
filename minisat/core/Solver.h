@@ -164,6 +164,7 @@ public:
     // Mode of operation:
     //
     FILE*     drup_file;
+    bool      reparsed_options;   // Indicate whether the update parameter method has been used
     int       verbosity;
     double    step_size;
     double    step_size_dec;
