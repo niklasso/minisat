@@ -29,6 +29,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <algorithm>
 #include <signal.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "mtl/Sort.h"
 #include "core/Solver.h"
@@ -78,6 +79,35 @@ static Int64Option   opt_vsids_p           (_cat, "vsids-p",  "propagations afte
 //=================================================================================================
 // Constructor/Destructor:
 
+bool Minisat::updateOptions()
+{
+  if(getenv("MINISAT_RUNTIME_ARGS") == NULL)
+    return false;
+
+  char *args = strdup(getenv("MINISAT_RUNTIME_ARGS")); // make sure it's freed
+  if(!args) return false;
+  char *original_args = args;
+
+  const size_t len = strlen(args);
+
+  char* argv[len+2];
+  int count = 1;
+
+  argv[0] = "minisat";
+  while (isspace(*args)) ++args;
+  while(*args)
+  {
+    argv[count++] = args; // store current argument
+    while (*args && !isspace(*args)) ++args; // skip current token
+    if(!*args) break;
+    *args = (char)0; // separate current token
+    ++args;
+  }
+
+  parseOptions(count, argv, false);
+  free(original_args);
+  return false;
+}
 
 Solver::Solver() :
 
