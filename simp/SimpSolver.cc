@@ -258,27 +258,24 @@ bool SimpSolver::merge(const Clause& _ps, const Clause& _qs, Var v, vec<Lit>& ou
 {
     merges++;
     out_clause.clear();
+    counter++;
 
-    bool  ps_smallest = _ps.size() < _qs.size();
-    const Clause& ps  =  ps_smallest ? _qs : _ps;
-    const Clause& qs  =  ps_smallest ? _ps : _qs;
-
-    for (int i = 0; i < qs.size(); i++){
-        if (var(qs[i]) != v){
-            for (int j = 0; j < ps.size(); j++)
-                if (var(ps[j]) == var(qs[i]))
-                    if (ps[j] == ~qs[i])
-                        return false;
-                    else
-                        goto next;
-            out_clause.push(qs[i]);
+    for(int i = 0 ; i < _ps.size();i++){
+        if(var(_ps[i]) != v){
+            out_clause.push(_ps[i]);
+            seen2[_ps[i].x]=counter;
         }
-        next:;
     }
 
-    for (int i = 0; i < ps.size(); i++)
-        if (var(ps[i]) != v)
-            out_clause.push(ps[i]);
+    for(int i = 0 ; i < _qs.size();i++){
+        if(var(_qs[i]) != v){
+            if(seen2[_qs[i].x] != counter)
+                if(seen2[(~_qs[i]).x] != counter)
+                    out_clause.push(_qs[i]);
+                else
+                    return false;
+        }
+    }
 
     return true;
 }
@@ -288,29 +285,10 @@ bool SimpSolver::merge(const Clause& _ps, const Clause& _qs, Var v, vec<Lit>& ou
 bool SimpSolver::merge(const Clause& _ps, const Clause& _qs, Var v, int& size)
 {
     merges++;
-
-    bool  ps_smallest = _ps.size() < _qs.size();
-    const Clause& ps  =  ps_smallest ? _qs : _ps;
-    const Clause& qs  =  ps_smallest ? _ps : _qs;
-    const Lit*  __ps  = (const Lit*)ps;
-    const Lit*  __qs  = (const Lit*)qs;
-
-    size = ps.size()-1;
-
-    for (int i = 0; i < qs.size(); i++){
-        if (var(__qs[i]) != v){
-            for (int j = 0; j < ps.size(); j++)
-                if (var(__ps[j]) == var(__qs[i]))
-                    if (__ps[j] == ~__qs[i])
-                        return false;
-                    else
-                        goto next;
-            size++;
-        }
-        next:;
-    }
-
-    return true;
+    vec<Lit> c;
+    bool ret = merge(_ps, _qs, v, c);
+    size=c.size();
+    return ret;
 }
 
 
@@ -409,7 +387,7 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
             if (c.mark())
                 break;
             else if (!ca[cs[j]].mark() &&  cs[j] != cr && (subsumption_lim == -1 || ca[cs[j]].size() < subsumption_lim)){
-                Lit l = c.subsumes(ca[cs[j]]);
+                Lit l = subsumes(c, ca[cs[j]]);
 
                 if (l == lit_Undef)
                     subsumed++, removeClause(cs[j]);
@@ -832,4 +810,26 @@ void SimpSolver::garbageCollect()
         printf("c |  Garbage collection:   %12d bytes => %12d bytes             |\n", 
                ca.size()*ClauseAllocator::Unit_Size, to.size()*ClauseAllocator::Unit_Size);
     to.moveTo(ca);
+}
+
+Lit SimpSolver::subsumes(Clause & c1, Clause & c2){
+
+    Lit ret = lit_Undef;
+    if(c1.size() > c2.size() || (c1.abstraction() & ~c2.abstraction()) != 0){
+        return lit_Error;
+    }
+
+    counter++;
+
+    for(int i = 0 ; i < c2.size();i++)
+        seen2[c2[i].x] = counter;
+    for(int i = 0 ; i < c1.size();i++){
+        if(seen2[c1[i].x] != counter){
+            if(ret == lit_Undef && seen2[(~c1[i]).x] == counter)
+                ret = c1[i];
+            else
+                ret = lit_Error;
+        }
+    }
+    return ret;
 }
