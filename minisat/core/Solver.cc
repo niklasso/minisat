@@ -651,15 +651,31 @@ void Solver::removeSatisfied(vec<CRef>& cs)
         else{
             // Trim clause:
             assert(value(c[0]) == l_Undef && value(c[1]) == l_Undef);
+
+            // record the original clause for the proof
+            add_tmp.clear();
+
             for (int k = 2; k < c.size(); k++)
                 if (value(c[k]) == l_False){
+
+                    if(proofFile && add_tmp.size() == 0)
+                        for(int m = 0; m < c.size(); ) add_tmp.push(c[m++]);
+
                     c[k--] = c[c.size()-1];
                     c.pop();
                 }
+
+            // drop the old clause after adding the new clause
+            if(proofFile && add_tmp.size() > 0)
+            {
+                extendProof(c);
+                extendProof(add_tmp, true);
+            }
             cs[j++] = cs[i];
         }
     }
     cs.shrink(i - j);
+    add_tmp.clear();
 }
 
 

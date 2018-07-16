@@ -419,13 +419,13 @@ inline void     Solver::extendProof  (const T& clause, bool remove, Lit drop) {
     if (remove)
         s << "d ";
 
+    assert((drop == lit_Undef || remove == false) && "make sure we only drop in case of remove");
     for (int i = 0; i < clause.size(); i++)
     {
         if(drop == clause[i])
             continue;
         s << (var(clause[i]) + 1) * (-2 * sign(clause[i]) + 1) << " ";
     }
-
     fprintf(proofFile, "%s0\n", s.str().c_str());
 }
 
