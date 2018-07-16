@@ -144,7 +144,8 @@ class Clause {
         unsigned lbd       : 26;
         unsigned removable : 1;
         unsigned simplified: 1;
-        unsigned size      : 31;
+        unsigned onQueue   : 1;
+        unsigned size      : 30;
     }header;
     union { Lit lit; float act; uint32_t abs; uint32_t touched; CRef rel; } data[0];
 
@@ -163,6 +164,7 @@ class Clause {
         //simplify
         //
         header.simplified = 0;
+        header.onQueue   = 0;
 
         for (int i = 0; i < ps.size(); i++)
             data[i].lit = ps[i];
@@ -192,6 +194,8 @@ public:
     uint32_t     mark        ()      const   { return header.mark; }
     void         mark        (uint32_t m)    { header.mark = m; }
     const Lit&   last        ()      const   { return data[header.size-1].lit; }
+    bool         isOnQueue   ()      const   { return header.onQueue; }
+    void         setOnQueue  (bool b)        { header.onQueue = b; }
 
     bool         reloced     ()      const   { return header.reloced; }
     CRef         relocation  ()      const   { return data[0].rel; }
