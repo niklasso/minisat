@@ -62,6 +62,14 @@ SORELEASE?=.0#   Declare empty to leave out from library file name.
 MINISAT_CXXFLAGS = -I. -D __STDC_LIMIT_MACROS -D __STDC_FORMAT_MACROS -Wall -Wno-parentheses -Wextra
 MINISAT_LDFLAGS  = -Wall -lz
 
+ifeq (Darwin,$(findstring Darwin,$(shell uname)))
+	SHARED_LDFLAGS += -shared -Wl,-dylib_install_name,$(MINISAT_DLIB).$(SOMAJOR)
+	RELEASE_LDFLAGS +=
+else
+	SHARED_LDFLAGS += -shared -Wl,-soname,$(MINISAT_DLIB).$(SOMAJOR)
+	RELEASE_LDFLAGS += -static
+endif
+
 ECHO=@echo
 ifeq ($(VERB),)
 VERB=@
@@ -96,9 +104,9 @@ $(BUILD_DIR)/dynamic/%.o:			MINISAT_CXXFLAGS +=$(MINISAT_REL) $(MINISAT_FPIC)
 
 ## Build-type Link-flags:
 $(BUILD_DIR)/profile/bin/$(MINISAT):		MINISAT_LDFLAGS += -pg
-$(BUILD_DIR)/release/bin/$(MINISAT):		MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
+$(BUILD_DIR)/release/bin/$(MINISAT):		MINISAT_LDFLAGS += $(RELEASE_LDFLAGS) $(MINISAT_RELSYM)
 $(BUILD_DIR)/profile/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += -pg
-$(BUILD_DIR)/release/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
+$(BUILD_DIR)/release/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += $(RELEASE_LDFLAGS) $(MINISAT_RELSYM)
 
 ## Executable dependencies
 $(BUILD_DIR)/release/bin/$(MINISAT):	 	$(BUILD_DIR)/release/minisat/simp/Main.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
@@ -157,13 +165,15 @@ $(BUILD_DIR)/release/bin/$(MINISAT_CORE) $(BUILD_DIR)/debug/bin/$(MINISAT_CORE) 
 	$(VERB) $(AR) -rcs $@ $^
 
 ## Shared Library rule
-$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
- $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\
- $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB):
+$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE):
 	$(ECHO) Linking Shared Library: $@
 	$(VERB) mkdir -p $(dir $@)
-	$(VERB) $(CXX) $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@ -shared -Wl,-soname,$(MINISAT_DLIB).$(SOMAJOR) $^
+	$(VERB) $(CXX) $^ $(SHARED_LDFLAGS) $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@
+
+$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR): $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)
 	$(VERB) ln -sf $(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)
+
+$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB): $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)
 	$(VERB) ln -sf $(MINISAT_DLIB).$(SOMAJOR) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
 
 install:	install-headers install-lib install-bin

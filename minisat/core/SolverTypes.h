@@ -51,16 +51,13 @@ typedef int Var;
 struct Lit {
     int     x;
 
-    // Use this as a constructor:
-    friend Lit mkLit(Var var, bool sign = false);
-
     bool operator == (Lit p) const { return x == p.x; }
     bool operator != (Lit p) const { return x != p.x; }
     bool operator <  (Lit p) const { return x < p.x;  } // '<' makes p, ~p adjacent in the ordering.
 };
 
 
-inline  Lit  mkLit     (Var var, bool sign) { Lit p; p.x = var + var + (int)sign; return p; }
+inline  Lit  mkLit     (Var var, bool sign = false) { Lit p; p.x = var + var + (int)sign; return p; }
 inline  Lit  operator ~(Lit p)              { Lit q; q.x = p.x ^ 1; return q; }
 inline  Lit  operator ^(Lit p, bool b)      { Lit q; q.x = p.x ^ (unsigned int)b; return q; }
 inline  bool sign      (Lit p)              { return p.x & 1; }
@@ -121,9 +118,15 @@ inline int   toInt  (lbool l) { return l.value; }
 inline lbool toLbool(int   v) { return lbool((uint8_t)v);  }
 
 #if defined(MINISAT_CONSTANTS_AS_MACROS)
+#ifndef l_True
   #define l_True  (lbool((uint8_t)0)) // gcc does not do constant propagation if these are real constants.
+#endif
+#ifndef l_False
   #define l_False (lbool((uint8_t)1))
+#endif
+#ifndef l_Undef
   #define l_Undef (lbool((uint8_t)2))
+#endif
 #else
   const lbool l_True ((uint8_t)0);
   const lbool l_False((uint8_t)1);
@@ -144,7 +147,27 @@ class Clause {
         unsigned has_extra : 1;
         unsigned reloced   : 1;
         unsigned size      : 27; }                        header;
+#if defined __clang__
+  #pragma clang diagnostic push
+#elif defined __GNUC__
+  #pragma GCC diagnostic push
+#elif defined _MSC_VER
+  #pragma warning(push)
+#endif
+#if defined __clang__
+  #pragma clang diagnostic ignored "-Wzero-length-array"
+#elif defined __GNUC__
+  #pragma GCC diagnostic ignored "-Wpedantic" // no specific ZLA warning in GCC
+#elif defined _MSC_VER
+#endif
     union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];
+#if defined __clang__
+  #pragma clang diagnostic pop
+#elif defined __GNUC__
+  #pragma GCC diagnostic pop
+#elif defined _MSC_VER
+  #pragma warning(pop)
+#endif
 
     friend class ClauseAllocator;
 
@@ -164,7 +187,7 @@ class Clause {
                 data[header.size].act = 0;
             else
                 calcAbstraction();
-    }
+        }
     }
 
     // NOTE: This constructor cannot be used directly (doesn't allocate enough memory).
@@ -180,7 +203,7 @@ class Clause {
                 data[header.size].act = from.data[header.size].act;
             else 
                 data[header.size].abs = from.data[header.size].abs;
-    }
+        }
     }
 
 public:
@@ -418,7 +441,7 @@ class CMap
 
     // TMP debug:
     void debug(){
-        printf(" --- size = %d, bucket_count = %d\n", size(), map.bucket_count()); }
+        printf("c  --- size = %d, bucket_count = %d\n", size(), map.bucket_count()); }
 };
 
 

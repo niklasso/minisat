@@ -80,6 +80,7 @@ namespace Minisat {
         // Vector interface:
         K        operator [] (int index) const  { return xs[index]; }
         
+        operator const vec<K>& (void) const     { return xs; }
         
         void     insert      (K k) { in_set.reserve(k, 0); if (!in_set[k]) { in_set[k] = 1; xs.push(k); } }
         bool     has         (K k) { in_set.reserve(k, 0); return in_set[k]; }

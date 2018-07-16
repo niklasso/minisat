@@ -44,7 +44,8 @@ static DoubleOption opt_simp_garbage_frac(_cat, "simp-gc-frac", "The fraction of
 
 
 SimpSolver::SimpSolver() :
-    grow               (opt_grow)
+    parsing            (0)
+  , grow               (opt_grow)
   , clause_lim         (opt_clause_lim)
   , subsumption_lim    (opt_subsumption_lim)
   , simp_garbage_frac  (opt_simp_garbage_frac)
@@ -130,7 +131,7 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
     if (result == l_True)
         result = Solver::solve_();
     else if (verbosity >= 1)
-        printf("===============================================================================\n");
+        printf("c ===============================================================================\n");
 
     if (result == l_True && extend_model)
         extendModel();
@@ -156,6 +157,8 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
 
     if (use_rcheck && implied(ps))
         return true;
+
+    if(!parsing) extendProof(ps);
 
     if (!Solver::addClause_(ps))
         return false;
@@ -185,7 +188,7 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
 }
 
 
-void SimpSolver::removeClause(CRef cr)
+void SimpSolver::removeClause(CRef cr, bool remove_from_proof)
 {
     const Clause& c = ca[cr];
 
@@ -196,7 +199,7 @@ void SimpSolver::removeClause(CRef cr)
             occurs.smudge(var(c[i]));
         }
 
-    Solver::removeClause(cr);
+    Solver::removeClause(cr, remove_from_proof);
 }
 
 
@@ -210,10 +213,14 @@ bool SimpSolver::strengthenClause(CRef cr, Lit l)
     // if (!find(subsumption_queue, &c))
     subsumption_queue.insert(cr);
 
+    extendProof(c, false, l);
+
     if (c.size() == 2){
         removeClause(cr);
         c.strengthen(l);
     }else{
+        extendProof(c, true);
+
         detachClause(cr, true);
         c.strengthen(l);
         attachClause(cr);
@@ -366,7 +373,7 @@ bool SimpSolver::backwardSubsumptionCheck(bool verbose)
         if (c.mark()) continue;
 
         if (verbose && verbosity >= 2 && cnt++ % 1000 == 0)
-            printf("subsumption left: %10d (%10d subsumed, %10d deleted literals)\r", subsumption_queue.size(), subsumed, deleted_literals);
+            printf("c subsumption left: %10d (%10d subsumed, %10d deleted literals)\r", subsumption_queue.size(), subsumed, deleted_literals);
 
         assert(c.size() > 1 || value(c[0]) == l_True);    // Unit-clauses should have been propagated before this point.
 
@@ -523,7 +530,7 @@ bool SimpSolver::eliminateVar(Var v)
     }
 
     for (int i = 0; i < cls.size(); i++)
-        removeClause(cls[i]); 
+        removeClause(cls[i], false);
 
     // Produce clauses in cross product:
     vec<Lit>& resolvent = add_tmp;
@@ -531,6 +538,9 @@ bool SimpSolver::eliminateVar(Var v)
         for (int j = 0; j < neg.size(); j++)
             if (merge(ca[pos[i]], ca[neg[j]], v, resolvent) && !addClause_(resolvent))
                 return false;
+
+    for (int i = 0; i < cls.size(); i++)
+        extendProof(ca[cls[i]], true);
 
     // Free occurs list for this variable:
     occurs[v].clear(true);
@@ -626,7 +636,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
             if (isEliminated(elim) || value(elim) != l_Undef) continue;
 
             if (verbosity >= 2 && cnt % 100 == 0)
-                printf("elimination left: %10d\r", elim_heap.size());
+                printf("c elimination left: %10d\r", elim_heap.size());
 
             if (use_asymm){
                 // Temporarily freeze variable. Otherwise, it would immediately end up on the queue again:
@@ -670,7 +680,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     }
 
     if (verbosity >= 1 && elimclauses.size() > 0)
-        printf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
+        printf("c |  Eliminated clauses:     %10.2f Mb                                      |\n",
                double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
 
     return ok;
@@ -719,7 +729,7 @@ void SimpSolver::garbageCollect()
     relocAll(to);
     Solver::relocAll(to);
     if (verbosity >= 2)
-        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", 
+        printf("c |  Garbage collection:   %12d bytes => %12d bytes             |\n",
                ca.size()*ClauseAllocator::Unit_Size, to.size()*ClauseAllocator::Unit_Size);
     to.moveTo(ca);
 }
