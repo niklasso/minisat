@@ -2,10 +2,12 @@
 Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
 Copyright (c) 2007,      Niklas Sorensson
 
-Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
+ Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
  
-Maple_LCM, Based on MapleCOMSPS_DRUP --Copyright (c) 2017, Mao Luo, Chu-Min LI, Fan Xiao: implementing a learnt clause minimisation approach
+Maple_LCM, Based on MapleCOMSPS_DRUP -- Copyright (c) 2017, Mao Luo, Chu-Min LI, Fan Xiao: implementing a learnt clause minimisation approach
 Reference: M. Luo, C.-M. Li, F. Xiao, F. Manya, and Z. L. , “An effective learnt clause minimization approach for cdcl sat solvers,” in IJCAI-2017, 2017, pp. to–appear.
+ 
+Maple_LCM_Dist, Based on Maple_LCM -- Copyright (c) 2017, Fan Xiao, Chu-Min LI, Mao Luo: using a new branching heuristic called Distance at the beginning of search
  
  
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
@@ -41,45 +43,18 @@ using namespace Minisat;
 //=================================================================================================
 
 
-#ifdef _MSC_VER 
 void printStats(Solver& solver)
 {
-	double cpu_time = cpuTime();
-	double mem_used = 0;//memUsedPeak();
-	printf("c restarts              : %-12lld (%-12lld conflicts in avg)\n", solver.starts, (solver.starts>0 ? solver.conflicts / solver.starts : 0));
-	printf("c conflicts             : %-12lld   (%.0f /sec)\n", solver.conflicts, solver.conflicts / cpu_time);
-	printf("c decisions             : %-12lld   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions * 100 / (float)solver.decisions, solver.decisions / cpu_time);
-	printf("c propagations          : %-12lld   (%.0f /sec)\n", solver.propagations, solver.propagations / cpu_time);
-
-	printf("c conflict literals     : %-12lld   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals) * 100 / (double)solver.max_literals);
-	if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
-	printf("c CPU time              : %g s\n", cpu_time);
-	// simplify
-	printf("c nbSimplifyAll         : %d\n", solver.nbSimplifyAll);
-	printf("c s_propagations        : %-12lld\n", solver.s_propagations);
-	printf("c s_cost_ratio          : %4.2f%%\n", solver.s_propagations * 100 / (double)solver.propagations);
-
+    double cpu_time = cpuTime();
+    double mem_used = memUsedPeak();
+    printf("c restarts              : %"PRIu64"\n", solver.starts);
+    printf("c conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts   , solver.conflicts   /cpu_time);
+    printf("c decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
+    printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
+    printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
+    if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
+    printf("c CPU time              : %g s\n", cpu_time);
 }
-#else 
-
-void printStats(Solver& solver)
-{
-	double cpu_time = cpuTime();
-	double mem_used = memUsedPeak();
-	printf("c restarts              : %"PRIu64"\n", solver.starts);
-	printf("c conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts, solver.conflicts / cpu_time);
-	printf("c decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions * 100 / (float)solver.decisions, solver.decisions / cpu_time);
-	printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations / cpu_time);
-	printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals) * 100 / (double)solver.max_literals);
-	if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
-	printf("c CPU time              : %g s\n", cpu_time);
-	// simplify
-	printf("c nbSimplifyAll         : %d\n", solver.nbSimplifyAll);
-	printf("c s_propagations        : %-12"PRIu64"\n", solver.s_propagations);
-	printf("c s_cost_ratio          : %4.2f%%\n", solver.s_propagations * 100 / (double)solver.propagations);
-
-}
-#endif
 
 
 static Solver* solver;
@@ -243,6 +218,7 @@ int main(int argc, char** argv)
                     printf("%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
             printf(" 0\n");
         }
+
 
         if (S.drup_file && ret == l_False){
 #ifdef BIN_DRUP

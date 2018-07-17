@@ -1,12 +1,13 @@
 /***************************************************************************************[Solver.cc]
 MiniSat -- Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
            Copyright (c) 2007-2010, Niklas Sorensson
-
+ 
 Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
  
-Maple_LCM, Based on MapleCOMSPS_DRUP --Copyright (c) 2017, Mao Luo, Chu-Min LI, Fan Xiao: implementing a learnt clause minimisation approach
+Maple_LCM, Based on MapleCOMSPS_DRUP -- Copyright (c) 2017, Mao Luo, Chu-Min LI, Fan Xiao: implementing a learnt clause minimisation approach
 Reference: M. Luo, C.-M. Li, F. Xiao, F. Manya, and Z. L. , “An effective learnt clause minimization approach for cdcl sat solvers,” in IJCAI-2017, 2017, pp. to–appear.
- 
+
+Maple_LCM_Dist, Based on Maple_LCM -- Copyright (c) 2017, Fan Xiao, Chu-Min LI, Mao Luo: using a new branching heuristic called Distance at the beginning of search
  
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -23,26 +24,10 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FO
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
-#define _CRT_SECURE_NO_DEPRECATE
-
-#ifdef _MSC_VER 
-//#include <io.h>
-//#include <process.h>
-#else 
-#include <unistd.h>
-#endif 
-
-#ifdef _MSC_VER
-#include <windows.h>
-#include <thread>
-
-#define _MSC_VER_Sleep
-#endif
-
-
 
 #include <math.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include "mtl/Sort.h"
 #include "core/Solver.h"
@@ -152,12 +137,19 @@ Solver::Solver() :
   , curSimplify(1)
   , nbconfbeforesimplify(1000)
   , incSimplify(1000)
+
+  , my_var_decay       (0.6)
+  , DISTANCE           (true)
+  , var_iLevel_inc     (1)
+  , order_heap_distance(VarOrderLt(activity_distance))
+
 {}
 
 
 Solver::~Solver()
 {
 }
+
 
 // simplify All
 //
@@ -421,6 +413,8 @@ void Solver::simplifyLearnt(Clause& c)
     }
     c.shrink(c.size() - j);
     afterSize = c.size();
+    //printf("\nbefore : %d, after : %d ", beforeSize, afterSize);
+
 
     if (confl != CRef_Undef || True_confl == true){
         simp_learnt_clause.clear();
@@ -447,11 +441,6 @@ void Solver::simplifyLearnt(Clause& c)
 
 bool Solver::simplifyLearnt_x(vec<CRef>& learnts_x)
 {
-    //printf("learnts_core size : %d\n", learnts_core.size());
-    //printf("learnts_tier2 size : %d\n", learnts_tier2.size());
-    //printf("learnts_local size : %d\n", learnts_local.size());
-
-
     int beforeSize, afterSize;
     int learnts_x_size_before = learnts_x.size();
 
@@ -555,8 +544,8 @@ bool Solver::simplifyLearnt_x(vec<CRef>& learnts_x)
     }
     learnts_x.shrink(ci - cj);
 
-    printf("nbLearnts_x %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
-           learnts_x_size_before, learnts_x.size(), nbSimplified, nbSimplifing);
+    //   printf("c nbLearnts_x %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
+    //          learnts_x_size_before, learnts_x.size(), nbSimplified, nbSimplifing);
 
     return true;
 }
@@ -569,6 +558,8 @@ bool Solver::simplifyLearnt_core()
     int ci, cj, li, lj;
     bool sat, false_lit;
     unsigned int nblevels;
+    ////
+    //printf("learnts_x size : %d\n", learnts_x.size());
 
     ////
     int nbSimplified = 0;
@@ -586,9 +577,9 @@ bool Solver::simplifyLearnt_core()
         }
         else{
             int saved_size=c.size();
-            //            if (drup_file){
-            //                add_oc.clear();
-            //                for (int i = 0; i < c.size(); i++) add_oc.push(c[i]); }
+            //         if (drup_file){
+            //                 add_oc.clear();
+            //                 for (int i = 0; i < c.size(); i++) add_oc.push(c[i]); }
             ////
             nbSimplifing++;
             sat = false_lit = false;
@@ -623,22 +614,24 @@ bool Solver::simplifyLearnt_core()
                 assert(c.size() > 0);
                 afterSize = c.size();
                 
-                if(saved_size!=c.size()){
+                if(saved_size !=c.size()){
 
 #ifdef BIN_DRUP
                     binDRUP('a', c , drup_file);
-                    //     binDRUP('d', add_oc, drup_file);
+                    //                    binDRUP('d', add_oc, drup_file);
 #else
                     for (int i = 0; i < c.size(); i++)
                         fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
                     fprintf(drup_file, "0\n");
 
-                    //  fprintf(drup_file, "d ");
-                    // for (int i = 0; i < add_oc.size(); i++)
-                    //     fprintf(drup_file, "%i ", (var(add_oc[i]) + 1) * (-2 * sign(add_oc[i]) + 1));
-                    // fprintf(drup_file, "0\n");
+                    //                    fprintf(drup_file, "d ");
+                    //                    for (int i = 0; i < add_oc.size(); i++)
+                    //                        fprintf(drup_file, "%i ", (var(add_oc[i]) + 1) * (-2 * sign(add_oc[i]) + 1));
+                    //                    fprintf(drup_file, "0\n");
 #endif
                 }
+
+                //printf("beforeSize: %2d, afterSize: %2d\n", beforeSize, afterSize);
 
                 if (c.size() == 1){
                     // when unit clause occur, enqueue and propagate
@@ -650,14 +643,14 @@ bool Solver::simplifyLearnt_core()
                     // delete the clause memory in logic
                     c.mark(1);
                     ca.free(cr);
-                    //#ifdef BIN_DRUP
-                    //                    binDRUP('d', c, drup_file);
-                    //#else
-                    //                    fprintf(drup_file, "d ");
-                    //                    for (int i = 0; i < c.size(); i++)
-                    //                        fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
-                    //                    fprintf(drup_file, "0\n");
-                    //#endif
+//#ifdef BIN_DRUP
+//                    binDRUP('d', c, drup_file);
+//#else
+//                    fprintf(drup_file, "d ");
+//                    for (int i = 0; i < c.size(); i++)
+//                        fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
+//                    fprintf(drup_file, "0\n");
+//#endif
                 }
                 else{
                     attachClause(cr);
@@ -665,6 +658,7 @@ bool Solver::simplifyLearnt_core()
 
                     nblevels = computeLBD(c);
                     if (nblevels < c.lbd()){
+                        //printf("lbd-before: %d, lbd-after: %d\n", c.lbd(), nblevels);
                         c.set_lbd(nblevels);
                     }
 
@@ -675,10 +669,11 @@ bool Solver::simplifyLearnt_core()
     }
     learnts_core.shrink(ci - cj);
 
-    //printf("nbLearnts_core %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
-    //	learnts_core_size_before, learnts_core.size(), nbSimplified, nbSimplifing);
+    //    printf("c nbLearnts_core %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
+    //           learnts_core_size_before, learnts_core.size(), nbSimplified, nbSimplifing);
 
     return true;
+
 }
 
 bool Solver::simplifyLearnt_tier2()
@@ -689,6 +684,8 @@ bool Solver::simplifyLearnt_tier2()
     int ci, cj, li, lj;
     bool sat, false_lit;
     unsigned int nblevels;
+    ////
+    //printf("learnts_x size : %d\n", learnts_x.size());
 
     ////
     int nbSimplified = 0;
@@ -705,10 +702,10 @@ bool Solver::simplifyLearnt_tier2()
             nbSimplified++;
         }
         else{
-            //            if (drup_file){
-            //                add_oc.clear();
-            //                for (int i = 0; i < c.size(); i++) add_oc.push(c[i]); }
             int saved_size=c.size();
+            //            if (drup_file){
+            //                    add_oc.clear();
+            //                    for (int i = 0; i < c.size(); i++) add_oc.push(c[i]); }
             ////
             nbSimplifing++;
             sat = false_lit = false;
@@ -747,16 +744,16 @@ bool Solver::simplifyLearnt_tier2()
 
 #ifdef BIN_DRUP
                     binDRUP('a', c , drup_file);
-                    //                binDRUP('d', add_oc, drup_file);
+                    //                    binDRUP('d', add_oc, drup_file);
 #else
                     for (int i = 0; i < c.size(); i++)
                         fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
                     fprintf(drup_file, "0\n");
 
-                    //                fprintf(drup_file, "d ");
-                    //                for (int i = 0; i < add_oc.size(); i++)
-                    //                    fprintf(drup_file, "%i ", (var(add_oc[i]) + 1) * (-2 * sign(add_oc[i]) + 1));
-                    //                fprintf(drup_file, "0\n");
+                    //                    fprintf(drup_file, "d ");
+                    //                    for (int i = 0; i < add_oc.size(); i++)
+                    //                        fprintf(drup_file, "%i ", (var(add_oc[i]) + 1) * (-2 * sign(add_oc[i]) + 1));
+                    //                    fprintf(drup_file, "0\n");
 #endif
                 }
 
@@ -772,14 +769,14 @@ bool Solver::simplifyLearnt_tier2()
                     // delete the clause memory in logic
                     c.mark(1);
                     ca.free(cr);
-                    //#ifdef BIN_DRUP
-                    //                    binDRUP('d', c, drup_file);
-                    //#else
-                    //                    fprintf(drup_file, "d ");
-                    //                    for (int i = 0; i < c.size(); i++)
-                    //                        fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
-                    //                    fprintf(drup_file, "0\n");
-                    //#endif
+//#ifdef BIN_DRUP
+//                    binDRUP('d', c, drup_file);
+//#else
+//                    fprintf(drup_file, "d ");
+//                    for (int i = 0; i < c.size(); i++)
+//                        fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
+//                    fprintf(drup_file, "0\n");
+//#endif
                 }
                 else{
                     attachClause(cr);
@@ -804,8 +801,8 @@ bool Solver::simplifyLearnt_tier2()
     }
     learnts_tier2.shrink(ci - cj);
 
-    //printf("nbLearnts_tier2 %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
-    //	learnts_tier2_size_before, learnts_tier2.size(), nbSimplified, nbSimplifing);
+    //    printf("c nbLearnts_tier2 %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
+    //           learnts_tier2_size_before, learnts_tier2.size(), nbSimplified, nbSimplifing);
 
     return true;
 
@@ -831,12 +828,11 @@ bool Solver::simplifyAll()
     checkGarbage();
 
     ////
-    //printf("size_reduce_ratio     : %4.2f%%\n",
-    //	original_length_record == 0 ? 0 : (original_length_record - simplified_length_record) * 100 / (double)original_length_record);
+    //  printf("c size_reduce_ratio     : %4.2f%%\n",
+    //         original_length_record == 0 ? 0 : (original_length_record - simplified_length_record) * 100 / (double)original_length_record);
 
     return true;
 }
-
 //=================================================================================================
 // Minor methods:
 
@@ -869,6 +865,11 @@ Var Solver::newVar(bool sign, bool dvar)
     decision .push();
     trail    .capacity(v+1);
     setDecisionVar(v, dvar);
+
+    activity_distance.push(0);
+    var_iLevel.push(0);
+    var_iLevel_tmp.push(0);
+    pathCs.push(0);
     return v;
 }
 
@@ -1028,7 +1029,8 @@ void Solver::cancelUntil(int level) {
 Lit Solver::pickBranchLit()
 {
     Var next = var_Undef;
-    Heap<VarOrderLt>& order_heap = VSIDS ? order_heap_VSIDS : order_heap_CHB;
+    //    Heap<VarOrderLt>& order_heap = VSIDS ? order_heap_VSIDS : order_heap_CHB;
+    Heap<VarOrderLt>& order_heap = DISTANCE ? order_heap_distance : ((!VSIDS)? order_heap_CHB:order_heap_VSIDS);
 
     // Random decision:
     /*if (drand(random_seed) < random_var_freq && !order_heap.empty()){
@@ -1545,6 +1547,7 @@ void Solver::rebuildOrderHeap()
 
     order_heap_CHB  .build(vs);
     order_heap_VSIDS.build(vs);
+    order_heap_distance.build(vs);
 }
 
 
@@ -1581,7 +1584,123 @@ bool Solver::simplify()
     return true;
 }
 
+// pathCs[k] is the number of variables assigned at level k,
+// it is initialized to 0 at the begining and reset to 0 after the function execution
+bool Solver::collectFirstUIP(CRef confl){
+    involved_lits.clear();
+    int max_level=1;
+    Clause& c=ca[confl]; int minLevel=decisionLevel();
+    for(int i=0; i<c.size(); i++) {
+        Var v=var(c[i]);
+        //        assert(!seen[v]);
+        if (level(v)>0) {
+            seen[v]=1;
+            var_iLevel_tmp[v]=1;
+            pathCs[level(v)]++;
+            if (minLevel>level(v)) {
+                minLevel=level(v);
+                assert(minLevel>0);
+            }
+            //    varBumpActivity(v);
+        }
+    }
+    int limit=trail_lim[minLevel-1];
+    for(int i=trail.size()-1; i>=limit; i--) {
+        Lit p=trail[i]; Var v=var(p);
+        if (seen[v]) {
+            int currentDecLevel=level(v);
+            //      if (currentDecLevel==decisionLevel())
+            //      	varBumpActivity(v);
+            seen[v]=0;
+            if (--pathCs[currentDecLevel]!=0) {
+                Clause& rc=ca[reason(v)];
+                int reasonVarLevel=var_iLevel_tmp[v]+1;
+                if(reasonVarLevel>max_level) max_level=reasonVarLevel;
+                if (rc.size()==2 && value(rc[0])==l_False) {
+                    // Special case for binary clauses
+                    // The first one has to be SAT
+                    assert(value(rc[1]) != l_False);
+                    Lit tmp = rc[0];
+                    rc[0] =  rc[1], rc[1] = tmp;
+                }
+                for (int j = 1; j < rc.size(); j++){
+                    Lit q = rc[j]; Var v1=var(q);
+                    if (level(v1) > 0) {
+                        if (minLevel>level(v1)) {
+                            minLevel=level(v1); limit=trail_lim[minLevel-1]; 	assert(minLevel>0);
+                        }
+                        if (seen[v1]) {
+                            if (var_iLevel_tmp[v1]<reasonVarLevel)
+                                var_iLevel_tmp[v1]=reasonVarLevel;
+                        }
+                        else {
+                            var_iLevel_tmp[v1]=reasonVarLevel;
+                            //   varBumpActivity(v1);
+                            seen[v1] = 1;
+                            pathCs[level(v1)]++;
+                        }
+                    }
+                }
+            }
+            involved_lits.push(p);
+        }
+    }
+    double inc=var_iLevel_inc;
+    vec<int> level_incs; level_incs.clear();
+    for(int i=0;i<max_level;i++){
+        level_incs.push(inc);
+        inc = inc/my_var_decay;
+    }
 
+    for(int i=0;i<involved_lits.size();i++){
+        Var v =var(involved_lits[i]);
+        //        double old_act=activity_distance[v];
+        //        activity_distance[v] +=var_iLevel_inc * var_iLevel_tmp[v];
+        activity_distance[v]+=var_iLevel_tmp[v]*level_incs[var_iLevel_tmp[v]-1];
+
+        if(activity_distance[v]>1e100){
+            for(int vv=0;vv<nVars();vv++)
+                activity_distance[vv] *= 1e-100;
+            var_iLevel_inc*=1e-100;
+            for(int j=0; j<max_level; j++) level_incs[j]*=1e-100;
+        }
+        if (order_heap_distance.inHeap(v))
+            order_heap_distance.decrease(v);
+
+        //        var_iLevel_inc *= (1 / my_var_decay);
+    }
+    var_iLevel_inc=level_incs[level_incs.size()-1];
+    return true;
+}
+
+struct UIPOrderByILevel_Lt {
+    Solver& solver;
+    const vec<double>&  var_iLevel;
+    bool operator () (Lit x, Lit y) const
+    {
+        return var_iLevel[var(x)] < var_iLevel[var(y)] ||
+                (var_iLevel[var(x)]==var_iLevel[var(y)]&& solver.level(var(x))>solver.level(var(y)));
+    }
+    UIPOrderByILevel_Lt(const vec<double>&  iLevel, Solver& para_solver) : solver(para_solver), var_iLevel(iLevel) { }
+};
+
+CRef Solver::propagateLits(vec<Lit>& lits) {
+    Lit lit;
+    int i;
+
+    for(i=lits.size()-1; i>=0; i--) {
+        lit=lits[i];
+        if (value(lit) == l_Undef) {
+            newDecisionLevel();
+            uncheckedEnqueue(lit);
+            CRef confl = propagate();
+            if (confl != CRef_Undef) {
+                return confl;
+            }
+        }
+    }
+    return CRef_Undef;
+}
 /*_________________________________________________________________________________________________
 |
 |  search : (nof_conflicts : int) (params : const SearchParams&)  ->  [lbool]
@@ -1606,7 +1725,10 @@ lbool Solver::search(int& nof_conflicts)
     // simplify
     //
     if (conflicts >= curSimplify * nbconfbeforesimplify){
-        //printf("### simplifyAll on conflict : %lld\n", conflicts);
+        //        printf("c ### simplifyAll on conflict : %lld\n", conflicts);
+        //printf("nbClauses: %d, nbLearnts_core: %d, nbLearnts_tier2: %d, nbLearnts_local: %d, nbLearnts: %d\n",
+        //	clauses.size(), learnts_core.size(), learnts_tier2.size(), learnts_local.size(),
+        //	learnts_core.size() + learnts_tier2.size() + learnts_local.size());
         nbSimplifyAll++;
         if (!simplifyAll()){
             return l_False;
@@ -1630,6 +1752,11 @@ lbool Solver::search(int& nof_conflicts)
             if (decisionLevel() == 0) return l_False;
 
             learnt_clause.clear();
+            if(conflicts>50000) DISTANCE=0;
+            else DISTANCE=1;
+            if(VSIDS && DISTANCE)
+                collectFirstUIP(confl);
+
             analyze(confl, learnt_clause, backtrack_level, lbd);
             cancelUntil(backtrack_level);
 
@@ -1787,33 +1914,14 @@ static double luby(double y, int x){
     return pow(y, seq);
 }
 
-
 static bool switch_mode = false;
-
-#ifdef _MSC_VER_Sleep
-void sleep(int time)
-{
-    Sleep(time * 1000);
-    switch_mode = true;
-    printf("switch_mode = true\n");
-}
-
-#else 
-
 static void SIGALRM_switch(int signum) { switch_mode = true; }
-#endif
-
 
 // NOTE: assumptions passed in member-variable 'assumptions'.
 lbool Solver::solve_()
 {
-#ifdef _MSC_VER_Sleep
-    std::thread t(sleep, 2500);
-    t.detach();
-#else
     signal(SIGALRM, SIGALRM_switch);
     alarm(2500);
-#endif
 
     model.clear();
     conflict.clear();
@@ -1880,7 +1988,6 @@ lbool Solver::solve_()
         ok = false;
 
     cancelUntil(0);
-
     return status;
 }
 

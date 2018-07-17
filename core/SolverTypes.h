@@ -3,9 +3,11 @@ MiniSat -- Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
            Copyright (c) 2007-2010, Niklas Sorensson
  
 Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
- 
-Maple_LCM, Based on MapleCOMSPS_DRUP --Copyright (c) 2017, Mao Luo, Chu-Min LI, Fan Xiao: implementing a learnt clause minimisation approach
+
+Maple_LCM, Based on MapleCOMSPS_DRUP -- Copyright (c) 2017, Mao Luo, Chu-Min LI, Fan Xiao: implementing a learnt clause minimisation approach
 Reference: M. Luo, C.-M. Li, F. Xiao, F. Manya, and Z. L. , “An effective learnt clause minimization approach for cdcl sat solvers,” in IJCAI-2017, 2017, pp. to–appear.
+ 
+Maple_LCM_Dist, Based on Maple_LCM -- Copyright (c) 2017, Fan Xiao, Chu-Min LI, Mao Luo: using a new branching heuristic called Distance at the beginning of search
  
  
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
@@ -53,7 +55,7 @@ struct Lit {
     int     x;
 
     // Use this as a constructor:
-    friend Lit mkLit(Var var, bool sign = false);
+    friend Lit mkLit(Var var, bool sign );
 
     bool operator == (Lit p) const { return x == p.x; }
     bool operator != (Lit p) const { return x != p.x; }
@@ -61,7 +63,7 @@ struct Lit {
 };
 
 
-inline  Lit  mkLit     (Var var, bool sign) { Lit p; p.x = var + var + (int)sign; return p; }
+inline  Lit  mkLit     (Var var, bool sign= false) { Lit p; p.x = var + var + (int)sign; return p; }
 inline  Lit  operator ~(Lit p)              { Lit q; q.x = p.x ^ 1; return q; }
 inline  Lit  operator ^(Lit p, bool b)      { Lit q; q.x = p.x ^ (unsigned int)b; return q; }
 inline  bool sign      (Lit p)              { return p.x & 1; }
@@ -104,7 +106,7 @@ public:
     bool  operator != (lbool b) const { return !(*this == b); }
     lbool operator ^  (bool  b) const { return lbool((uint8_t)(value^(uint8_t)b)); }
 
-    lbool operator && (lbool b) const { 
+    lbool operator && (lbool b) const {
         uint8_t sel = (this->value << 1) | (b.value << 3);
         uint8_t v   = (0xF7F755F4 >> sel) & 3;
         return lbool(v); }
@@ -134,10 +136,9 @@ class Clause {
         unsigned reloced   : 1;
         unsigned lbd       : 26;
         unsigned removable : 1;
-        unsigned size      : 32; 
-		//simplify
-		unsigned simplified : 1;
-	}                            header;
+        unsigned size      : 32;
+        //simplify
+        unsigned simplified : 1;}                            header;
     union { Lit lit; float act; uint32_t abs; uint32_t touched; CRef rel; } data[0];
 
     friend class ClauseAllocator;
@@ -152,18 +153,18 @@ class Clause {
         header.size      = ps.size();
         header.lbd       = 0;
         header.removable = 1;
-		//simplify
-		//
-		header.simplified = 0;
+        //simplify
+        //
+        header.simplified = 0;
 
-        for (int i = 0; i < ps.size(); i++) 
+        for (int i = 0; i < ps.size(); i++)
             data[i].lit = ps[i];
 
         if (header.has_extra){
             if (header.learnt){
-                data[header.size].act = 0; 
+                data[header.size].act = 0;
                 data[header.size+1].touched = 0;
-            }else 
+            }else
                 calcAbstraction(); }
     }
 
@@ -206,12 +207,10 @@ public:
 
     Lit          subsumes    (const Clause& other) const;
     void         strengthen  (Lit p);
-
-	// simplify
-	//
-	void setSimplified(bool b) { header.simplified = b; }
-	bool simplified() { return header.simplified; }
-
+    // simplify
+    //
+    void setSimplified(bool b) { header.simplified = b; }
+    bool simplified() { return header.simplified; }
 };
 
 
@@ -224,7 +223,7 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
 {
     static int clauseWord32Size(int size, int extras){
         return (sizeof(Clause) + (sizeof(Lit) * (size + extras))) / sizeof(uint32_t); }
- public:
+public:
     bool extra_clause_field;
 
     ClauseAllocator(uint32_t start_cap) : RegionAllocator<uint32_t>(start_cap), extra_clause_field(false){}
@@ -270,7 +269,7 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
         cr = to.alloc(c, c.learnt());
         c.relocate(cr);
         
-        // Copy extra data-fields: 
+        // Copy extra data-fields:
         // (This could be cleaned-up. Generalize Clause-constructor to be applicable here instead?)
         to[cr].mark(c.mark());
         if (to[cr].learnt()){
@@ -278,10 +277,9 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
             to[cr].activity() = c.activity();
             to[cr].set_lbd(c.lbd());
             to[cr].removable(c.removable());
-			// simplify
-			//
-			to[cr].setSimplified(c.simplified());
-
+            // simplify
+            //
+            to[cr].setSimplified(c.simplified());
         }
         else if (to[cr].has_extra()) to[cr].calcAbstraction();
     }
@@ -299,7 +297,7 @@ class OccLists
     vec<Idx>  dirties;
     Deleted   deleted;
 
- public:
+public:
     OccLists(const Deleted& d) : deleted(d) {}
     
     void  init      (const Idx& idx){ occs.growTo(toInt(idx)+1); dirty.growTo(toInt(idx)+1, 0); }
@@ -360,8 +358,8 @@ class CMap
 
     typedef Map<CRef, T, CRefHash> HashTable;
     HashTable map;
-        
- public:
+
+public:
     // Size-operations:
     void     clear       ()                           { map.clear(); }
     int      size        ()                const      { return map.elems(); }
@@ -386,7 +384,7 @@ class CMap
 
     // TMP debug:
     void debug(){
-        printf(" --- size = %d, bucket_count = %d\n", size(), map.bucket_count()); }
+        printf("c --- size = %d, bucket_count = %d\n", size(), map.bucket_count()); }
 };
 
 
@@ -428,7 +426,7 @@ inline Lit Clause::subsumes(const Clause& other) const
 
         // did not find it
         return lit_Error;
-    ok:;
+ok:;
     }
 
     return ret;
