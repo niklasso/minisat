@@ -27,7 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 //=================================================================================================
 
-namespace Minisat {
+namespace Glucose {
 
 template <class T>
 class bqueue {
@@ -54,7 +54,7 @@ public:
 			queuesize++;
 		sumofqueue += x;
 		elems[first] = x;
-		if ((++first) == maxsize) first = 0;
+		if ((++first) == maxsize) {first = 0;last = 0;}
 	}
 
 	T peek() { assert(queuesize>0); return elems[last]; }
@@ -74,7 +74,7 @@ public:
 	
 	void growTo(int size) {
 		elems.growTo(size); 
-		first=0; maxsize=size; queuesize = 0;
+		first=0; maxsize=size; queuesize = 0;last = 0;
 		for(int i=0;i<size;i++) elems[i]=0; 
 	}
 	

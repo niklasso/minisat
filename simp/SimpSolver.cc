@@ -22,7 +22,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "simp/SimpSolver.h"
 #include "utils/System.h"
 
-using namespace Minisat;
+using namespace Glucose;
 
 //=================================================================================================
 // Options:
@@ -586,7 +586,14 @@ bool SimpSolver::eliminate(bool turn_off_elim)
 
     // Main simplification loop:
     //
-    while (n_touched > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0){
+
+    int toPerform = clauses.size()<=4800000;
+    
+    if(!toPerform) {
+      printf("c Too many clauses... No preprocessing\n");
+    }
+    
+    while (toPerform && (n_touched > 0 || bwdsub_assigns < trail.size() || elim_heap.size() > 0)){
 
         gatherTouchedClauses();
         // printf("  ## (time = %6.2f s) BWD-SUB: queue = %d, trail = %d\n", cpuTime(), subsumption_queue.size(), trail.size() - bwdsub_assigns);
@@ -655,7 +662,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     }
 
     if (verbosity >= 1 && elimclauses.size() > 0)
-        printf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
+        printf("c |  Eliminated clauses:     %10.2f Mb                                                                |\n", 
                double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
 
     return ok;

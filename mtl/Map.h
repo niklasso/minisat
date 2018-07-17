@@ -17,13 +17,13 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Minisat_Map_h
-#define Minisat_Map_h
+#ifndef Glucose_Map_h
+#define Glucose_Map_h
 
 #include "mtl/IntTypes.h"
 #include "mtl/Vec.h"
 
-namespace Minisat {
+namespace Glucose {
 
 //=================================================================================================
 // Default hash/equals functions
