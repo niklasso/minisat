@@ -3,7 +3,11 @@ Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
 Copyright (c) 2007,      Niklas Sorensson
 
 Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
-
+ 
+Maple_LCM, Based on MapleCOMSPS_DRUP --Copyright (c) 2017, Mao Luo, Chu-Min LI, Fan Xiao: implementing a learnt clause minimisation approach
+Reference: M. Luo, C.-M. Li, F. Xiao, F. Manya, and Z. L. , “An effective learnt clause minimization approach for cdcl sat solvers,” in IJCAI-2017, 2017, pp. to–appear.
+ 
+ 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
 including without limitation the rights to use, copy, modify, merge, publish, distribute,
@@ -37,18 +41,45 @@ using namespace Minisat;
 //=================================================================================================
 
 
+#ifdef _MSC_VER 
 void printStats(Solver& solver)
 {
-    double cpu_time = cpuTime();
-    double mem_used = memUsedPeak();
-    printf("c restarts              : %"PRIu64"\n", solver.starts);
-    printf("c conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts   , solver.conflicts   /cpu_time);
-    printf("c decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
-    printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
-    printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
-    if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
-    printf("c CPU time              : %g s\n", cpu_time);
+	double cpu_time = cpuTime();
+	double mem_used = 0;//memUsedPeak();
+	printf("c restarts              : %-12lld (%-12lld conflicts in avg)\n", solver.starts, (solver.starts>0 ? solver.conflicts / solver.starts : 0));
+	printf("c conflicts             : %-12lld   (%.0f /sec)\n", solver.conflicts, solver.conflicts / cpu_time);
+	printf("c decisions             : %-12lld   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions * 100 / (float)solver.decisions, solver.decisions / cpu_time);
+	printf("c propagations          : %-12lld   (%.0f /sec)\n", solver.propagations, solver.propagations / cpu_time);
+
+	printf("c conflict literals     : %-12lld   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals) * 100 / (double)solver.max_literals);
+	if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
+	printf("c CPU time              : %g s\n", cpu_time);
+	// simplify
+	printf("c nbSimplifyAll         : %d\n", solver.nbSimplifyAll);
+	printf("c s_propagations        : %-12lld\n", solver.s_propagations);
+	printf("c s_cost_ratio          : %4.2f%%\n", solver.s_propagations * 100 / (double)solver.propagations);
+
 }
+#else 
+
+void printStats(Solver& solver)
+{
+	double cpu_time = cpuTime();
+	double mem_used = memUsedPeak();
+	printf("c restarts              : %"PRIu64"\n", solver.starts);
+	printf("c conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts, solver.conflicts / cpu_time);
+	printf("c decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions * 100 / (float)solver.decisions, solver.decisions / cpu_time);
+	printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations / cpu_time);
+	printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals) * 100 / (double)solver.max_literals);
+	if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
+	printf("c CPU time              : %g s\n", cpu_time);
+	// simplify
+	printf("c nbSimplifyAll         : %d\n", solver.nbSimplifyAll);
+	printf("c s_propagations        : %-12"PRIu64"\n", solver.s_propagations);
+	printf("c s_cost_ratio          : %4.2f%%\n", solver.s_propagations * 100 / (double)solver.propagations);
+
+}
+#endif
 
 
 static Solver* solver;
@@ -88,6 +119,8 @@ int main(int argc, char** argv)
         StringOption dimacs ("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
         IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
         IntOption    mem_lim("MAIN", "mem-lim","Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX));
+        BoolOption   drup   ("MAIN", "drup",   "Generate DRUP UNSAT proof.", false);
+        StringOption drup_file("MAIN", "drup-file", "DRUP UNSAT proof ouput file.", "");
 
         parseOptions(argc, argv, true);
         
@@ -96,8 +129,16 @@ int main(int argc, char** argv)
 
         if (!pre) S.eliminate(true);
 
+        S.parsing = true;
         S.verbosity = verb;
-        
+        if (drup || strlen(drup_file)){
+            S.drup_file = strlen(drup_file) ? fopen(drup_file, "wb") : stdout;
+            if (S.drup_file == NULL){
+                S.drup_file = stdout;
+                printf("c Error opening %s for write.\n", (const char*) drup_file); }
+            printf("c DRUP proof generation: %s\n", S.drup_file == stdout ? "stdout" : drup_file);
+        }
+
         solver = &S;
         // Use signal handlers that forcibly quit until the solver will be able to respond to
         // interrupts:
@@ -153,6 +194,7 @@ int main(int argc, char** argv)
         signal(SIGINT, SIGINT_interrupt);
         signal(SIGXCPU,SIGINT_interrupt);
 
+        S.parsing = false;
         S.eliminate(true);
         double simplified_time = cpuTime();
         if (S.verbosity > 0){
@@ -167,6 +209,14 @@ int main(int argc, char** argv)
                 printStats(S);
                 printf("\n"); }
             printf("s UNSATISFIABLE\n");
+            if (S.drup_file){
+#ifdef BIN_DRUP
+                fputc('a', S.drup_file); fputc(0, S.drup_file);
+#else
+                fprintf(S.drup_file, "0\n");
+#endif
+            }
+            if (S.drup_file && S.drup_file != stdout) fclose(S.drup_file);
             exit(20);
         }
 
@@ -194,6 +244,15 @@ int main(int argc, char** argv)
             printf(" 0\n");
         }
 
+        if (S.drup_file && ret == l_False){
+#ifdef BIN_DRUP
+            fputc('a', S.drup_file); fputc(0, S.drup_file);
+#else
+            fprintf(S.drup_file, "0\n");
+#endif
+        }
+        if (S.drup_file && S.drup_file != stdout) fclose(S.drup_file);
+
         if (res != NULL){
             if (ret == l_True){
                 fprintf(res, "SAT\n");
@@ -215,6 +274,7 @@ int main(int argc, char** argv)
 #endif
     } catch (OutOfMemoryException&){
         printf("c ===============================================================================\n");
+        printf("c Out of memory\n");
         printf("s UNKNOWN\n");
         exit(0);
     }

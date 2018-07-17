@@ -4,6 +4,10 @@ Copyright (c) 2007-2010, Niklas Sorensson
 
 Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
 
+Maple_LCM, Based on MapleCOMSPS_DRUP --Copyright (c) 2017, Mao Luo, Chu-Min LI, Fan Xiao: implementing a learnt clause minimisation approach
+Reference: M. Luo, C.-M. Li, F. Xiao, F. Manya, and Z. L. , “An effective learnt clause minimization approach for cdcl sat solvers,” in IJCAI-2017, 2017, pp. to–appear.
+ 
+ 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
 including without limitation the rights to use, copy, modify, merge, publish, distribute,
@@ -19,11 +23,15 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FO
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
-
+#define _CRT_SECURE_NO_DEPRECATE
 #include <errno.h>
 
 #include <signal.h>
-#include <zlib.h>
+#ifdef _MSC_VER 
+#   include <win/zlib.h> 
+#else 
+#   include <zlib.h> 
+#endif 
 
 #include "utils/System.h"
 #include "utils/ParseUtils.h"
@@ -35,19 +43,45 @@ using namespace Minisat;
 
 //=================================================================================================
 
+#ifdef _MSC_VER 
+void printStats(Solver& solver)
+{
+	double cpu_time = cpuTime();
+	double mem_used = 0;//memUsedPeak();
+	printf("c restarts              : %-12lld (%-12lld conflicts in avg)\n", solver.starts, (solver.starts>0 ? solver.conflicts / solver.starts : 0));
+	printf("c conflicts             : %-12lld   (%.0f /sec)\n", solver.conflicts, solver.conflicts / cpu_time);
+	printf("c decisions             : %-12lld   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions * 100 / (float)solver.decisions, solver.decisions / cpu_time);
+	printf("c propagations          : %-12lld   (%.0f /sec)\n", solver.propagations, solver.propagations / cpu_time);
+
+	printf("c conflict literals     : %-12lld   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals) * 100 / (double)solver.max_literals);
+	if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
+	printf("c CPU time              : %g s\n", cpu_time);
+	// simplify
+	printf("c nbSimplifyAll         : %d\n", solver.nbSimplifyAll);
+	printf("c s_propagations        : %-12lld\n", solver.s_propagations);
+	printf("c s_cost_ratio          : %4.2f%%\n", solver.s_propagations * 100 / (double)solver.propagations);
+
+}
+#else 
 
 void printStats(Solver& solver)
 {
-    double cpu_time = cpuTime();
-    double mem_used = memUsedPeak();
-    printf("c restarts              : %"PRIu64"\n", solver.starts);
-    printf("c conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts   , solver.conflicts   /cpu_time);
-    printf("c decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
-    printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
-    printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
-    if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
-    printf("c CPU time              : %g s\n", cpu_time);
+	double cpu_time = cpuTime();
+	double mem_used = memUsedPeak();
+	printf("c restarts              : %"PRIu64"\n", solver.starts);
+	printf("c conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts, solver.conflicts / cpu_time);
+	printf("c decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions * 100 / (float)solver.decisions, solver.decisions / cpu_time);
+	printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations / cpu_time);
+	printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals) * 100 / (double)solver.max_literals);
+	if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
+	printf("c CPU time              : %g s\n", cpu_time);
+	// simplify
+	printf("c nbSimplifyAll         : %d\n", solver.nbSimplifyAll);
+	printf("c s_propagations        : %-12"PRIu64"\n", solver.s_propagations);
+	printf("c s_cost_ratio          : %4.2f%%\n", solver.s_propagations * 100 / (double)solver.propagations);
+
 }
+#endif
 
 
 static Solver* solver;
@@ -97,9 +131,9 @@ int main(int argc, char** argv)
         solver = &S;
         // Use signal handlers that forcibly quit until the solver will be able to respond to
         // interrupts:
-        signal(SIGINT, SIGINT_exit);
-        signal(SIGXCPU,SIGINT_exit);
-
+        //signal(SIGINT, SIGINT_exit);
+        //signal(SIGXCPU,SIGINT_exit);
+#ifndef _MSC_VER 
         // Set limit on CPU-time:
         if (cpu_lim != INT32_MAX){
             rlimit rl;
@@ -120,7 +154,7 @@ int main(int argc, char** argv)
                 if (setrlimit(RLIMIT_AS, &rl) == -1)
                     printf("c WARNING! Could not set resource limit: Virtual memory.\n");
             } }
-        
+#endif            
         if (argc == 1)
             printf("c Reading from standard input... Use '--help' for help.\n");
         
@@ -148,8 +182,9 @@ int main(int argc, char** argv)
         // Change to signal-handlers that will only notify the solver and allow it to terminate
         // voluntarily:
         signal(SIGINT, SIGINT_interrupt);
-        signal(SIGXCPU,SIGINT_interrupt);
-       
+#ifndef _MSC_VER
+		signal(SIGXCPU, SIGINT_interrupt);
+#endif       
         if (!S.simplify()){
             if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
             if (S.verbosity > 0){

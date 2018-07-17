@@ -1,9 +1,13 @@
 /***********************************************************************************[SolverTypes.h]
 MiniSat -- Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
            Copyright (c) 2007-2010, Niklas Sorensson
-
+ 
 Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
-
+ 
+Maple_LCM, Based on MapleCOMSPS_DRUP --Copyright (c) 2017, Mao Luo, Chu-Min LI, Fan Xiao: implementing a learnt clause minimisation approach
+Reference: M. Luo, C.-M. Li, F. Xiao, F. Manya, and Z. L. , “An effective learnt clause minimization approach for cdcl sat solvers,” in IJCAI-2017, 2017, pp. to–appear.
+ 
+ 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
 including without limitation the rights to use, copy, modify, merge, publish, distribute,
@@ -130,7 +134,10 @@ class Clause {
         unsigned reloced   : 1;
         unsigned lbd       : 26;
         unsigned removable : 1;
-        unsigned size      : 32; }                            header;
+        unsigned size      : 32; 
+		//simplify
+		unsigned simplified : 1;
+	}                            header;
     union { Lit lit; float act; uint32_t abs; uint32_t touched; CRef rel; } data[0];
 
     friend class ClauseAllocator;
@@ -145,6 +152,9 @@ class Clause {
         header.size      = ps.size();
         header.lbd       = 0;
         header.removable = 1;
+		//simplify
+		//
+		header.simplified = 0;
 
         for (int i = 0; i < ps.size(); i++) 
             data[i].lit = ps[i];
@@ -196,6 +206,12 @@ public:
 
     Lit          subsumes    (const Clause& other) const;
     void         strengthen  (Lit p);
+
+	// simplify
+	//
+	void setSimplified(bool b) { header.simplified = b; }
+	bool simplified() { return header.simplified; }
+
 };
 
 
@@ -262,6 +278,10 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
             to[cr].activity() = c.activity();
             to[cr].set_lbd(c.lbd());
             to[cr].removable(c.removable());
+			// simplify
+			//
+			to[cr].setSimplified(c.simplified());
+
         }
         else if (to[cr].has_extra()) to[cr].calcAbstraction();
     }

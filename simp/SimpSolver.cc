@@ -1,9 +1,13 @@
 /***********************************************************************************[SimpSolver.cc]
 MiniSat -- Copyright (c) 2006,      Niklas Een, Niklas Sorensson
            Copyright (c) 2007-2010, Niklas Sorensson
-
+ 
 Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
-
+ 
+Maple_LCM, Based on MapleCOMSPS_DRUP --Copyright (c) 2017, Mao Luo, Chu-Min LI, Fan Xiao: implementing a learnt clause minimisation approach
+Reference: M. Luo, C.-M. Li, F. Xiao, F. Manya, and Z. L. , “An effective learnt clause minimization approach for cdcl sat solvers,” in IJCAI-2017, 2017, pp. to–appear.
+ 
+ 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
 including without limitation the rights to use, copy, modify, merge, publish, distribute,
@@ -46,7 +50,8 @@ static DoubleOption opt_simp_garbage_frac(_cat, "simp-gc-frac", "The fraction of
 
 
 SimpSolver::SimpSolver() :
-    grow               (opt_grow)
+    parsing            (false)
+  , grow               (opt_grow)
   , clause_lim         (opt_clause_lim)
   , subsumption_lim    (opt_subsumption_lim)
   , simp_garbage_frac  (opt_simp_garbage_frac)
@@ -149,6 +154,16 @@ bool SimpSolver::addClause_(vec<Lit>& ps)
     if (!Solver::addClause_(ps))
         return false;
 
+    if (!parsing && drup_file) {
+#ifdef BIN_DRUP
+        binDRUP('a', ps, drup_file);
+#else
+        for (int i = 0; i < ps.size(); i++)
+            fprintf(drup_file, "%i ", (var(ps[i]) + 1) * (-2 * sign(ps[i]) + 1));
+        fprintf(drup_file, "0\n");
+#endif
+    }
+
     if (use_simplification && clauses.size() == nclauses + 1){
         CRef          cr = clauses.last();
         const Clause& c  = ca[cr];
@@ -199,10 +214,31 @@ bool SimpSolver::strengthenClause(CRef cr, Lit l)
     // if (!find(subsumption_queue, &c))
     subsumption_queue.insert(cr);
 
+    if (drup_file){
+#ifdef BIN_DRUP
+        binDRUP_strengthen(c, l, drup_file);
+#else
+        for (int i = 0; i < c.size(); i++)
+            if (c[i] != l) fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
+        fprintf(drup_file, "0\n");
+#endif
+    }
+
     if (c.size() == 2){
         removeClause(cr);
         c.strengthen(l);
     }else{
+        if (drup_file){
+#ifdef BIN_DRUP
+            binDRUP('d', c, drup_file);
+#else
+            fprintf(drup_file, "d ");
+            for (int i = 0; i < c.size(); i++)
+                fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
+            fprintf(drup_file, "0\n");
+#endif
+        }
+
         detachClause(cr, true);
         c.strengthen(l);
         attachClause(cr);
@@ -510,15 +546,15 @@ bool SimpSolver::eliminateVar(Var v)
         mkElimClause(elimclauses, ~mkLit(v));
     }
 
-    for (int i = 0; i < cls.size(); i++)
-        removeClause(cls[i]); 
-
     // Produce clauses in cross product:
     vec<Lit>& resolvent = add_tmp;
     for (int i = 0; i < pos.size(); i++)
         for (int j = 0; j < neg.size(); j++)
             if (merge(ca[pos[i]], ca[neg[j]], v, resolvent) && !addClause_(resolvent))
                 return false;
+
+    for (int i = 0; i < cls.size(); i++)
+        removeClause(cls[i]); 
 
     // Free occurs list for this variable:
     occurs[v].clear(true);
@@ -555,10 +591,10 @@ bool SimpSolver::substitute(Var v, Lit x)
             subst_clause.push(var(p) == v ? x ^ sign(p) : p);
         }
 
-        removeClause(cls[i]);
-
         if (!addClause_(subst_clause))
             return ok = false;
+
+        removeClause(cls[i]);
     }
 
     return true;
@@ -581,19 +617,105 @@ void SimpSolver::extendModel()
     }
 }
 
+// Almost duplicate of Solver::removeSatisfied. Didn't want to make the base method 'virtual'.
+void SimpSolver::removeSatisfied()
+{
+    int i, j;
+    for (i = j = 0; i < clauses.size(); i++){
+        const Clause& c = ca[clauses[i]];
+        if (c.mark() == 0)
+            if (satisfied(c))
+                removeClause(clauses[i]);
+            else
+                clauses[j++] = clauses[i];
+    }
+    clauses.shrink(i - j);
+}
 
+// The technique and code are by the courtesy of the GlueMiniSat team. Thank you!
+// It helps solving certain types of huge problems tremendously.
 bool SimpSolver::eliminate(bool turn_off_elim)
+{
+    bool res = true;
+    int iter = 0;
+    int n_cls, n_cls_init, n_vars;
+
+    if (nVars() == 0) goto cleanup; // User disabling preprocessing.
+
+    // Get an initial number of clauses (more accurately).
+    if (trail.size() != 0) removeSatisfied();
+    n_cls_init = nClauses();
+
+    res = eliminate_(); // The first, usual variable elimination of MiniSat.
+    if (!res) goto cleanup;
+
+    n_cls  = nClauses();
+    n_vars = nFreeVars();
+
+    printf("c Reduced to %d vars, %d cls (grow=%d)\n", n_vars, n_cls, grow);
+
+    if ((double)n_cls / n_vars >= 10 || n_vars < 10000){
+        printf("c No iterative elimination performed. (vars=%d, c/v ratio=%.1f)\n", n_vars, (double)n_cls / n_vars);
+        goto cleanup; }
+
+    grow = grow ? grow * 2 : 8;
+    for (; grow < 10000; grow *= 2){
+        // Rebuild elimination variable heap.
+        for (int i = 0; i < clauses.size(); i++){
+            const Clause& c = ca[clauses[i]];
+            for (int j = 0; j < c.size(); j++)
+                if (!elim_heap.inHeap(var(c[j])))
+                    elim_heap.insert(var(c[j]));
+                else
+                    elim_heap.update(var(c[j])); }
+
+        int n_cls_last = nClauses();
+        int n_vars_last = nFreeVars();
+
+        res = eliminate_();
+        if (!res || n_vars_last == nFreeVars()) break;
+        iter++;
+
+        int n_cls_now  = nClauses();
+        int n_vars_now = nFreeVars();
+
+        double cl_inc_rate  = (double)n_cls_now   / n_cls_last;
+        double var_dec_rate = (double)n_vars_last / n_vars_now;
+
+        printf("c Reduced to %d vars, %d cls (grow=%d)\n", n_vars_now, n_cls_now, grow);
+        printf("c cl_inc_rate=%.3f, var_dec_rate=%.3f\n", cl_inc_rate, var_dec_rate);
+
+        if (n_cls_now > n_cls_init || cl_inc_rate > var_dec_rate) break;
+    }
+    printf("c No. effective iterative eliminations: %d\n", iter);
+
+cleanup:
+    touched  .clear(true);
+    occurs   .clear(true);
+    n_occ    .clear(true);
+    elim_heap.clear(true);
+    subsumption_queue.clear(true);
+
+    use_simplification    = false;
+    remove_satisfied      = true;
+    ca.extra_clause_field = false;
+
+    // Force full cleanup (this is safe and desirable since it only happens once):
+    rebuildOrderHeap();
+    garbageCollect();
+
+    return res;
+}
+
+
+bool SimpSolver::eliminate_()
 {
     if (!simplify())
         return false;
     else if (!use_simplification)
         return true;
 
-    // TODO: remove.
-    int skip = clauses.size() > 4800000;
-    if (skip){
-        printf("c Too many clauses; skip preprocessing.\n");
-        goto cleanup; }
+    int trail_size_last = trail.size();
 
     // Main simplification loop:
     //
@@ -643,25 +765,17 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         assert(subsumption_queue.size() == 0);
     }
  cleanup:
-
-    // If no more simplification is needed, free all simplification-related data structures:
-    if (turn_off_elim){
-        touched  .clear(true);
-        occurs   .clear(true);
-        n_occ    .clear(true);
-        elim_heap.clear(true);
-        subsumption_queue.clear(true);
-
-        use_simplification    = false;
-        remove_satisfied      = true;
-        ca.extra_clause_field = false;
-
-        // Force full cleanup (this is safe and desirable since it only happens once):
-        rebuildOrderHeap();
-        garbageCollect();
-    }else{
-        checkGarbage();
+    // To get an accurate number of clauses.
+    if (trail_size_last != trail.size())
+        removeSatisfied();
+    else{
+        int i,j;
+        for (i = j = 0; i < clauses.size(); i++)
+            if (ca[clauses[i]].mark() == 0)
+                clauses[j++] = clauses[i];
+        clauses.shrink(i - j);
     }
+    checkGarbage();
 
     if (verbosity >= 1 && elimclauses.size() > 0)
         printf("c |  Eliminated clauses:     %10.2f Mb                                      |\n", 
