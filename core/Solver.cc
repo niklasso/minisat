@@ -1,7 +1,7 @@
 /***************************************************************************************[Solver.cc]
- Glucose -- Copyright (c) 2009-2011, Gilles Audemard, Laurent Simon
-						CRIL - Univ. Artois, France
-						LRI  - Univ. Paris Sud, France
+ Glucose -- Copyright (c) 2009, Gilles Audemard, Laurent Simon
+				CRIL - Univ. Artois, France
+				LRI  - Univ. Paris Sud, France
  
 Glucose sources are based on MiniSat (see below MiniSat copyrights). Permissions and copyrights of
 Glucose are exactly the same as Minisat on which it is based on. (see below).
@@ -38,8 +38,26 @@ using namespace Minisat;
 //=================================================================================================
 // Options:
 
-
 static const char* _cat = "CORE";
+static const char* _cr = "CORE -- RESTART";
+static const char* _cred = "CORE -- REDUCE";
+static const char* _cm = "CORE -- MINIMIZE";
+
+
+
+static DoubleOption opt_K                 (_cr, "K",           "The constant used to force restart",            0.8,     DoubleRange(0, false, 1, false));           
+static DoubleOption opt_R                 (_cr, "R",           "The constant used to block restart",            1.4,     DoubleRange(1, false, 5, false));           
+static IntOption     opt_size_lbd_queue     (_cr, "szLBDQueue",      "The size of moving average for LBD (restarts)", 50, IntRange(10, INT32_MAX));
+static IntOption     opt_size_trail_queue     (_cr, "szTrailQueue",      "The size of moving average for trail (block restarts)", 5000, IntRange(10, INT32_MAX));
+
+static IntOption     opt_first_reduce_db     (_cred, "firstReduceDB",      "The number of conflicts before the first reduce DB", 4000, IntRange(0, INT32_MAX));
+static IntOption     opt_inc_reduce_db     (_cred, "incReduceDB",      "Increment for reduce DB", 300, IntRange(0, INT32_MAX));
+static IntOption     opt_spec_inc_reduce_db     (_cred, "specialIncReduceDB",      "Special increment for reduce DB", 1000, IntRange(0, INT32_MAX));
+static IntOption    opt_lb_lbd_frozen_clause      (_cred, "minLBDFrozenClause",        "Protect clauses if their LBD decrease and is lower than (for one turn)", 30, IntRange(0, INT32_MAX));
+
+static IntOption     opt_lb_size_minimzing_clause     (_cm, "minSizeMinimizingClause",      "The min size required to minimize clause", 30, IntRange(3, INT32_MAX));
+static IntOption     opt_lb_lbd_minimzing_clause     (_cm, "minLBDMinimizingClause",      "The min LBD required to minimize clause", 6, IntRange(3, INT32_MAX));
+
 
 static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
 static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
@@ -48,9 +66,10 @@ static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the ra
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
 static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
 static BoolOption    opt_rnd_init_act      (_cat, "rnd-init",    "Randomize the initial activity", false);
-static BoolOption    opt_luby_restart      (_cat, "luby",        "Use the Luby restart sequence", true);
+/*
 static IntOption     opt_restart_first     (_cat, "rfirst",      "The base restart interval", 100, IntRange(1, INT32_MAX));
 static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interval increase factor", 2, DoubleRange(1, false, HUGE_VAL, false));
+*/
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
 
 
@@ -63,32 +82,31 @@ Solver::Solver() :
     // Parameters (user settable):
     //
     verbosity        (0)
+    , K              (opt_K)
+    , R              (opt_R)
+    , sizeLBDQueue   (opt_size_lbd_queue)
+    , sizeTrailQueue   (opt_size_trail_queue)
+    , firstReduceDB  (opt_first_reduce_db)
+    , incReduceDB    (opt_inc_reduce_db)
+    , specialIncReduceDB    (opt_spec_inc_reduce_db)
+    , lbLBDFrozenClause (opt_lb_lbd_frozen_clause)
+    , lbSizeMinimizingClause (opt_lb_size_minimzing_clause)
+    , lbLBDMinimizingClause (opt_lb_lbd_minimzing_clause)
   , var_decay        (opt_var_decay)
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
   , random_seed      (opt_random_seed)
-  , luby_restart     (opt_luby_restart)
   , ccmin_mode       (opt_ccmin_mode)
   , phase_saving     (opt_phase_saving)
   , rnd_pol          (false)
   , rnd_init_act     (opt_rnd_init_act)
   , garbage_frac     (opt_garbage_frac)
-  , restart_first    (opt_restart_first)
-  , restart_inc      (opt_restart_inc)
 
-    // Parameters (the rest):
-    //
-  , learntsize_factor((double)1/(double)3), learntsize_inc(1.1)
-
-    // Parameters (experimental):
-    //
-  , learntsize_adjust_start_confl (100)
-  , learntsize_adjust_inc         (1.5)
 
     // Statistics: (formerly in 'SolverStats')
     //
   ,  nbRemovedClauses(0),nbReducedClauses(0), nbDL2(0),nbBin(0),nbUn(0) , nbReduceDB(0)
-  , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
+    , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0),nbstopsrestarts(0),nbstopsrestartssame(0),lastblockatrestart(0)
   , dec_vars(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
 
   , ok                 (true)
@@ -108,7 +126,7 @@ Solver::Solver() :
   , conflict_budget    (-1)
   , propagation_budget (-1)
   , asynch_interrupt   (false)
-{MYFLAG=0;nbclausesbeforereduce=NBCLAUSESBEFOREREDUCE;}
+{MYFLAG=0;}
 
 
 Solver::~Solver()
@@ -391,7 +409,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel,unsigned
       Then, we reduce clauses with small LBD.
       Otherwise, this can be useless
      */
-    if(out_learnt.size()<=30) {
+    if(out_learnt.size()<=lbSizeMinimizingClause) {
       // Find the LBD measure                                                                                                         
       lbd = 0;
       MYFLAG++;
@@ -405,7 +423,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel,unsigned
       }
 
 
-      if(lbd<=6){
+      if(lbd<=lbLBDMinimizingClause){
       MYFLAG++;
       
       for(int i = 1;i<out_learnt.size();i++) {
@@ -562,10 +580,13 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
                 out_conflict.push(~trail[i]);
             }else{
                 Clause& c = ca[reason(x)];
-                for (int j = 1; j < c.size(); j++)
+		//                for (int j = 1; j < c.size(); j++) Minisat (glucose 2.0) loop 
+		// Bug in case of assumptions due to special data structures for Binary.
+		// Many thanks to Sam Bayless (sbayless@cs.ubc.ca) for discover this bug.
+		for (int j = ((c.size()==2) ? 0:1); j < c.size(); j++)
                     if (level(var(c[j])) > 0)
                         seen[var(c[j])] = 1;
-            }
+            }  
 
             seen[x] = 0;
         }
@@ -682,7 +703,7 @@ CRef Solver::propagate()
 		    
 		  }
 		  if(nblevels+1<c.lbd() ) { // improve the LBD
-		    if(c.lbd()<=30) {
+		    if(c.lbd()<=lbLBDFrozenClause) {
 		      c.setCanBeDel(false); 
 		    }
 		      // seems to be interesting : keep it for the next round
@@ -743,9 +764,9 @@ void Solver::reduceDB()
   sort(learnts, reduceDB_lt(ca));
 
   // We have a lot of "good" clauses, it is difficult to compare them. Keep more !
-  if(ca[learnts[learnts.size() / RATIOREMOVECLAUSES]].lbd()<=3) nbclausesbeforereduce +=1000; 
+  if(ca[learnts[learnts.size() / RATIOREMOVECLAUSES]].lbd()<=3) nbclausesbeforereduce +=specialIncReduceDB; 
   // Useless :-)
-  if(ca[learnts.last()].lbd()<=5)  nbclausesbeforereduce +=1000; 
+  if(ca[learnts.last()].lbd()<=5)  nbclausesbeforereduce +=specialIncReduceDB; 
   
   
   // Don't delete binary or locked clauses. From the rest, delete clauses from the first half
@@ -850,22 +871,38 @@ lbool Solver::search(int nof_conflicts)
     int         conflictC = 0;
     vec<Lit>    learnt_clause;
     unsigned int nblevels;
+    bool blocked=false;
     starts++;
     for (;;){
         CRef confl = propagate();
         if (confl != CRef_Undef){
             // CONFLICT
 	  conflicts++; conflictC++;
-	  if (decisionLevel() == 0) return l_False;
-	  
 
+	  if (verbosity >= 1 && conflicts%verbEveryConflicts==0){
+	    printf("c | %8d   %7d    %5d | %7d %8d %8d | %5d %8d   %6d %8d | %6.3f %% |\n", 
+		   (int)starts,(int)nbstopsrestarts, (int)(conflicts/starts), 
+		   (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals, 
+		   (int)nbReduceDB, nLearnts(), (int)nbDL2,(int)nbRemovedClauses, progressEstimate()*100);
+	  }
+	  if (decisionLevel() == 0) {
+	    return l_False;
+	    
+	  }
+
+	  trailQueue.push(trail.size());
+	  if( conflicts>LOWER_BOUND_FOR_BLOCKING_RESTART && lbdQueue.isvalid()  && trail.size()>R*trailQueue.getavg()) {
+	    lbdQueue.fastclear();
+	    nbstopsrestarts++;
+	    if(!blocked) {lastblockatrestart=starts;nbstopsrestartssame++;blocked=true;}
+	  }
 
             learnt_clause.clear();
             analyze(confl, learnt_clause, backtrack_level,nblevels);
 
 	    conf4stats++;cons++;
-	    nbDecisionLevelHistory.push(nblevels);
-	    totalSumOfDecisionLevel += nblevels;
+	    lbdQueue.push(nblevels);
+	    sumLBD += nblevels;
  
 
            cancelUntil(backtrack_level);
@@ -892,24 +929,18 @@ lbool Solver::search(int nof_conflicts)
         }else{
 	  // Our dynamic restart, see the SAT09 competition compagnion paper 
 	  if (
-	      ( nbDecisionLevelHistory.isvalid() && 
-		((nbDecisionLevelHistory.getavg()*0.7) > (totalSumOfDecisionLevel / conf4stats)))) {
-	    nbDecisionLevelHistory.fastclear();
+	      ( lbdQueue.isvalid() && ((lbdQueue.getavg()*K) > (sumLBD / conf4stats)))) {
+	    lbdQueue.fastclear();
 	    progress_estimate = progressEstimate();
 	    cancelUntil(0);
 	    return l_Undef; }
-	  
-	  /*
-	              // NO CONFLICT
-            if (nof_conflicts >= 0 && conflictC >= nof_conflicts || !withinBudget()){
-                // Reached bound on number of conflicts:
-                progress_estimate = progressEstimate();
-                cancelUntil(0);
-                return l_Undef; }
-	  */
-            // Simplify the set of problem clauses:
-            if (decisionLevel() == 0 && !simplify())
-                return l_False;
+
+
+           // Simplify the set of problem clauses:
+	  if (decisionLevel() == 0 && !simplify()) {
+	    printf("c last restart ## conflicts  :  %d %d \n",conflictC,decisionLevel());
+	    return l_False;
+	  }
 	    // Perform clause database reduction !
 	    if(cons-curRestart* nbclausesbeforereduce>=0) 
 	      {
@@ -917,7 +948,7 @@ lbool Solver::search(int nof_conflicts)
 		assert(learnts.size()>0);
 		curRestart = (conflicts/ nbclausesbeforereduce)+1;
 		reduceDB();
-		nbclausesbeforereduce += 300;
+		nbclausesbeforereduce += incReduceDB;
 	      }
 	    
             Lit next = lit_Undef;
@@ -941,9 +972,11 @@ lbool Solver::search(int nof_conflicts)
                 decisions++;
                 next = pickBranchLit();
 
-                if (next == lit_Undef)
-                    // Model found:
-                    return l_True;
+                if (next == lit_Undef){
+		  printf("c last restart ## conflicts  :  %d %d \n",conflictC,decisionLevel());
+		  // Model found:
+		  return l_True;
+		}
             }
 
             // Increase decision level and enqueue 'next'
@@ -968,33 +1001,6 @@ double Solver::progressEstimate() const
     return progress / nVars();
 }
 
-/*
-  Finite subsequences of the Luby-sequence:
-
-  0: 1
-  1: 1 1 2
-  2: 1 1 2 1 1 2 4
-  3: 1 1 2 1 1 2 4 1 1 2 1 1 2 4 8
-  ...
-
-
- */
-
-static double luby(double y, int x){
-
-    // Find the finite subsequence that contains index 'x', and the
-    // size of that subsequence:
-    int size, seq;
-    for (size = 1, seq = 0; size < x+1; seq++, size = 2*size+1);
-
-    while (size-1 != x){
-        size = (size-1)>>1;
-        seq--;
-        x = x % size;
-    }
-
-    return pow(y, seq);
-}
 
 // NOTE: assumptions passed in member-variable 'assumptions'.
 lbool Solver::solve_()
@@ -1003,46 +1009,47 @@ lbool Solver::solve_()
     conflict.clear();
     if (!ok) return l_False;
 
-    nbDecisionLevelHistory.initSize(100);
-    totalSumOfDecisionLevel = 0;
+    lbdQueue.initSize(sizeLBDQueue);
+
+    trailQueue.initSize(sizeTrailQueue);
+    sumLBD = 0;
     
     solves++;
-    double nof_learnts   = nClauses() * learntsize_factor;
     
     
-    // Compute the first call to database clause reduction
-    if(nof_learnts <nbclausesbeforereduce) {
-      nbclausesbeforereduce = (nof_learnts/2 < 5000) ? 5000 : nof_learnts/2;
-    }
     lbool   status        = l_Undef;
-    nbclausesbeforereduce = 4000;
-    
- 
-    if (verbosity >= 1){
-        printf("c ============================[ Search Statistics ]==============================\n");
-        printf("c | Conflicts |          ORIGINAL         |          LEARNT          | Progress |\n");
-        printf("c |           |    Vars  Clauses Literals |    Limit  Clauses Lit/Cl |          |\n");
-        printf("c ===============================================================================\n");
+    nbclausesbeforereduce = firstReduceDB;
+    if(verbosity>=1) {
+      printf("c ========================================[ MAGIC CONSTANTS ]==============================================\n");
+      printf("c | Constants are supposed to work well together :-)                                                      |\n");
+      printf("c | however, if you find better choices, please let us known...                                           |\n");
+      printf("c |-------------------------------------------------------------------------------------------------------|\n");
+    printf("c |                                |                                |                                     |\n"); 
+    printf("c | - Restarts:                    | - Reduce Clause DB:            | - Minimize Asserting:               |\n");
+    printf("c |   * LBD Queue    : %6d      |   * First     : %6d         |    * size < %3d                     |\n",lbdQueue.maxSize(),firstReduceDB,lbSizeMinimizingClause);
+    printf("c |   * Trail  Queue : %6d      |   * Inc       : %6d         |    * lbd  < %3d                     |\n",trailQueue.maxSize(),incReduceDB,lbLBDMinimizingClause);
+    printf("c |   * K            : %6.2f      |   * Special   : %6d         |                                     |\n",K,specialIncReduceDB);
+    printf("c |   * R            : %6.2f      |   * Protected :  (lbd)< %2d     |                                     |\n",R,lbLBDFrozenClause);
+    printf("c |                                |                                |                                     |\n"); 
+printf("c ==================================[ Search Statistics (every %6d conflicts) ]=========================\n",verbEveryConflicts);
+      printf("c |                                                                                                       |\n"); 
+
+      printf("c |          RESTARTS           |          ORIGINAL         |              LEARNT              | Progress |\n");
+      printf("c |       NB   Blocked  Avg Cfc |    Vars  Clauses Literals |   Red   Learnts    LBD2  Removed |          |\n");
+      printf("c =========================================================================================================\n");
     }
 
     // Search:
     int curr_restarts = 0;
     while (status == l_Undef){
-        double rest_base = luby_restart ? luby(restart_inc, curr_restarts) : pow(restart_inc, curr_restarts);
-	
-        status = search(rest_base * restart_first);
-                if (verbosity >= 1)
-                    printf("c | %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", 
-                           (int)conflicts, 
-                           (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals, 
-                           (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progressEstimate()*100);
+      status = search(0); // the parameter is useless in glucose, kept to allow modifications
 
         if (!withinBudget()) break;
         curr_restarts++;
     }
 
     if (verbosity >= 1)
-        printf("c ===============================================================================\n");
+      printf("c =========================================================================================================\n");
 
 
     if (status == l_True){

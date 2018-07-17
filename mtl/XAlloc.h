@@ -23,6 +23,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 namespace Minisat {
 
@@ -35,8 +36,9 @@ static inline void* xrealloc(void *ptr, size_t size)
     void* mem = realloc(ptr, size);
     if (mem == NULL && errno == ENOMEM){
         throw OutOfMemoryException();
-    }else
+    }else {
         return mem;
+	}
 }
 
 //=================================================================================================

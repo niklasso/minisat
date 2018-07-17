@@ -19,9 +19,15 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-
-#define RATIOREMOVECLAUSES 2
-#define NBCLAUSESBEFOREREDUCE 20000
 #define DYNAMICNBLEVEL
 #define CONSTANTREMOVECLAUSE
 #define UPDATEVARACTIVITY
+
+// Constants for clauses reductions
+#define RATIOREMOVECLAUSES 2
+
+
+
+// Constants for restarts
+#define LOWER_BOUND_FOR_BLOCKING_RESTART 10000
+

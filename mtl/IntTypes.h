@@ -37,6 +37,10 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include <limits.h>
 
+#ifndef PRIu64
+#define PRIu64 "lu"
+#define PRIi64 "ld"
+#endif
 //=================================================================================================
 
 #endif

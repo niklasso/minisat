@@ -125,28 +125,38 @@ public:
     // Mode of operation:
     //
     int       verbosity;
+    int       verbEveryConflicts;
+    // Constants For restarts
+    double    K;
+    double    R;
+    double    sizeLBDQueue;
+    double    sizeTrailQueue;
+
+    // Constants for reduce DB
+    int firstReduceDB;
+    int incReduceDB;
+    int specialIncReduceDB;
+    unsigned int lbLBDFrozenClause;
+
+    // Constant for reducing clause
+    int lbSizeMinimizingClause;
+    unsigned int lbLBDMinimizingClause;
+
     double    var_decay;
     double    clause_decay;
     double    random_var_freq;
     double    random_seed;
-    bool      luby_restart;
     int       ccmin_mode;         // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
     int       phase_saving;       // Controls the level of phase saving (0=none, 1=limited, 2=full).
     bool      rnd_pol;            // Use random polarities for branching heuristics.
     bool      rnd_init_act;       // Initialize variable activities with a small random value.
     double    garbage_frac;       // The fraction of wasted memory allowed before a garbage collection is triggered.
 
-    int       restart_first;      // The initial restart limit.                                                                (default 100)
-    double    restart_inc;        // The factor with which the restart limit is multiplied in each restart.                    (default 1.5)
-    double    learntsize_factor;  // The intitial limit for learnt clauses is a factor of the original clauses.                (default 1 / 3)
-    double    learntsize_inc;     // The limit for learnt clauses is multiplied with this factor each restart.                 (default 1.1)
 
-    int       learntsize_adjust_start_confl;
-    double    learntsize_adjust_inc;
-
+    
     // Statistics: (read-only member variable)
     //
-    uint64_t nbRemovedClauses,nbReducedClauses,nbDL2,nbBin,nbUn,nbReduceDB,solves, starts, decisions, rnd_decisions, propagations, conflicts;
+    uint64_t nbRemovedClauses,nbReducedClauses,nbDL2,nbBin,nbUn,nbReduceDB,solves, starts, decisions, rnd_decisions, propagations, conflicts,nbstopsrestarts,nbstopsrestartssame,lastblockatrestart;
     uint64_t dec_vars, clauses_literals, learnts_literals, max_literals, tot_literals;
 
 protected:
@@ -180,6 +190,7 @@ protected:
 
     // Solver state:
     //
+    int lastIndexRed;
     bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
     double              cla_inc;          // Amount to bump next clause with.
     vec<double>         activity;         // A heuristic measurement of the activity of a variable.
@@ -191,11 +202,11 @@ protected:
     vec<CRef>           clauses;          // List of problem clauses.
     vec<CRef>           learnts;          // List of learnt clauses.
 
-
     vec<lbool>          assigns;          // The current assignments.
     vec<char>           polarity;         // The preferred polarity of each variable.
     vec<char>           decision;         // Declares if a variable is eligible for selection in the decision heuristic.
     vec<Lit>            trail;            // Assignment stack; stores all assigments made in the order they were made.
+        vec<int>            nbpos;
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
     vec<VarData>        vardata;          // Stores reason and level for each variable.
     int                 qhead;            // Head of queue (as index into the trail -- no more explicit propagation queue in MiniSat).
@@ -216,8 +227,9 @@ protected:
 
     int nbclausesbeforereduce;            // To know when it is time to reduce clause database
     
-    bqueue<unsigned int> nbDecisionLevelHistory; // Set of last decision level in conflict clauses
-    float totalSumOfDecisionLevel;
+    bqueue<unsigned int> trailQueue,lbdQueue; // Bounded queues for restarts.
+    float sumLBD; // used to compute the global average of LBD. Restarts...
+
 
     // Temporaries (to reduce allocation overhead). Each variable is prefixed by the method in which it is
     // used, exept 'seen' wich is used in several places.
