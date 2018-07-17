@@ -52,6 +52,7 @@ void printStats(Solver& solver)
     printf("c decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
     printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
     printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
+    printf("c backtracks            : %-12"PRIu64"   (NCB %0.f%% , CB %0.f%%)\n", solver.non_chrono_backtrack + solver.chrono_backtrack, (solver.non_chrono_backtrack * 100) / (double)(solver.non_chrono_backtrack + solver.chrono_backtrack), (solver.chrono_backtrack * 100) / (double)(solver.non_chrono_backtrack + solver.chrono_backtrack));
     if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
     printf("c CPU time              : %g s\n", cpu_time);
 }
@@ -80,7 +81,7 @@ int main(int argc, char** argv)
 {
     try {
         setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n");
-        printf("c This is COMiniSatPS.\n");
+        printf("c This is MapleLCMDistChronoBT.\n");
         
 #if defined(__linux__)
         fpu_control_t oldcw, newcw;
@@ -106,6 +107,7 @@ int main(int argc, char** argv)
 
         S.parsing = true;
         S.verbosity = verb;
+		S.drup_file = NULL;
         if (drup || strlen(drup_file)){
             S.drup_file = strlen(drup_file) ? fopen(drup_file, "wb") : stdout;
             if (S.drup_file == NULL){

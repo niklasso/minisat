@@ -37,6 +37,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Vec.h"
 #include "mtl/Map.h"
 #include "mtl/Alloc.h"
+#include <iostream>
 
 namespace Minisat {
 
@@ -62,7 +63,6 @@ struct Lit {
     bool operator <  (Lit p) const { return x < p.x;  } // '<' makes p, ~p adjacent in the ordering.
 };
 
-
 inline  Lit  mkLit     (Var var, bool sign= false) { Lit p; p.x = var + var + (int)sign; return p; }
 inline  Lit  operator ~(Lit p)              { Lit q; q.x = p.x ^ 1; return q; }
 inline  Lit  operator ^(Lit p, bool b)      { Lit q; q.x = p.x ^ (unsigned int)b; return q; }
@@ -79,6 +79,13 @@ inline  Lit  toLit     (int i)              { Lit p; p.x = i; return p; }
 
 const Lit lit_Undef = { -2 };  // }- Useful special constants.
 const Lit lit_Error = { -1 };  // }
+
+inline std::ostream& operator<<(std::ostream& out, const Lit& val) 
+{
+    out << (sign(val) ? -var(val) : var(val)) << std::flush;
+    return out;
+}
+
 
 
 //=================================================================================================
@@ -285,6 +292,16 @@ public:
     }
 };
 
+
+inline std::ostream& operator<<(std::ostream& out, const Clause& cls) 
+{
+    for (int i = 0; i < cls.size(); ++i)
+    {
+		out << cls[i] << " ";
+	}
+	
+    return out;
+}
 
 //=================================================================================================
 // OccLists -- a class for maintaining occurence lists with lazy deletion:
