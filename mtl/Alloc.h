@@ -18,13 +18,13 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 **************************************************************************************************/
 
 
-#ifndef Glucose_Alloc_h
-#define Glucose_Alloc_h
+#ifndef Minisat_Alloc_h
+#define Minisat_Alloc_h
 
 #include "mtl/XAlloc.h"
 #include "mtl/Vec.h"
 
-namespace Glucose {
+namespace Minisat {
 
 //=================================================================================================
 // Simple Region-based memory allocator:
@@ -99,7 +99,7 @@ void RegionAllocator<T>::capacity(uint32_t min_cap)
         if (cap <= prev_cap)
             throw OutOfMemoryException();
     }
-    //printf(" .. (%p) cap = %u\n", this, cap);
+    // printf(" .. (%p) cap = %u\n", this, cap);
 
     assert(cap > 0);
     memory = (T*)xrealloc(memory, sizeof(T)*cap);
@@ -110,7 +110,7 @@ template<class T>
 typename RegionAllocator<T>::Ref
 RegionAllocator<T>::alloc(int size)
 { 
-    //printf("ALLOC called (this = %p, size = %d)\n", this, size); fflush(stdout);
+    // printf("ALLOC called (this = %p, size = %d)\n", this, size); fflush(stdout);
     assert(size > 0);
     capacity(sz + size);
 

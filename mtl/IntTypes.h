@@ -17,8 +17,8 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Glucose_IntTypes_h
-#define Glucose_IntTypes_h
+#ifndef Minisat_IntTypes_h
+#define Minisat_IntTypes_h
 
 #ifdef __sun
     // Not sure if there are newer versions that support C99 headers. The
@@ -37,10 +37,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include <limits.h>
 
-#ifndef PRIu64
-#define PRIu64 "lu"
-#define PRIi64 "ld"
-#endif
 //=================================================================================================
 
 #endif

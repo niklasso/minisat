@@ -18,8 +18,8 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Glucose_Sort_h
-#define Glucose_Sort_h
+#ifndef Minisat_Sort_h
+#define Minisat_Sort_h
 
 #include "mtl/Vec.h"
 
@@ -27,7 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 // Some sorting algorithms for vec's
 
 
-namespace Glucose {
+namespace Minisat {
 
 template<class T>
 struct LessThan_default {

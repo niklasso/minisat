@@ -1,14 +1,8 @@
 /***********************************************************************************[SolverTypes.h]
- Glucose -- Copyright (c) 2009, Gilles Audemard, Laurent Simon
-				CRIL - Univ. Artois, France
-				LRI  - Univ. Paris Sud, France
- 
-Glucose sources are based on MiniSat (see below MiniSat copyrights). Permissions and copyrights of
-Glucose are exactly the same as Minisat on which it is based on. (see below).
+MiniSat -- Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
+           Copyright (c) 2007-2010, Niklas Sorensson
 
----------------
-Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
-Copyright (c) 2007-2010, Niklas Sorensson
+Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -27,8 +21,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 **************************************************************************************************/
 
 
-#ifndef Glucose_SolverTypes_h
-#define Glucose_SolverTypes_h
+#ifndef Minisat_SolverTypes_h
+#define Minisat_SolverTypes_h
 
 #include <assert.h>
 
@@ -38,7 +32,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Map.h"
 #include "mtl/Alloc.h"
 
-namespace Glucose {
+namespace Minisat {
 
 //=================================================================================================
 // Variables, literals, lifted booleans, clauses:
@@ -130,14 +124,13 @@ typedef RegionAllocator<uint32_t>::Ref CRef;
 
 class Clause {
     struct {
-      unsigned mark      : 2;
-      unsigned learnt    : 1;
-      unsigned has_extra : 1;
-      unsigned reloced   : 1;
-      unsigned lbd       : 26;
-      unsigned canbedel  : 1;
-      unsigned size      : 32;
-    }                            header;
+        unsigned mark      : 2;
+        unsigned learnt    : 1;
+        unsigned has_extra : 1;
+        unsigned reloced   : 1;
+        unsigned lbd       : 26;
+        unsigned removable : 1;
+        unsigned size      : 32; }                            header;
     union { Lit lit; float act; uint32_t abs; CRef rel; } data[0];
 
     friend class ClauseAllocator;
@@ -150,13 +143,14 @@ class Clause {
         header.has_extra = use_extra;
         header.reloced   = 0;
         header.size      = ps.size();
-	header.lbd = 0;
-	header.canbedel = 1;
+        header.lbd       = 0;
+        header.removable = 1;
+
         for (int i = 0; i < ps.size(); i++) 
             data[i].lit = ps[i];
-	
+
         if (header.has_extra){
-	  if (header.learnt) 
+            if (header.learnt)
                 data[header.size].act = 0; 
             else 
                 calcAbstraction(); }
@@ -184,6 +178,11 @@ public:
     CRef         relocation  ()      const   { return data[0].rel; }
     void         relocate    (CRef c)        { header.reloced = 1; data[0].rel = c; }
 
+    int          lbd         ()      const   { return header.lbd; }
+    void         set_lbd     (int lbd)       { header.lbd = lbd; }
+    bool         removable   ()      const   { return header.removable; }
+    void         removable   (bool b)        { header.removable = b ? 1 : 0; }
+
     // NOTE: somewhat unsafe to change the clause in-place! Must manually call 'calcAbstraction' afterwards for
     //       subsumption operations to behave correctly.
     Lit&         operator [] (int i)         { return data[i].lit; }
@@ -195,11 +194,6 @@ public:
 
     Lit          subsumes    (const Clause& other) const;
     void         strengthen  (Lit p);
-    void         setLBD(int i)  {header.lbd = i;} 
-    // unsigned int&       lbd    ()              { return header.lbd; }
-    unsigned int        lbd    () const        { return header.lbd; }
-    void setCanBeDel(bool b) {header.canbedel = b;}
-    bool canBeDel() {return header.canbedel;}
 };
 
 
@@ -260,11 +254,11 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
         // Copy extra data-fields: 
         // (This could be cleaned-up. Generalize Clause-constructor to be applicable here instead?)
         to[cr].mark(c.mark());
-        if (to[cr].learnt())        {
-	  to[cr].activity() = c.activity();
-	  to[cr].setLBD(c.lbd());
-	  to[cr].setCanBeDel(c.canBeDel());
-	}
+        if (to[cr].learnt()){
+            to[cr].activity() = c.activity();
+            to[cr].set_lbd(c.lbd());
+            to[cr].removable(c.removable());
+        }
         else if (to[cr].has_extra()) to[cr].calcAbstraction();
     }
 };
@@ -421,9 +415,8 @@ inline void Clause::strengthen(Lit p)
     remove(*this, p);
     calcAbstraction();
 }
- 
+
 //=================================================================================================
 }
 
- 
 #endif

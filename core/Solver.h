@@ -1,14 +1,8 @@
 /****************************************************************************************[Solver.h]
- Glucose -- Copyright (c) 2009, Gilles Audemard, Laurent Simon
-				CRIL - Univ. Artois, France
-				LRI  - Univ. Paris Sud, France
- 
-Glucose sources are based on MiniSat (see below MiniSat copyrights). Permissions and copyrights of
-Glucose are exactly the same as Minisat on which it is based on. (see below).
+MiniSat -- Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
+           Copyright (c) 2007-2010, Niklas Sorensson
 
----------------
-Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
-Copyright (c) 2007-2010, Niklas Sorensson
+Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -26,24 +20,66 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Glucose_Solver_h
-#define Glucose_Solver_h
+#ifndef Minisat_Solver_h
+#define Minisat_Solver_h
+
+#include <deque>
+
+#define GLUCOSE23
+//#define WIDE_WALK
+//#define EXTRA_VAR_ACT_BUMP
+//#define INT_QUEUE_AVG
+//#define LOOSE_PROP_STAT
+
+#ifdef GLUCOSE23
+  #define WIDE_WALK
+  #define EXTRA_VAR_ACT_BUMP
+  #define INT_QUEUE_AVG
+  #define LOOSE_PROP_STAT
+#endif
 
 #include "mtl/Vec.h"
 #include "mtl/Heap.h"
 #include "mtl/Alg.h"
 #include "utils/Options.h"
 #include "core/SolverTypes.h"
-#include "core/BoundedQueue.h"
-#include "core/Constants.h"
 
 
-namespace Glucose {
+// Don't change the actual numbers.
+#define LOCAL 0
+#define CORE  3
+
+namespace Minisat {
 
 //=================================================================================================
 // Solver -- the main class:
 
 class Solver {
+private:
+    template<typename T>
+    class MyQueue {
+        int sz;
+        int64_t sum;
+        std::deque<T> q;
+    public:
+        MyQueue(int init_sz) : sz(init_sz), sum(0) { assert(sz > 0); }
+        inline bool   full () const { return q.size() == (unsigned) sz; }
+#ifdef INT_QUEUE_AVG
+        inline T      avg  () const { assert(full()); return sum / sz; }
+#else
+        inline double avg  () const { assert(full()); return sum / (double) sz; }
+#endif
+        inline void   clear()       { sum = 0; q.clear(); }
+        void push(T e) {
+            sum += e;
+            q.push_back(e);
+
+            if (q.size() > (unsigned) sz){
+                sum -= q.front();
+                q.pop_front(); }
+        }
+    };
+
 public:
 
     // Constructor/Destructor:
@@ -77,8 +113,7 @@ public:
     void    toDimacs     (FILE* f, const vec<Lit>& assumps);            // Write CNF to file in DIMACS-format.
     void    toDimacs     (const char *file, const vec<Lit>& assumps);
     void    toDimacs     (FILE* f, Clause& c, vec<Var>& map, Var& max);
-    void printLit(Lit l);
-    void printClause(CRef c);
+
     // Convenience versions of 'toDimacs()':
     void    toDimacs     (const char* file);
     void    toDimacs     (const char* file, Lit p);
@@ -125,42 +160,32 @@ public:
     // Mode of operation:
     //
     int       verbosity;
-    int       verbEveryConflicts;
-    // Constants For restarts
-    double    K;
-    double    R;
-    double    sizeLBDQueue;
-    double    sizeTrailQueue;
-
-    // Constants for reduce DB
-    int firstReduceDB;
-    int incReduceDB;
-    int specialIncReduceDB;
-    unsigned int lbLBDFrozenClause;
-
-    // Constant for reducing clause
-    int lbSizeMinimizingClause;
-    unsigned int lbLBDMinimizingClause;
-
     double    var_decay;
     double    clause_decay;
     double    random_var_freq;
     double    random_seed;
+    bool      luby_restart;
     int       ccmin_mode;         // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
     int       phase_saving;       // Controls the level of phase saving (0=none, 1=limited, 2=full).
     bool      rnd_pol;            // Use random polarities for branching heuristics.
     bool      rnd_init_act;       // Initialize variable activities with a small random value.
     double    garbage_frac;       // The fraction of wasted memory allowed before a garbage collection is triggered.
 
+    int       restart_first;      // The initial restart limit.                                                                (default 100)
+    double    restart_inc;        // The factor with which the restart limit is multiplied in each restart.                    (default 1.5)
+    double    learntsize_factor;  // The intitial limit for learnt clauses is a factor of the original clauses.                (default 1 / 3)
+    double    learntsize_inc;     // The limit for learnt clauses is multiplied with this factor each restart.                 (default 1.1)
 
-    
+    int       learntsize_adjust_start_confl;
+    double    learntsize_adjust_inc;
+
     // Statistics: (read-only member variable)
     //
-    uint64_t nbRemovedClauses,nbReducedClauses,nbDL2,nbBin,nbUn,nbReduceDB,solves, starts, decisions, rnd_decisions, propagations, conflicts,nbstopsrestarts,nbstopsrestartssame,lastblockatrestart;
+    uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts;
     uint64_t dec_vars, clauses_literals, learnts_literals, max_literals, tot_literals;
 
 protected:
-    long curRestart;
+
     // Helper structures:
     //
     struct VarData { CRef reason; int level; };
@@ -187,26 +212,23 @@ protected:
         VarOrderLt(const vec<double>&  act) : activity(act) { }
     };
 
-
     // Solver state:
     //
-    int lastIndexRed;
     bool                ok;               // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
+    vec<CRef>           clauses;          // List of problem clauses.
+    vec<CRef>           learnts_core,     // List of learnt clauses.
+                        learnts_local;
+    bool                local_learnts_dirty;
     double              cla_inc;          // Amount to bump next clause with.
     vec<double>         activity;         // A heuristic measurement of the activity of a variable.
     double              var_inc;          // Amount to bump next variable with.
     OccLists<Lit, vec<Watcher>, WatcherDeleted>
+                        watches_bin,      // Watches for binary clauses only.
                         watches;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
-    OccLists<Lit, vec<Watcher>, WatcherDeleted>
-                        watchesBin;          // 'watches[lit]' is a list of constraints watching 'lit' (will go there if literal becomes true).
-    vec<CRef>           clauses;          // List of problem clauses.
-    vec<CRef>           learnts;          // List of learnt clauses.
-
     vec<lbool>          assigns;          // The current assignments.
     vec<char>           polarity;         // The preferred polarity of each variable.
     vec<char>           decision;         // Declares if a variable is eligible for selection in the decision heuristic.
     vec<Lit>            trail;            // Assignment stack; stores all assigments made in the order they were made.
-        vec<int>            nbpos;
     vec<int>            trail_lim;        // Separator indices for different decision levels in 'trail'.
     vec<VarData>        vardata;          // Stores reason and level for each variable.
     int                 qhead;            // Head of queue (as index into the trail -- no more explicit propagation queue in MiniSat).
@@ -216,20 +238,12 @@ protected:
     Heap<VarOrderLt>    order_heap;       // A priority queue of variables ordered with respect to the variable activity.
     double              progress_estimate;// Set by 'search()'.
     bool                remove_satisfied; // Indicates whether possibly inefficient linear scan for satisfied clauses should be performed in 'simplify'.
-    vec<unsigned int> permDiff;      // permDiff[var] contains the current conflict number... Used to count the number of  LBD
-    
-#ifdef UPDATEVARACTIVITY
-    // UPDATEVARACTIVITY trick (see competition'09 companion paper)
-    vec<Lit> lastDecisionLevel; 
-#endif
+
+    float               global_lbd_sum;
+    MyQueue<int>        lbd_queue;        // For computing moving averages of recent LBD values.
+    MyQueue<int>        trail_sz_queue;   // Ditto, but for recent trail sizes (i.e., number of assigned variables).
 
     ClauseAllocator     ca;
-
-    int nbclausesbeforereduce;            // To know when it is time to reduce clause database
-    
-    bqueue<unsigned int> trailQueue,lbdQueue; // Bounded queues for restarts.
-    float sumLBD; // used to compute the global average of LBD. Restarts...
-
 
     // Temporaries (to reduce allocation overhead). Each variable is prefixed by the method in which it is
     // used, exept 'seen' wich is used in several places.
@@ -238,8 +252,9 @@ protected:
     vec<Lit>            analyze_stack;
     vec<Lit>            analyze_toclear;
     vec<Lit>            add_tmp;
-    unsigned int  MYFLAG;
 
+    vec<uint64_t>       seen2;    // Mostly for efficient LBD computation. 'seen2[i]' will indicate if decision level or variable 'i' has been seen.
+    uint64_t            counter;  // Simple counter for marking purpose with 'seen2'.
 
     double              max_learnts;
     double              learntsize_adjust_confl;
@@ -260,7 +275,7 @@ protected:
     bool     enqueue          (Lit p, CRef from = CRef_Undef);                         // Test if fact 'p' contradicts current state, enqueue otherwise.
     CRef     propagate        ();                                                      // Perform unit propagation. Returns possibly conflicting clause.
     void     cancelUntil      (int level);                                             // Backtrack until a certain level.
-    void     analyze          (CRef confl, vec<Lit>& out_learnt, int& out_btlevel,unsigned int &nblevels);    // (bt = backtrack)
+    void     analyze          (CRef confl, vec<Lit>& out_learnt, int& out_btlevel, int& out_lbd);    // (bt = backtrack)
     void     analyzeFinal     (Lit p, vec<Lit>& out_conflict);                         // COULD THIS BE IMPLEMENTED BY THE ORDINARIY "analyze" BY SOME REASONABLE GENERALIZATION?
     bool     litRedundant     (Lit p, uint32_t abstract_levels);                       // (helper method for 'analyze()')
     lbool    search           (int nof_conflicts);                                     // Search for a given number of conflicts.
@@ -268,6 +283,8 @@ protected:
     void     reduceDB         ();                                                      // Reduce the set of learnt clauses.
     void     removeSatisfied  (vec<CRef>& cs);                                         // Shrink 'cs' to contain only non-satisfied clauses.
     void     rebuildOrderHeap ();
+    bool     binResMinimize   (vec<Lit>& out_learnt);                                  // Further learnt clause minimization by binary resolution.
+    void     cleanLearnts     (vec<CRef>& learnts, unsigned valid_mark);
 
     // Maintaining Variable/Clause activity:
     //
@@ -295,6 +312,19 @@ protected:
     int      level            (Var x) const;
     double   progressEstimate ()      const; // DELETE THIS ?? IT'S NOT VERY USEFUL ...
     bool     withinBudget     ()      const;
+
+    template<class V> int computeLBD(const V& c) {
+        int lbd = 0;
+
+        counter++;
+        for (int i = 0; i < c.size(); i++){
+            int l = level(var(c[i]));
+            if (l != 0 && seen2[l] != counter){
+                seen2[l] = counter;
+                lbd++; } }
+
+        return lbd;
+    }
 
     // Static helpers:
     //
@@ -338,8 +368,8 @@ inline void Solver::claDecayActivity() { cla_inc *= (1 / clause_decay); }
 inline void Solver::claBumpActivity (Clause& c) {
         if ( (c.activity() += cla_inc) > 1e20 ) {
             // Rescale:
-            for (int i = 0; i < learnts.size(); i++)
-                ca[learnts[i]].activity() *= 1e-20;
+            for (int i = 0; i < learnts_local.size(); i++)
+                ca[learnts_local[i]].activity() *= 1e-20;
             cla_inc *= 1e-20; } }
 
 inline void Solver::checkGarbage(void){ return checkGarbage(garbage_frac); }
@@ -354,14 +384,10 @@ inline bool     Solver::addEmptyClause  ()                      { add_tmp.clear(
 inline bool     Solver::addClause       (Lit p)                 { add_tmp.clear(); add_tmp.push(p); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q)          { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); return addClause_(add_tmp); }
 inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); return addClause_(add_tmp); }
- inline bool     Solver::locked          (const Clause& c) const { 
-   if(c.size()>2) 
-     return value(c[0]) == l_True && reason(var(c[0])) != CRef_Undef && ca.lea(reason(var(c[0]))) == &c; 
-   return 
-     (value(c[0]) == l_True && reason(var(c[0])) != CRef_Undef && ca.lea(reason(var(c[0]))) == &c)
-     || 
-     (value(c[1]) == l_True && reason(var(c[1])) != CRef_Undef && ca.lea(reason(var(c[1]))) == &c);
- }
+inline bool     Solver::locked          (const Clause& c) const {
+    int i = c.size() != 2 ? 0 : (value(c[0]) == l_True ? 0 : 1);
+    return value(c[i]) == l_True && reason(var(c[i])) != CRef_Undef && ca.lea(reason(var(c[i]))) == &c;
+}
 inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }
 
 inline int      Solver::decisionLevel ()      const   { return trail_lim.size(); }
@@ -372,7 +398,7 @@ inline lbool    Solver::modelValue    (Var x) const   { return model[x]; }
 inline lbool    Solver::modelValue    (Lit p) const   { return model[var(p)] ^ sign(p); }
 inline int      Solver::nAssigns      ()      const   { return trail.size(); }
 inline int      Solver::nClauses      ()      const   { return clauses.size(); }
-inline int      Solver::nLearnts      ()      const   { return learnts.size(); }
+inline int      Solver::nLearnts      ()      const   { return learnts_core.size() + learnts_local.size(); }
 inline int      Solver::nVars         ()      const   { return vardata.size(); }
 inline int      Solver::nFreeVars     ()      const   { return (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]); }
 inline void     Solver::setPolarity   (Var v, bool b) { polarity[v] = b; }
@@ -414,21 +440,6 @@ inline void     Solver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ ve
 //=================================================================================================
 // Debug etc:
 
-
-inline void Solver::printLit(Lit l)
-{
-    printf("%s%d:%c", sign(l) ? "-" : "", var(l)+1, value(l) == l_True ? '1' : (value(l) == l_False ? '0' : 'X'));
-}
-
-
-inline void Solver::printClause(CRef cr)
-{
-  Clause &c = ca[cr];
-    for (int i = 0; i < c.size(); i++){
-        printLit(c[i]);
-        printf(" ");
-    }
-}
 
 //=================================================================================================
 }

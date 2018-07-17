@@ -1,15 +1,6 @@
 /*****************************************************************************************[Main.cc]
- Glucose -- Copyright (c) 2009, Gilles Audemard, Laurent Simon
-				CRIL - Univ. Artois, France
-				LRI  - Univ. Paris Sud, France
- 
-Glucose sources are based on MiniSat (see below MiniSat copyrights). Permissions and copyrights of
-Glucose are exactly the same as Minisat on which it is based on. (see below).
-
----------------
-
 Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
-Copyright (c) 2007-2010, Niklas Sorensson
+Copyright (c) 2007,      Niklas Sorensson
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -39,7 +30,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "core/Dimacs.h"
 #include "simp/SimpSolver.h"
 
-using namespace Glucose;
+using namespace Minisat;
 
 //=================================================================================================
 
@@ -47,26 +38,15 @@ using namespace Glucose;
 void printStats(Solver& solver)
 {
     double cpu_time = cpuTime();
-    double mem_used = 0;//memUsedPeak();
-    printf("c restarts              : %"PRIu64" (%"PRIu64" conflicts in avg)\n", solver.starts,(solver.starts>0 ?solver.conflicts/solver.starts : 0));
-    printf("c blocked restarts      : %"PRIu64" (multiple: %"PRIu64") \n", solver.nbstopsrestarts,solver.nbstopsrestartssame);
-    printf("c last block at restart : %"PRIu64"\n",solver.lastblockatrestart);
-    printf("c nb ReduceDB           : %lld\n", solver.nbReduceDB);
-    printf("c nb removed Clauses    : %lld\n",solver.nbRemovedClauses);
-    printf("c nb learnts DL2        : %lld\n", solver.nbDL2);
-    printf("c nb learnts size 2     : %lld\n", solver.nbBin);
-    printf("c nb learnts size 1     : %lld\n", solver.nbUn);
-
-    printf("c conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts   , solver.conflicts   /cpu_time);
-    printf("c decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
-    printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
-    printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
-    printf("c nb reduced Clauses    : %lld\n",solver.nbReducedClauses);
-    
+    double mem_used = memUsedPeak();
+    printf("restarts              : %"PRIu64"\n", solver.starts);
+    printf("conflicts             : %-12"PRIu64"   (%.0f /sec)\n", solver.conflicts   , solver.conflicts   /cpu_time);
+    printf("decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", solver.decisions, (float)solver.rnd_decisions*100 / (float)solver.decisions, solver.decisions   /cpu_time);
+    printf("propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
+    printf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
-    printf("c CPU time              : %g s\n", cpu_time);
+    printf("CPU time              : %g s\n", cpu_time);
 }
-
 
 
 static Solver* solver;
@@ -91,18 +71,17 @@ static void SIGINT_exit(int signum) {
 int main(int argc, char** argv)
 {
     try {
-      printf("c\nc This is glucose 2.3 --  based on MiniSAT (Many thanks to MiniSAT team)\nc Simplification mode is turned on\nc\n");
-      setUsageHelp("c USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n");
-        
+        setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n");
+        // printf("This is MiniSat 2.0 beta\n");
         
 #if defined(__linux__)
         fpu_control_t oldcw, newcw;
         _FPU_GETCW(oldcw); newcw = (oldcw & ~_FPU_EXTENDED) | _FPU_DOUBLE; _FPU_SETCW(newcw);
+        printf("WARNING: for repeatability, setting FPU to use double precision\n");
 #endif
         // Extra options:
         //
         IntOption    verb   ("MAIN", "verb",   "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 2));
-        IntOption    vv  ("MAIN", "vv",   "Verbosity every vv conflicts", 10000, IntRange(1,INT32_MAX));
         BoolOption   pre    ("MAIN", "pre",    "Completely turn on/off any preprocessing.", true);
         StringOption dimacs ("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
         IntOption    cpu_lim("MAIN", "cpu-lim","Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
@@ -116,7 +95,7 @@ int main(int argc, char** argv)
         if (!pre) S.eliminate(true);
 
         S.verbosity = verb;
-        S.verbEveryConflicts = vv;
+        
         solver = &S;
         // Use signal handlers that forcibly quit until the solver will be able to respond to
         // interrupts:
@@ -151,22 +130,21 @@ int main(int argc, char** argv)
         if (in == NULL)
             printf("ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
         
-      if (S.verbosity > 0){
-            printf("c ========================================[ Problem Statistics ]===========================================\n");
-            printf("c |                                                                                                       |\n"); }
+        if (S.verbosity > 0){
+            printf("============================[ Problem Statistics ]=============================\n");
+            printf("|                                                                             |\n"); }
         
         parse_DIMACS(in, S);
         gzclose(in);
         FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
 
-       if (S.verbosity > 0){
-            printf("c |  Number of variables:  %12d                                                                   |\n", S.nVars());
-            printf("c |  Number of clauses:    %12d                                                                   |\n", S.nClauses()); }
+        if (S.verbosity > 0){
+            printf("|  Number of variables:  %12d                                         |\n", S.nVars());
+            printf("|  Number of clauses:    %12d                                         |\n", S.nClauses()); }
         
         double parsed_time = cpuTime();
-        if (S.verbosity > 0){
-            printf("c |  Parse time:           %12.2f s                                                                 |\n", parsed_time - initial_time);
-            printf("c |                                                                                                       |\n"); }
+        if (S.verbosity > 0)
+            printf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
 
         // Change to signal-handlers that will only notify the solver and allow it to terminate
         // voluntarily:
@@ -176,23 +154,23 @@ int main(int argc, char** argv)
         S.eliminate(true);
         double simplified_time = cpuTime();
         if (S.verbosity > 0){
-            printf("c |  Simplification time:  %12.2f s                                                                 |\n", simplified_time - parsed_time);
-            printf("c |                                                                                                       |\n"); }
+            printf("|  Simplification time:  %12.2f s                                       |\n", simplified_time - parsed_time);
+            printf("|                                                                             |\n"); }
 
         if (!S.okay()){
             if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
             if (S.verbosity > 0){
- 	        printf("c =========================================================================================================\n");
-               printf("c Solved by simplification\n");
+                printf("===============================================================================\n");
+                printf("Solved by simplification\n");
                 printStats(S);
                 printf("\n"); }
-            printf("s UNSATISFIABLE\n");
+            printf("UNSATISFIABLE\n");
             exit(20);
         }
 
         if (dimacs){
             if (S.verbosity > 0)
-                printf("c =======================================[ Writing DIMACS ]===============================================\n");
+                printf("==============================[ Writing DIMACS ]===============================\n");
             S.toDimacs((const char*)dimacs);
             if (S.verbosity > 0)
                 printStats(S);
@@ -205,14 +183,7 @@ int main(int argc, char** argv)
         if (S.verbosity > 0){
             printStats(S);
             printf("\n"); }
-        printf(ret == l_True ? "s SATISFIABLE\n" : ret == l_False ? "s UNSATISFIABLE\n" : "s INDETERMINATE\n");
-	if(ret==l_True) {
-	  printf("v ");
-	  for (int i = 0; i < S.nVars(); i++)
-	    if (S.model[i] != l_Undef)
-	      printf("%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
-	  printf(" 0\n");
- 	}
+        printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
         if (res != NULL){
             if (ret == l_True){
                 fprintf(res, "SAT\n");
@@ -233,7 +204,7 @@ int main(int argc, char** argv)
         return (ret == l_True ? 10 : ret == l_False ? 20 : 0);
 #endif
     } catch (OutOfMemoryException&){
-	        printf("c =========================================================================================================\n");
+        printf("===============================================================================\n");
         printf("INDETERMINATE\n");
         exit(0);
     }
