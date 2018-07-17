@@ -33,14 +33,14 @@ using namespace Minisat;
 
 static const char* _cat = "CORE";
 
-static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
+static DoubleOption  opt_var_decay_no_r    (_cat, "var-decay-no-res",   "The variable activity decay factor",            0.999,    DoubleRange(0, false, 1, false));
+static DoubleOption  opt_var_decay_glue_r  (_cat, "var-decay-glue-res", "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
 static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
 static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
 static BoolOption    opt_rnd_init_act      (_cat, "rnd-init",    "Randomize the initial activity", false);
-static BoolOption    opt_luby_restart      (_cat, "luby",        "Use the Luby restart sequence", true);
 static IntOption     opt_restart_first     (_cat, "rfirst",      "The base restart interval", 100, IntRange(1, INT32_MAX));
 static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interval increase factor", 2, DoubleRange(1, false, HUGE_VAL, false));
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
@@ -55,11 +55,12 @@ Solver::Solver() :
     // Parameters (user settable):
     //
     verbosity        (0)
-  , var_decay        (opt_var_decay)
+  , var_decay_no_r   (opt_var_decay_no_r)
+  , var_decay_glue_r (opt_var_decay_glue_r)
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
   , random_seed      (opt_random_seed)
-  , luby_restart     (opt_luby_restart)
+  , glucose_restart  (false)
   , ccmin_mode       (opt_ccmin_mode)
   , phase_saving     (opt_phase_saving)
   , rnd_pol          (false)
@@ -79,25 +80,30 @@ Solver::Solver() :
 
     // Statistics: (formerly in 'SolverStats')
     //
-  , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
+  , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0), conflicts_glue(0)
   , dec_vars(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
 
   , ok                 (true)
+  , tier2_learnts_dirty(false)
   , local_learnts_dirty(false)
   , cla_inc            (1)
-  , var_inc            (1)
+  , var_inc_no_r       (1)
+  , var_inc_glue_r     (1)
   , watches_bin        (WatcherDeleted(ca))
   , watches            (WatcherDeleted(ca))
   , qhead              (0)
   , simpDB_assigns     (-1)
   , simpDB_props       (0)
-  , order_heap         (VarOrderLt(activity))
+  , order_heap_no_r    (VarOrderLt(activity_no_r))
+  , order_heap_glue_r  (VarOrderLt(activity_glue_r))
   , progress_estimate  (0)
   , remove_satisfied   (true)
 
+  , core_lbd_cut       (3)
   , global_lbd_sum     (0)
   , lbd_queue          (50)
-  , trail_sz_queue     (5000)
+  , next_T2_reduce     (10000)
+  , next_L_reduce      (15000)
   
   , counter            (0)
 
@@ -130,8 +136,8 @@ Var Solver::newVar(bool sign, bool dvar)
     watches  .init(mkLit(v, true ));
     assigns  .push(l_Undef);
     vardata  .push(mkVarData(CRef_Undef, 0));
-    //activity .push(0);
-    activity .push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity_no_r  .push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity_glue_r.push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
     seen     .push(0);
     seen2    .push(0);
     polarity .push(sign);
@@ -242,22 +248,22 @@ void Solver::cancelUntil(int level) {
 Lit Solver::pickBranchLit()
 {
     Var next = var_Undef;
+    Heap<VarOrderLt>& order_heap = glucose_restart ? order_heap_glue_r : order_heap_no_r;
 
     // Random decision:
-    if (drand(random_seed) < random_var_freq && !order_heap.empty()){
+    /*if (drand(random_seed) < random_var_freq && !order_heap.empty()){
         next = order_heap[irand(random_seed,order_heap.size())];
         if (value(next) == l_Undef && decision[next])
-            rnd_decisions++; }
+            rnd_decisions++; }*/
 
     // Activity based decision:
     while (next == var_Undef || value(next) != l_Undef || !decision[next])
-        if (order_heap.empty()){
-            next = var_Undef;
-            break;
-        }else
+        if (order_heap.empty())
+            return lit_Undef;
+        else
             next = order_heap.removeMin();
 
-    return next == var_Undef ? lit_Undef : mkLit(next, rnd_pol ? drand(random_seed) < 0.5 : polarity[next]);
+    return mkLit(next, polarity[next]);
 }
 
 
@@ -298,20 +304,27 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel, int& ou
             Lit tmp = c[0];
             c[0] = c[1], c[1] = tmp; }
 
-        if (c.learnt() && c.mark() == LOCAL)
-            claBumpActivity(c);
-
         // Update LBD if improved.
-        if (c.learnt() && c.lbd() > 2){
+        if (c.learnt() && c.mark() != CORE){
             int lbd = computeLBD(c);
             if (lbd + 1 < c.lbd()){
                 if (c.lbd() <= 30) c.removable(false); // Protect once from reduction.
                 c.set_lbd(lbd);
-                if (lbd <= 5 && c.mark() == LOCAL){
+                if (lbd <= core_lbd_cut){
+                    if (c.mark() == LOCAL) local_learnts_dirty = true;
+                    else                   tier2_learnts_dirty = true;
                     learnts_core.push(confl);
+                    c.mark(CORE);
+                }else if (lbd <= 6 && c.mark() == LOCAL){
                     local_learnts_dirty = true;
-                    c.mark(CORE); }
+                    learnts_tier2.push(confl);
+                    c.mark(TIER2); }
             }
+
+            if (c.mark() == TIER2)
+                c.touched() = conflicts;
+            else if (c.mark() == LOCAL)
+                claBumpActivity(c);
         }
 
         for (int j = (p == lit_Undef) ? 0 : 1; j < c.size(); j++){
@@ -633,6 +646,8 @@ struct reduceDB_lt {
 void Solver::reduceDB()
 {
     int     i, j;
+    //if (local_learnts_dirty) cleanLearnts(learnts_local, LOCAL);
+    //local_learnts_dirty = false;
 
     sort(learnts_local, reduceDB_lt(ca));
 
@@ -651,6 +666,24 @@ void Solver::reduceDB()
     local_learnts_dirty = false;
 
     checkGarbage();
+}
+void Solver::reduceDB_Tier2()
+{
+    int i, j;
+    for (i = j = 0; i < learnts_tier2.size(); i++){
+        Clause& c = ca[learnts_tier2[i]];
+        if (c.mark() == TIER2) // No need to call 'cleanLearnts'.
+            if (!locked(c) && c.touched() + 30000 < conflicts){
+                learnts_local.push(learnts_tier2[i]);
+                c.mark(LOCAL);
+                //c.removable(true);
+                c.activity() = 0;
+                claBumpActivity(c);
+            }else
+                learnts_tier2[j++] = learnts_tier2[i];
+    }
+    learnts_tier2.shrink(i - j);
+    tier2_learnts_dirty = false;
 }
 
 
@@ -674,7 +707,9 @@ void Solver::rebuildOrderHeap()
     for (Var v = 0; v < nVars(); v++)
         if (decision[v] && value(v) == l_Undef)
             vs.push(v);
-    order_heap.build(vs);
+
+    order_heap_no_r  .build(vs);
+    order_heap_glue_r.build(vs);
 }
 
 
@@ -705,10 +740,12 @@ bool Solver::simplify()
         return true;
 
     if (local_learnts_dirty) cleanLearnts(learnts_local, LOCAL);
-    local_learnts_dirty = false;
+    if (tier2_learnts_dirty) cleanLearnts(learnts_tier2, TIER2);
+    local_learnts_dirty = tier2_learnts_dirty = false;
 
     // Remove satisfied clauses:
     removeSatisfied(learnts_core);
+    removeSatisfied(learnts_tier2);
     removeSatisfied(learnts_local);
     if (remove_satisfied)        // Can be turned off.
         removeSatisfied(clauses);
@@ -728,53 +765,51 @@ bool Solver::simplify()
 |  
 |  Description:
 |    Search for a model the specified number of conflicts. 
-|    NOTE! Use negative value for 'nof_conflicts' indicate infinity.
 |  
 |  Output:
 |    'l_True' if a partial assigment that is consistent with respect to the clauseset is found. If
 |    all variables are decision variables, this means that the clause set is satisfiable. 'l_False'
 |    if the clause set is unsatisfiable. 'l_Undef' if the bound on number of conflicts is reached.
 |________________________________________________________________________________________________@*/
-lbool Solver::search(int nof_conflicts)
+lbool Solver::search(int& nof_conflicts)
 {
     assert(ok);
     int         backtrack_level;
-    int         conflictC = 0;
     int         lbd;
     vec<Lit>    learnt_clause;
+    bool        cached = false;
     starts++;
 
     for (;;){
         CRef confl = propagate();
         if (confl != CRef_Undef){
             // CONFLICT
-            conflicts++; conflictC++;
-#ifdef WIDE_WALK
-            if (conflicts % 5000 == 0 && var_decay < 0.95)
-                var_decay += 0.01;
-#endif
+            conflicts++; nof_conflicts--;
+            if (conflicts == 100000 && learnts_core.size() < 100) core_lbd_cut = 5;
             if (decisionLevel() == 0) return l_False;
-
-            trail_sz_queue.push(trail.size());
-            // Prevent restarts for a while if many variables are being assigned.
-            if (conflicts > 10000 && lbd_queue.full() && trail.size() > 1.4 * trail_sz_queue.avg())
-                lbd_queue.clear();
 
             learnt_clause.clear();
             analyze(confl, learnt_clause, backtrack_level, lbd);
             cancelUntil(backtrack_level);
 
-            lbd_queue.push(lbd);
-            global_lbd_sum += lbd;
+            if (glucose_restart){
+                conflicts_glue++;
+                lbd_queue.push(lbd);
+                global_lbd_sum += (lbd > 50 ? 50 : lbd);
+                cached = false; }
 
             if (learnt_clause.size() == 1){
                 uncheckedEnqueue(learnt_clause[0]);
             }else{
                 CRef cr = ca.alloc(learnt_clause, true);
                 ca[cr].set_lbd(lbd);
-                if (lbd <= 5){
+                if (lbd <= core_lbd_cut){
                     learnts_core.push(cr);
                     ca[cr].mark(CORE);
+                }else if (lbd <= 6){
+                    learnts_tier2.push(cr);
+                    ca[cr].mark(TIER2);
+                    ca[cr].touched() = conflicts;
                 }else{
                     learnts_local.push(cr);
                     claBumpActivity(ca[cr]); }
@@ -785,21 +820,29 @@ lbool Solver::search(int nof_conflicts)
             varDecayActivity();
             claDecayActivity();
 
-            if (--learntsize_adjust_cnt == 0){
+            /*if (--learntsize_adjust_cnt == 0){
                 learntsize_adjust_confl *= learntsize_adjust_inc;
                 learntsize_adjust_cnt    = (int)learntsize_adjust_confl;
                 max_learnts             *= learntsize_inc;
 
                 if (verbosity >= 1)
-                    printf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", 
+                    printf("c | %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", 
                            (int)conflicts, 
                            (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals, 
                            (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progressEstimate()*100);
-            }
+            }*/
 
         }else{
             // NO CONFLICT
-            if ((lbd_queue.full() && lbd_queue.avg() * 0.8 > global_lbd_sum / conflicts) || !withinBudget()){
+            bool restart = false;
+            if (!glucose_restart)
+                restart = nof_conflicts <= 0;
+            else if (!cached){
+                double K = nof_conflicts > 0 ? 0.8 : 0.9;
+                restart = lbd_queue.full() && (lbd_queue.avg() * K > global_lbd_sum / conflicts_glue);
+                cached = true;
+            }
+            if (restart/* || !withinBudget()*/){
                 lbd_queue.clear();
                 // Reached bound on number of conflicts:
                 progress_estimate = progressEstimate();
@@ -810,11 +853,15 @@ lbool Solver::search(int nof_conflicts)
             if (decisionLevel() == 0 && !simplify())
                 return l_False;
 
-            if (learnts_local.size() > 20000)
-                reduceDB();
+            if (conflicts >= next_T2_reduce){
+                next_T2_reduce = conflicts + 10000;
+                reduceDB_Tier2(); }
+            if (conflicts >= next_L_reduce){
+                next_L_reduce = conflicts + 15000;
+                reduceDB(); }
 
             Lit next = lit_Undef;
-            while (decisionLevel() < assumptions.size()){
+            /*while (decisionLevel() < assumptions.size()){
                 // Perform user provided assumption:
                 Lit p = assumptions[decisionLevel()];
                 if (value(p) == l_True){
@@ -829,7 +876,7 @@ lbool Solver::search(int nof_conflicts)
                 }
             }
 
-            if (next == lit_Undef){
+            if (next == lit_Undef)*/{
                 // New variable decision:
                 decisions++;
                 next = pickBranchLit();
@@ -904,25 +951,39 @@ lbool Solver::solve_()
     lbool   status            = l_Undef;
 
     if (verbosity >= 1){
-        printf("============================[ Search Statistics ]==============================\n");
-        printf("| Conflicts |          ORIGINAL         |          LEARNT          | Progress |\n");
-        printf("|           |    Vars  Clauses Literals |    Limit  Clauses Lit/Cl |          |\n");
-        printf("===============================================================================\n");
+        printf("c ============================[ Search Statistics ]==============================\n");
+        printf("c | Conflicts |          ORIGINAL         |          LEARNT          | Progress |\n");
+        printf("c |           |    Vars  Clauses Literals |    Limit  Clauses Lit/Cl |          |\n");
+        printf("c ===============================================================================\n");
     }
 
 #ifdef EXTRA_VAR_ACT_BUMP
     add_tmp.clear();
 #endif
-#ifdef WIDE_WALK
-    var_decay = 0.8;
-#endif
+
+    glucose_restart = true;
+    int init = 10000;
+    while (status == l_Undef && init > 0 /*&& withinBudget()*/)
+       status = search(init);
+    glucose_restart = false;
+
     // Search:
-    while (status == l_Undef && withinBudget()){
-        status = search(0);
+    int phase_allotment = 100;
+    for (;;){
+        int weighted = glucose_restart ? phase_allotment * 2 : phase_allotment;
+
+        while (status == l_Undef && weighted > 0 /*&& withinBudget()*/)
+            status = search(weighted);
+        if (status != l_Undef/* || !withinBudget()*/)
+            break; // Should break here for correctness in incremental SAT solving.
+
+        glucose_restart = !glucose_restart;
+        if (!glucose_restart)
+            phase_allotment += phase_allotment / 10;
     }
 
     if (verbosity >= 1)
-        printf("===============================================================================\n");
+        printf("c ===============================================================================\n");
 
 
     if (status == l_True){
@@ -1010,7 +1071,7 @@ void Solver::toDimacs(FILE* f, const vec<Lit>& assumps)
         toDimacs(f, ca[clauses[i]], map, max);
 
     if (verbosity > 0)
-        printf("Wrote %d clauses with %d variables.\n", cnt, max);
+        printf("c Wrote %d clauses with %d variables.\n", cnt, max);
 }
 
 
@@ -1049,13 +1110,19 @@ void Solver::relocAll(ClauseAllocator& to)
     //
     for (int i = 0; i < learnts_core.size(); i++)
         ca.reloc(learnts_core[i], to);
+    for (int i = 0; i < learnts_tier2.size(); i++)
+        ca.reloc(learnts_tier2[i], to);
     for (int i = 0; i < learnts_local.size(); i++)
         ca.reloc(learnts_local[i], to);
 
     // All original:
     //
-    for (int i = 0; i < clauses.size(); i++)
-        ca.reloc(clauses[i], to);
+    int i, j;
+    for (i = j = 0; i < clauses.size(); i++)
+        if (ca[clauses[i]].mark() != 1){
+            ca.reloc(clauses[i], to);
+            clauses[j++] = clauses[i]; }
+    clauses.shrink(i - j);
 }
 
 
@@ -1067,7 +1134,7 @@ void Solver::garbageCollect()
 
     relocAll(to);
     if (verbosity >= 2)
-        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", 
+        printf("c |  Garbage collection:   %12d bytes => %12d bytes             |\n", 
                ca.size()*ClauseAllocator::Unit_Size, to.size()*ClauseAllocator::Unit_Size);
     to.moveTo(ca);
 }

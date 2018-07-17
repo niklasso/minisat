@@ -120,7 +120,7 @@ class Heap {
 
 
     // Rebuild the heap from scratch, using the elements in 'ns':
-    void build(vec<int>& ns) {
+    void build(const vec<int>& ns) {
         for (int i = 0; i < heap.size(); i++)
             indices[heap[i]] = -1;
         heap.clear();

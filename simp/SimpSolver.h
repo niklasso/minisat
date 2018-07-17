@@ -1,6 +1,8 @@
 /************************************************************************************[SimpSolver.h]
-Copyright (c) 2006,      Niklas Een, Niklas Sorensson
-Copyright (c) 2007-2010, Niklas Sorensson
+MiniSat -- Copyright (c) 2006,      Niklas Een, Niklas Sorensson
+           Copyright (c) 2007-2010, Niklas Sorensson
+
+Chanseok Oh's MiniSat Patch Series -- Copyright (c) 2015, Chanseok Oh
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -156,7 +158,6 @@ class SimpSolver : public Solver {
 
     void          removeClause             (CRef cr);
     bool          strengthenClause         (CRef cr, Lit l);
-    void          cleanUpClauses           ();
     bool          implied                  (const vec<Lit>& c);
     void          relocAll                 (ClauseAllocator& to);
 };
