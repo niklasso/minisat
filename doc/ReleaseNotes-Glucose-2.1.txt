@@ -1,0 +1,12 @@
+Release Notes for Glucose 2.1
+=============================
+
+Changes since version 2.0:
+
+  * Change restart strategies
+     - Change restart constants, uses the ones from glueminisat (http://glueminisat.nabelab.org/)
+     - Add a strategy to block restarts (see CP 2012 paper)
+
+  * Improve logs
+
+  * Add options to play with magic constants

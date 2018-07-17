@@ -1,3 +1,12 @@
+Glucose -- Copyright (c) 2009,2011, Gilles Audemard, Laurent Simon
+				CRIL - Univ. Artois, France
+				LRI  - Univ. Paris Sud, France
+ 
+Glucose sources are based on MiniSat (see below MiniSat copyrights). Permissions and copyrights of
+Glucose are exactly the same as Minisat on which it is based on. (see below).
+
+--------
+
 MiniSat -- Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
            Copyright (c) 2007-2010  Niklas Sorensson
 
