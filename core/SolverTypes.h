@@ -197,6 +197,9 @@ public:
     bool         isOnQueue   ()      const   { return header.onQueue; }
     void         setOnQueue  (bool b)        { header.onQueue = b; }
 
+    /// reverse the order of the literals in the clause. take care when the clause is currently watched!
+    void         reverse() { int i = 0, j = size() - 1; while (i < j) {const Lit tmp = data[i].lit; data[i].lit = data[j].lit; data[j].lit = tmp; ++i; --j;} }
+
     bool         reloced     ()      const   { return header.reloced; }
     CRef         relocation  ()      const   { return data[0].rel; }
     void         relocate    (CRef c)        { header.reloced = 1; data[0].rel = c; }
