@@ -3,6 +3,25 @@ dist: trusty
 compiler: g++
 sudo: required
 
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "dJLUh0wxImxrcF+mY2nj0DdXfRFMRKUQv7hxkEVpiVk9F1jMuropn/At0NBpy3lBqGe3LmbwzFMfAfVW8RM/DPKuu6831DIex1+m5mzBKXwmI4V17z2AHeML/Ei+N7TFvGbtr5npgWu6mdnEqtXNLkisrc7/RGty+EkCMJJwKmmoQMC9R+rimRiscg2k+U0x0ePIEBvRs1fFTtBR261abU6YJtJPoo9jjWgEmlFjA+ffIoBl1whf/KGVt4cti3Q27MLEuu+5Ky03k7vAMdKxc7cO84xqnxgvsEDGZ3iTxCu56UF5QreEqhWLQhehL6JANnQP1Y//+77+wUboXPcKD6JMHEPLixNd4yWmlDLog4gZX2JYwrXgVrjVpB8HqNAHnQ0GI4TFfHn8pznuXSaUjtMpngDwca3uFgmxi7gOpmtZ3zi5bMppmnTM3aoCkZ0p9u5tLtKJHO/08tKVwQUjsT6xg3vWY5Nx+2I35paWfNjZvAXvZryBBtuYCtUOFMBtKgVNtTNsMvQzMWaVbLXP47uzNx++7A9FNQqRSjuZXDW5eR0QA11f6SO+CE5bXYy5T/R6uRbpL+CTgRsZYc9xLxSe7OkQR0Js6to7UoAKEp0yKWq30Eol3aova9s6iXZUbyvLpLMf6rCEjLqX3v2XQu10Bc+VOtwfZacAAsH/bKk="
+
+before_install:
+  - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
+addons:
+  coverity_scan:
+    project:
+      name: "conp-solutions/minisat"
+      description: "MiniSAT sat solver"
+    notification_email: nmanthey@conp-solutions.com
+    build_command_prepend: "true"
+    build_command: "make cd cp cr csh d r p sh lr ld lp lsh"
+    branch_pattern: coverity_scan
+
 before_install:
   - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
   - sudo apt-get update -q
