@@ -1,2 +1,4 @@
 config.mk
 build
+*.log
+*.cnf
