@@ -8,4 +8,4 @@
 SOLVERDIR="$(dirname "${BASH_SOURCE[0]}" )"
 
 # call the solver without a special configuration, no proof will be generated
-"$SOLVERDIR"/minisat "$1" -verb=0 -proof="$2"/proof.out
+"$SOLVERDIR"/minisat "$1" -verb=0 -drup -drup-file="$2"/proof.out
