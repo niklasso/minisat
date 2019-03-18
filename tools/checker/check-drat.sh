@@ -17,13 +17,9 @@ o=drat-minimize-output.txt
 t=$(readlink -e ../../build/release/bin/minisat)
 d=$(readlink -e drat-trim)
 
-P=$(( ( RANDOM % 1 ) ))
-BINPROOF="-bin-proof"
-[ "$P" -ne 0 ] || BINPROOF=""
-
 # run solver
 STATUS=0
-$t $f -proof=$p $BINPROOF $@ || STATUS=$?
+$t $f -drup -drup-file=$p $BINPROOF $@ || STATUS=$?
 
 if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 10 ] && [ "$STATUS" -ne 20 ]
 then
