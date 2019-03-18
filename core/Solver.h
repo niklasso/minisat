@@ -201,6 +201,15 @@ public:
     vec<uint32_t> canceled;
 #endif
 
+    struct Restart {
+        uint64_t savedDecisions, savedPropagations, partialRestarts;
+        uint32_t selection_type; // 0 = 0, 1 = matching trail, 2 = reused trail
+        Restart(uint32_t type) : savedDecisions(0), savedPropagations(0), partialRestarts(0), selection_type(type) {}
+    } restart;
+
+    /** calculate the level to jump to for restarts */
+    int getRestartLevel();
+
 protected:
 
     // Helper structures:

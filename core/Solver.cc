@@ -65,6 +65,7 @@ static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interv
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_chrono            (_cat, "chrono",  "Controls if to perform chrono backtrack", 100, IntRange(-1, INT32_MAX));
 static IntOption     opt_conf_to_chrono    (_cat, "confl-to-chrono",  "Controls number of conflicts to perform chrono backtrack", 4000, IntRange(-1, INT32_MAX));
+static IntOption     opt_restart_select    (_cat, "rtype",        "How to select the restart level (0=0, 1=matching trail, 2=reused trail)", 2, IntRange(0, 2));
 
 
 //=================================================================================================
@@ -108,6 +109,8 @@ Solver::Solver() :
   , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0), conflicts_VSIDS(0)
   , dec_vars(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
   , chrono_backtrack(0), non_chrono_backtrack(0)
+
+  , restart(opt_restart_select)
 
   , ok                 (true)
   , cla_inc            (1)
@@ -821,8 +824,13 @@ bool Solver::simplifyAll()
     ////
     simplified_length_record = original_length_record = 0;
 
+    // make sure we have no decisions left due to partial restarts
+    cancelUntil(0);
+
     if (!ok || propagate() != CRef_Undef)
         return ok = false;
+
+    assert(decisionLevel() == 0 && "LCM works only on level 0");
 
     //// cleanLearnts(also can delete these code), here just for analyzing
     //if (local_learnts_dirty) cleanLearnts(learnts_local, LOCAL);
@@ -1632,6 +1640,79 @@ void Solver::reduceDB_Tier2()
 }
 
 
+int Solver::getRestartLevel()
+{
+    if (restart.selection_type >= 1) {
+
+        bool repeatReusedTrail = false;
+        Var next = var_Undef;
+        int restartLevel = 0;
+
+        Heap<VarOrderLt>  &restart_heap = DISTANCE ? order_heap_distance :
+                                                     ((!VSIDS)? order_heap_CHB:order_heap_VSIDS);
+        const vec<double> &restart_activity = DISTANCE ? activity_distance :
+                                                       ((!VSIDS)? activity_CHB:activity_VSIDS);
+
+        do {
+            repeatReusedTrail = false; // get it right this time?
+
+            // Activity based selection
+            while (next == var_Undef || value(next) != l_Undef || ! decision[next]) // found a yet unassigned variable with the highest activity among the unassigned variables
+                if (restart_heap.empty()) {
+                    // we cannot compare to any other variable, hence, we have SAT already
+                    return 0;
+                } else {
+                    next = restart_heap.removeMin();    // get next element
+                }
+
+            // based on variable next, either check for reusedTrail, or matching Trail!
+            // activity of the next decision literal
+            restartLevel = 0;
+            for (int i = 0 ; i < decisionLevel() ; ++i) {
+                if (restart_activity[ var(trail[ trail_lim[i] ]) ] < restart_activity[ next ]) {
+                    restartLevel = i;
+                    break;
+                }
+            }
+            // put the decision literal back, so that it can be used for the next decision
+            restart_heap.insert(next);
+
+	    // reused trail
+            if (restart.selection_type > 1 && restartLevel > 0) {   // check whether jumping higher would be "more correct"
+                cancelUntil(restartLevel);
+                Var more = var_Undef;
+                while (more == var_Undef || value(more) != l_Undef || ! decision[more])
+                    if (restart_heap.empty()) {
+                        more = var_Undef;
+                        break;
+                    } else {
+                        more = restart_heap.removeMin();
+                    }
+
+                // actually, would have to jump higher than the current level!
+                if (more != var_Undef && restart_activity[more] > var(trail[ trail_lim[ restartLevel - 1 ] ])) {
+                    repeatReusedTrail = true;
+                    next = more; // no need to insert, and get back afterwards again!
+                } else {
+                    restart_heap.insert(more);
+                }
+            }
+        } while (repeatReusedTrail);
+
+        // stats
+        if (restartLevel > 0) {   // if a partial restart is done
+            restart.savedDecisions += restartLevel;
+            const int thisPropSize = restartLevel == decisionLevel() ? trail.size() : trail_lim[ restartLevel ];
+            restart.savedPropagations += (thisPropSize - trail_lim[ 0 ]); // number of literals that do not need to be propagated
+            restart.partialRestarts ++;
+        }
+
+        // return restart level
+        return restartLevel;
+    }
+    return 0;
+}
+
 void Solver::removeSatisfied(vec<CRef>& cs)
 {
     int i, j;
@@ -1735,31 +1816,34 @@ bool Solver::collectFirstUIP(CRef confl){
             //      	varBumpActivity(v);
             seen[v]=0;
             if (--pathCs[currentDecLevel]!=0) {
-                Clause& rc=ca[reason(v)];
                 int reasonVarLevel=var_iLevel_tmp[v]+1;
                 if(reasonVarLevel>max_level) max_level=reasonVarLevel;
-                if (rc.size()==2 && value(rc[0])==l_False) {
-                    // Special case for binary clauses
-                    // The first one has to be SAT
-                    assert(value(rc[1]) != l_False);
-                    Lit tmp = rc[0];
-                    rc[0] =  rc[1], rc[1] = tmp;
-                }
-                for (int j = 1; j < rc.size(); j++){
-                    Lit q = rc[j]; Var v1=var(q);
-                    if (level(v1) > 0) {
-                        if (minLevel>level(v1)) {
-                            minLevel=level(v1); limit=trail_lim[minLevel-1]; 	assert(minLevel>0);
-                        }
-                        if (seen[v1]) {
-                            if (var_iLevel_tmp[v1]<reasonVarLevel)
+
+                if(reason(v) != CRef_Undef) {
+                    Clause& rc=ca[reason(v)];
+                    if (rc.size()==2 && value(rc[0])==l_False) {
+                        // Special case for binary clauses
+                        // The first one has to be SAT
+                        assert(value(rc[1]) != l_False);
+                        Lit tmp = rc[0];
+                        rc[0] =  rc[1], rc[1] = tmp;
+                    }
+                    for (int j = 1; j < rc.size(); j++){
+                        Lit q = rc[j]; Var v1=var(q);
+                        if (level(v1) > 0) {
+                            if (minLevel>level(v1)) {
+                                minLevel=level(v1); limit=trail_lim[minLevel-1]; 	assert(minLevel>0);
+                            }
+                            if (seen[v1]) {
+                                if (var_iLevel_tmp[v1]<reasonVarLevel)
+                                    var_iLevel_tmp[v1]=reasonVarLevel;
+                            }
+                            else {
                                 var_iLevel_tmp[v1]=reasonVarLevel;
-                        }
-                        else {
-                            var_iLevel_tmp[v1]=reasonVarLevel;
-                            //   varBumpActivity(v1);
-                            seen[v1] = 1;
-                            pathCs[level(v1)]++;
+                                //   varBumpActivity(v1);
+                                seen[v1] = 1;
+                                pathCs[level(v1)]++;
+                            }
                         }
                     }
                 }
@@ -1967,7 +2051,7 @@ lbool Solver::search(int& nof_conflicts)
                 cached = false;
                 // Reached bound on number of conflicts:
                 progress_estimate = progressEstimate();
-                cancelUntil(0);
+                cancelUntil(getRestartLevel());
                 return l_Undef; }
 
             // Simplify the set of problem clauses:
@@ -2211,7 +2295,7 @@ void Solver::toDimacs(FILE* f, const vec<Lit>& assumps)
         toDimacs(f, ca[clauses[i]], map, max);
 
     if (verbosity > 0)
-        printf("c Wrote %d clauses with %d variables.\n", cnt, max);
+        printf("c Wrote DIMACS with %d variables and %d clauses.\n", max, cnt);
 }
 
 
