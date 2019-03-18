@@ -143,9 +143,9 @@ class Clause {
         unsigned reloced   : 1;
         unsigned lbd       : 26;
         unsigned removable : 1;
-        unsigned size      : 32;
-        //simplify
-        unsigned simplified : 1;}                            header;
+        unsigned simplified: 1;
+        unsigned size      : 31;
+    }header;
     union { Lit lit; float act; uint32_t abs; uint32_t touched; CRef rel; } data[0];
 
     friend class ClauseAllocator;
