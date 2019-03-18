@@ -42,7 +42,7 @@ git prune
 popd
 
 # compress
-zip -r -9 Minisat.zip *
+zip -r -y -9 Minisat.zip *
 
 # jump back and move Minisat.zip here
 popd
