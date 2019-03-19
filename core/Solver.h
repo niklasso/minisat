@@ -201,6 +201,11 @@ public:
     vec<uint32_t> canceled;
 #endif
 
+    /** choose polarity to pick, if not phase saving (0: outside solver, 1: solving) **/
+    int systematic_branching_state;
+    /** Should we pick one polarity all the time? **/
+    uint32_t posMissingInSome, negMissingInSome;
+
     struct Restart {
         uint64_t savedDecisions, savedPropagations, partialRestarts;
         uint32_t selection_type; // 0 = 0, 1 = matching trail, 2 = reused trail

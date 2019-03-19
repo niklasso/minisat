@@ -110,6 +110,10 @@ Solver::Solver() :
   , dec_vars(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
   , chrono_backtrack(0), non_chrono_backtrack(0)
 
+  , systematic_branching_state(0)
+  , posMissingInSome(0)
+  , negMissingInSome(0)
+
   , restart(opt_restart_select)
 
   , ok                 (true)
@@ -900,6 +904,9 @@ bool Solver::addClause_(vec<Lit>& ps)
     sort(ps);
     Lit p; int i, j;
 
+    bool somePositive = false;
+    bool someNegative = false;
+
     if (drup_file){
         add_oc.clear();
         for (int i = 0; i < ps.size(); i++) add_oc.push(ps[i]); }
@@ -908,7 +915,15 @@ bool Solver::addClause_(vec<Lit>& ps)
         if (value(ps[i]) == l_True || ps[i] == ~p)
             return true;
         else if (value(ps[i]) != l_False && ps[i] != p)
+        {
             ps[j++] = p = ps[i];
+            somePositive = somePositive || !sign(p);
+            someNegative = someNegative || sign(p);
+        } else if (value(ps[i]) == l_False) {
+            // for polarity analysis, we ignore unit propagation
+            somePositive = somePositive || !sign(ps[i]);
+            someNegative = someNegative || sign(ps[i]);
+        }
     ps.shrink(i - j);
 
     if (drup_file && i != j){
@@ -936,6 +951,11 @@ bool Solver::addClause_(vec<Lit>& ps)
         CRef cr = ca.alloc(ps, false);
         clauses.push(cr);
         attachClause(cr);
+        // memorize for the whole formula to feed polarity heuristic
+        if(systematic_branching_state==0) {
+            posMissingInSome = somePositive ? posMissingInSome : posMissingInSome + 1;
+            negMissingInSome = someNegative ? negMissingInSome : negMissingInSome + 1;
+        }
     }
 
     return true;
@@ -1100,6 +1120,10 @@ Lit Solver::pickBranchLit()
 #endif
             next = order_heap.removeMin();
         }
+
+    // in case we found (almost) pure literals, disable phase-saving
+    if(posMissingInSome == 0 || negMissingInSome == 0)
+        return posMissingInSome == 0 ? mkLit(next, false) : mkLit(next, true);
 
     return mkLit(next, polarity[next]);
 }
@@ -2158,6 +2182,7 @@ lbool Solver::solve_()
     if (!ok) return l_False;
 
     solves++;
+    systematic_branching_state = 1;
 
     max_learnts               = nClauses() * learntsize_factor;
     learntsize_adjust_confl   = learntsize_adjust_start_confl;
@@ -2218,6 +2243,7 @@ lbool Solver::solve_()
         ok = false;
 
     cancelUntil(0);
+    systematic_branching_state = 0;
     return status;
 }
 

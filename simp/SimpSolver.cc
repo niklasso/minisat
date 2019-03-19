@@ -104,6 +104,8 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
     vec<Var> extra_frozen;
     lbool    result = l_True;
 
+    systematic_branching_state = 1;
+
     do_simp &= use_simplification;
 
     if (do_simp){
@@ -136,6 +138,7 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
         for (int i = 0; i < extra_frozen.size(); i++)
             setFrozen(extra_frozen[i], false);
 
+    systematic_branching_state = 0;
     return result;
 }
 
@@ -620,6 +623,8 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     int iter = 0;
     int n_cls, n_cls_init, n_vars;
 
+    systematic_branching_state = 1;
+
     if (nVars() == 0) goto cleanup; // User disabling preprocessing.
 
     // Get an initial number of clauses (more accurately).
@@ -684,6 +689,7 @@ cleanup:
     rebuildOrderHeap();
     garbageCollect();
 
+    systematic_branching_state = 0;
     return res;
 }
 
