@@ -440,9 +440,8 @@ protected:
 public:
     bool	simplifyAll();
     void	simplifyLearnt(Clause& c);
-    bool	simplifyLearnt_x(vec<CRef>& learnts_x);
-    bool	simplifyLearnt_core();
-    bool	simplifyLearnt_tier2();
+    /** simplify the learnt clauses in the given vector, move to learnt_core if is_tier2 is true*/
+    bool        simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2 = false);
     int		trailRecord;
     void	litsEnqueue(int cutP, Clause& c);
     void	cancelUntilTrailRecord();

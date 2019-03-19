@@ -455,139 +455,26 @@ void Solver::simplifyLearnt(Clause& c)
 
 }
 
-bool Solver::simplifyLearnt_x(vec<CRef>& learnts_x)
+bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
 {
     int beforeSize, afterSize;
-    int learnts_x_size_before = learnts_x.size();
+    int target_learnts_size_before = target_learnts.size();
 
     int ci, cj, li, lj;
     bool sat, false_lit;
     unsigned int nblevels;
     ////
-    //printf("learnts_x size : %d\n", learnts_x.size());
-
     ////
     int nbSimplified = 0;
     int nbSimplifing = 0;
 
-    for (ci = 0, cj = 0; ci < learnts_x.size(); ci++){
-        CRef cr = learnts_x[ci];
+    for (ci = 0, cj = 0; ci < target_learnts.size(); ci++){
+        CRef cr = target_learnts[ci];
         Clause& c = ca[cr];
 
         if (removed(cr)) continue;
         else if (c.simplified()){
-            learnts_x[cj++] = learnts_x[ci];
-            ////
-            nbSimplified++;
-        }
-        else{
-            ////
-            nbSimplifing++;
-            sat = false_lit = false;
-            for (int i = 0; i < c.size(); i++){
-                if (value(c[i]) == l_True){
-                    sat = true;
-                    break;
-                }
-                else if (value(c[i]) == l_False){
-                    false_lit = true;
-                }
-            }
-            if (sat){
-                removeClause(cr);
-            }
-            else{
-                detachClause(cr, true);
-
-                if (false_lit){
-                    for (li = lj = 0; li < c.size(); li++){
-                        if (value(c[li]) != l_False){
-                            c[lj++] = c[li];
-                        }
-                    }
-                    c.shrink(li - lj);
-                }
-
-                beforeSize = c.size();
-                assert(c.size() > 1);
-                // simplify a learnt clause c
-                simplifyLearnt(c);
-                assert(c.size() > 0);
-                afterSize = c.size();
-
-                //printf("beforeSize: %2d, afterSize: %2d\n", beforeSize, afterSize);
-
-                if (c.size() == 1){
-                    // when unit clause occur, enqueue and propagate
-                    uncheckedEnqueue(c[0]);
-                    if (propagate() != CRef_Undef){
-                        ok = false;
-                        return false;
-                    }
-                    // delete the clause memory in logic
-                    c.mark(1);
-                    ca.free(cr);
-                }
-                else{
-                    attachClause(cr);
-                    learnts_x[cj++] = learnts_x[ci];
-
-                    nblevels = computeLBD(c);
-                    if (nblevels < c.lbd()){
-                        //printf("lbd-before: %d, lbd-after: %d\n", c.lbd(), nblevels);
-                        c.set_lbd(nblevels);
-                    }
-                    if (c.mark() != CORE){
-                        if (c.lbd() <= core_lbd_cut){
-                            //if (c.mark() == LOCAL) local_learnts_dirty = true;
-                            //else tier2_learnts_dirty = true;
-                            cj--;
-                            learnts_core.push(cr);
-                            c.mark(CORE);
-                        }
-                        else if (c.mark() == LOCAL && c.lbd() <= 6){
-                            //local_learnts_dirty = true;
-                            cj--;
-                            learnts_tier2.push(cr);
-                            c.mark(TIER2);
-                        }
-                    }
-
-                    c.setSimplified(true);
-                }
-            }
-        }
-    }
-    learnts_x.shrink(ci - cj);
-
-    //   printf("c nbLearnts_x %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
-    //          learnts_x_size_before, learnts_x.size(), nbSimplified, nbSimplifing);
-
-    return true;
-}
-
-bool Solver::simplifyLearnt_core()
-{
-    int beforeSize, afterSize;
-    int learnts_core_size_before = learnts_core.size();
-
-    int ci, cj, li, lj;
-    bool sat, false_lit;
-    unsigned int nblevels;
-    ////
-    //printf("learnts_x size : %d\n", learnts_x.size());
-
-    ////
-    int nbSimplified = 0;
-    int nbSimplifing = 0;
-
-    for (ci = 0, cj = 0; ci < learnts_core.size(); ci++){
-        CRef cr = learnts_core[ci];
-        Clause& c = ca[cr];
-
-        if (removed(cr)) continue;
-        else if (c.simplified()){
-            learnts_core[cj++] = learnts_core[ci];
+            target_learnts[cj++] = target_learnts[ci];
             ////
             nbSimplified++;
         }
@@ -669,7 +556,7 @@ bool Solver::simplifyLearnt_core()
                 }
                 else{
                     attachClause(cr);
-                    learnts_core[cj++] = learnts_core[ci];
+                    target_learnts[cj++] = target_learnts[ci];
 
                     nblevels = computeLBD(c);
                     if (nblevels < c.lbd()){
@@ -677,133 +564,8 @@ bool Solver::simplifyLearnt_core()
                         c.set_lbd(nblevels);
                     }
 
-                    c.setSimplified(true);
-                }
-            }
-        }
-    }
-    learnts_core.shrink(ci - cj);
-
-    //    printf("c nbLearnts_core %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
-    //           learnts_core_size_before, learnts_core.size(), nbSimplified, nbSimplifing);
-
-    return true;
-
-}
-
-bool Solver::simplifyLearnt_tier2()
-{
-    int beforeSize, afterSize;
-    int learnts_tier2_size_before = learnts_tier2.size();
-
-    int ci, cj, li, lj;
-    bool sat, false_lit;
-    unsigned int nblevels;
-    ////
-    //printf("learnts_x size : %d\n", learnts_x.size());
-
-    ////
-    int nbSimplified = 0;
-    int nbSimplifing = 0;
-
-    for (ci = 0, cj = 0; ci < learnts_tier2.size(); ci++){
-        CRef cr = learnts_tier2[ci];
-        Clause& c = ca[cr];
-
-        if (removed(cr)) continue;
-        else if (c.simplified()){
-            learnts_tier2[cj++] = learnts_tier2[ci];
-            ////
-            nbSimplified++;
-        }
-        else{
-            int saved_size=c.size();
-            //            if (drup_file){
-            //                    add_oc.clear();
-            //                    for (int i = 0; i < c.size(); i++) add_oc.push(c[i]); }
-            ////
-            nbSimplifing++;
-            sat = false_lit = false;
-            for (int i = 0; i < c.size(); i++){
-                if (value(c[i]) == l_True){
-                    sat = true;
-                    break;
-                }
-                else if (value(c[i]) == l_False){
-                    false_lit = true;
-                }
-            }
-            if (sat){
-                removeClause(cr);
-            }
-            else{
-                detachClause(cr, true);
-
-                if (false_lit){
-                    for (li = lj = 0; li < c.size(); li++){
-                        if (value(c[li]) != l_False){
-                            c[lj++] = c[li];
-                        }
-                    }
-                    c.shrink(li - lj);
-                }
-
-                beforeSize = c.size();
-                assert(c.size() > 1);
-                // simplify a learnt clause c
-                simplifyLearnt(c);
-                assert(c.size() > 0);
-                afterSize = c.size();
-                
-                if(drup_file && saved_size!=c.size()){
-
-#ifdef BIN_DRUP
-                    binDRUP('a', c , drup_file);
-                    //                    binDRUP('d', add_oc, drup_file);
-#else
-                    for (int i = 0; i < c.size(); i++)
-                        fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
-                    fprintf(drup_file, "0\n");
-
-                    //                    fprintf(drup_file, "d ");
-                    //                    for (int i = 0; i < add_oc.size(); i++)
-                    //                        fprintf(drup_file, "%i ", (var(add_oc[i]) + 1) * (-2 * sign(add_oc[i]) + 1));
-                    //                    fprintf(drup_file, "0\n");
-#endif
-                }
-
-                //printf("beforeSize: %2d, afterSize: %2d\n", beforeSize, afterSize);
-
-                if (c.size() == 1){
-                    // when unit clause occur, enqueue and propagate
-                    uncheckedEnqueue(c[0]);
-                    if (propagate() != CRef_Undef){
-                        ok = false;
-                        return false;
-                    }
-                    // delete the clause memory in logic
-                    c.mark(1);
-                    ca.free(cr);
-//#ifdef BIN_DRUP
-//                    binDRUP('d', c, drup_file);
-//#else
-//                    fprintf(drup_file, "d ");
-//                    for (int i = 0; i < c.size(); i++)
-//                        fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
-//                    fprintf(drup_file, "0\n");
-//#endif
-                }
-                else{
-                    attachClause(cr);
-                    learnts_tier2[cj++] = learnts_tier2[ci];
-
-                    nblevels = computeLBD(c);
-                    if (nblevels < c.lbd()){
-                        //printf("lbd-before: %d, lbd-after: %d\n", c.lbd(), nblevels);
-                        c.set_lbd(nblevels);
-                    }
-
-                    if (c.lbd() <= core_lbd_cut){
+                    // in case we work on the tier2 set, a clause might move to core learnt clauses
+                    if (is_tier2 && c.lbd() <= core_lbd_cut){
                         cj--;
                         learnts_core.push(cr);
                         c.mark(CORE);
@@ -814,10 +576,10 @@ bool Solver::simplifyLearnt_tier2()
             }
         }
     }
-    learnts_tier2.shrink(ci - cj);
+    target_learnts.shrink(ci - cj);
 
-    //    printf("c nbLearnts_tier2 %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
-    //           learnts_tier2_size_before, learnts_tier2.size(), nbSimplified, nbSimplifing);
+    //    printf("c nbtarget_learnts %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
+    //           target_learnts_size_before, target_learnts.size(), nbSimplified, nbSimplifing);
 
     return true;
 
@@ -836,14 +598,8 @@ bool Solver::simplifyAll()
 
     assert(decisionLevel() == 0 && "LCM works only on level 0");
 
-    //// cleanLearnts(also can delete these code), here just for analyzing
-    //if (local_learnts_dirty) cleanLearnts(learnts_local, LOCAL);
-    //if (tier2_learnts_dirty) cleanLearnts(learnts_tier2, TIER2);
-    //local_learnts_dirty = tier2_learnts_dirty = false;
-
-    if (!simplifyLearnt_core()) return ok = false;
-    if (!simplifyLearnt_tier2()) return ok = false;
-    //if (!simplifyLearnt_x(learnts_local)) return ok = false;
+    if (!simplifyLearnt(learnts_core, false)) return ok = false;
+    if (!simplifyLearnt(learnts_tier2, true)) return ok = false;
 
     checkGarbage();
 
