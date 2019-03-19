@@ -66,7 +66,7 @@ static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction o
 static IntOption     opt_chrono            (_cat, "chrono",  "Controls if to perform chrono backtrack", 100, IntRange(-1, INT32_MAX));
 static IntOption     opt_conf_to_chrono    (_cat, "confl-to-chrono",  "Controls number of conflicts to perform chrono backtrack", 4000, IntRange(-1, INT32_MAX));
 static IntOption     opt_restart_select    (_cat, "rtype",        "How to select the restart level (0=0, 1=matching trail, 2=reused trail)", 2, IntRange(0, 2));
-
+static BoolOption    opt_almost_pure       (_cat, "almost-pure",  "Try to optimize polarity by ignoring units", false);
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -111,8 +111,8 @@ Solver::Solver() :
   , chrono_backtrack(0), non_chrono_backtrack(0)
 
   , systematic_branching_state(0)
-  , posMissingInSome(0)
-  , negMissingInSome(0)
+  , posMissingInSome(opt_almost_pure ? 0 : 1)
+  , negMissingInSome(opt_almost_pure ? 0 : 1)
 
   , restart(opt_restart_select)
 
