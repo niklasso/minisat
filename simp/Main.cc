@@ -53,8 +53,10 @@ void printStats(Solver& solver)
     printf("c propagations          : %-12"PRIu64"   (%.0f /sec)\n", solver.propagations, solver.propagations/cpu_time);
     printf("c conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", solver.tot_literals, (solver.max_literals - solver.tot_literals)*100 / (double)solver.max_literals);
     printf("c backtracks            : %-12"PRIu64"   (NCB %0.f%% , CB %0.f%%)\n", solver.non_chrono_backtrack + solver.chrono_backtrack, (solver.non_chrono_backtrack * 100) / (double)(solver.non_chrono_backtrack + solver.chrono_backtrack), (solver.chrono_backtrack * 100) / (double)(solver.non_chrono_backtrack + solver.chrono_backtrack));
-    printf("c partial restarts      : %-12" PRIu64" (partial: %" PRIu64"  savedD: %" PRIu64" savedP: %" PRIu64" )\n", solver.starts, solver.restart.partialRestarts, solver.restart.savedDecisions, solver.restart.savedPropagations);
+    printf("c partial restarts      : %-12" PRIu64"   (partial: %" PRIu64"  savedD: %" PRIu64" savedP: %" PRIu64" )\n", solver.starts, solver.restart.partialRestarts, solver.restart.savedDecisions, solver.restart.savedPropagations);
     printf("c polarity              : %d pos, %d neg\n", solver.posMissingInSome, solver.negMissingInSome);
+    printf("c LCM                   : %lu runs, %lu Ctried, %lu Cshrinked, %lu Ldeleted, %lu Lrev-deleted\n",
+        solver.nbSimplifyAll, solver.LCM_total_tries, solver.LCM_successful_tries, solver.LCM_dropped_lits, solver.LCM_dropped_reverse);
     if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
     printf("c CPU time              : %g s\n", cpu_time);
 }

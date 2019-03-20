@@ -462,6 +462,7 @@ public:
     int nbconfbeforesimplify;
     int incSimplify;
     bool reverse_LCM;
+    uint64_t LCM_total_tries, LCM_successful_tries, LCM_dropped_lits, LCM_dropped_reverse;
 
     bool collectFirstUIP(CRef confl);
     vec<double> var_iLevel,var_iLevel_tmp;

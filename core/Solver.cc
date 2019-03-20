@@ -155,6 +155,10 @@ Solver::Solver() :
   , nbconfbeforesimplify(1000)
   , incSimplify(1000)
   , reverse_LCM(opt_reverse_lcm)
+  , LCM_total_tries(0)
+  , LCM_successful_tries(0)
+  , LCM_dropped_lits(0)
+  , LCM_dropped_reverse(0)
 
   , my_var_decay       (0.6)
   , DISTANCE           (true)
@@ -394,10 +398,12 @@ void Solver::simplifyLearnt(Clause& c)
 
     trailRecord = trail.size();// record the start pointer
 
-    bool True_confl, reversed = false;
+    bool True_confl = false, reversed = false;
     int beforeSize = c.size(), preReserve = 0;
     int i, j;
     CRef confl;
+
+    LCM_total_tries ++;
 
     // try to simplify in reverse order, in case original succeeds
     for (size_t iteration = 0; iteration < (reverse_LCM ? 2 : 1); ++iteration)
@@ -410,6 +416,7 @@ void Solver::simplifyLearnt(Clause& c)
             if(c.size() == 1) break;
             c.reverse();
             reversed = !reversed;
+            preReserve = c.size();
         }
 
         for (i = 0, j = 0; i < c.size(); i++){
@@ -458,13 +465,17 @@ void Solver::simplifyLearnt(Clause& c)
         ////
         simplified_length_record += c.size();
 
-        afterSize = c.size();
         //printf("\nbefore : %d, after : %d ", beforeSize, afterSize);
-            if(beforeSize == c.size()) break;
+        if(beforeSize == c.size()) break;
+
+        LCM_dropped_lits += (beforeSize - c.size());
+        LCM_dropped_reverse = iteration == 0 ? LCM_dropped_reverse : LCM_dropped_reverse += (preReserve - c.size());
     }
 
     // make sure the original order is restored, in case we resorted
     if(reversed) c.reverse();
+
+    LCM_successful_tries = beforeSize == c.size() ? LCM_successful_tries : LCM_successful_tries + 1;
 }
 
 bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
