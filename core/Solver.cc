@@ -67,6 +67,7 @@ static IntOption     opt_chrono            (_cat, "chrono",  "Controls if to per
 static IntOption     opt_conf_to_chrono    (_cat, "confl-to-chrono",  "Controls number of conflicts to perform chrono backtrack", 4000, IntRange(-1, INT32_MAX));
 static IntOption     opt_restart_select    (_cat, "rtype",        "How to select the restart level (0=0, 1=matching trail, 2=reused trail)", 2, IntRange(0, 2));
 static BoolOption    opt_almost_pure       (_cat, "almost-pure",  "Try to optimize polarity by ignoring units", false);
+static BoolOption    opt_reverse_lcm       (_cat, "lcm-reverse",  "Try to continue LCM with reversed clause in case of success", true);
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -153,6 +154,7 @@ Solver::Solver() :
   , curSimplify(1)
   , nbconfbeforesimplify(1000)
   , incSimplify(1000)
+  , reverse_LCM(opt_reverse_lcm)
 
   , my_var_decay       (0.6)
   , DISTANCE           (true)
@@ -392,67 +394,77 @@ void Solver::simplifyLearnt(Clause& c)
 
     trailRecord = trail.size();// record the start pointer
 
-    vec<Lit> falseLit;
-    falseLit.clear();
-
-    //sort(&c[0], c.size(), VarOrderLevelLt(vardata));
-
-    bool True_confl = false;
-    int beforeSize, afterSize;
-    beforeSize = c.size();
+    bool True_confl, reversed = false;
+    int beforeSize = c.size(), preReserve = 0;
     int i, j;
     CRef confl;
 
-    for (i = 0, j = 0; i < c.size(); i++){
-        if (value(c[i]) == l_Undef){
-            //printf("///@@@ uncheckedEnqueue:index = %d. l_Undef\n", i);
-            simpleUncheckEnqueue(~c[i]);
-            c[j++] = c[i];
-            confl = simplePropagate();
-            if (confl != CRef_Undef){
-                break;
-            }
+    // try to simplify in reverse order, in case original succeeds
+    for (size_t iteration = 0; iteration < (reverse_LCM ? 2 : 1); ++iteration)
+    {
+        True_confl = false;
+    // reorder the current clause for next iteration?
+    // (only useful if size changed in first iteration)
+        if(iteration > 0)
+        {
+            if(c.size() == 1) break;
+            c.reverse();
+            reversed = !reversed;
         }
-        else{
-            if (value(c[i]) == l_True){
-                //printf("///@@@ uncheckedEnqueue:index = %d. l_True\n", i);
+
+        for (i = 0, j = 0; i < c.size(); i++){
+            if (value(c[i]) == l_Undef){
+                //printf("///@@@ uncheckedEnqueue:index = %d. l_Undef\n", i);
+                simpleUncheckEnqueue(~c[i]);
                 c[j++] = c[i];
-                True_confl = true;
-                confl = reason(var(c[i]));
-                break;
+                confl = simplePropagate();
+                if (confl != CRef_Undef){
+                    break;
+                }
             }
             else{
-                //printf("///@@@ uncheckedEnqueue:index = %d. l_False\n", i);
-                falseLit.push(c[i]);
+                if (value(c[i]) == l_True){
+                    //printf("///@@@ uncheckedEnqueue:index = %d. l_True\n", i);
+                    c[j++] = c[i];
+                    True_confl = true;
+                    confl = reason(var(c[i]));
+                    break;
+                }
+                else{
+                    //printf("///@@@ uncheckedEnqueue:index = %d. l_False\n", i);
+                }
             }
         }
-    }
-    c.shrink(c.size() - j);
-    afterSize = c.size();
-    //printf("\nbefore : %d, after : %d ", beforeSize, afterSize);
+        c.shrink(c.size() - j);
 
-
-    if (confl != CRef_Undef || True_confl == true){
-        simp_learnt_clause.clear();
-        simp_reason_clause.clear();
-        if (True_confl == true){
-            simp_learnt_clause.push(c.last());
-        }
-        simpleAnalyze(confl, simp_learnt_clause, simp_reason_clause, True_confl);
-
-        if (simp_learnt_clause.size() < c.size()){
-            for (i = 0; i < simp_learnt_clause.size(); i++){
-                c[i] = simp_learnt_clause[i];
+        if (confl != CRef_Undef || True_confl == true){
+            simp_learnt_clause.clear();
+            simp_reason_clause.clear();
+            if (True_confl == true){
+                simp_learnt_clause.push(c.last());
             }
-            c.shrink(c.size() - i);
+            simpleAnalyze(confl, simp_learnt_clause, simp_reason_clause, True_confl);
+
+            if (simp_learnt_clause.size() < c.size()){
+                for (i = 0; i < simp_learnt_clause.size(); i++){
+                    c[i] = simp_learnt_clause[i];
+                }
+                c.shrink(c.size() - i);
+            }
         }
+
+        cancelUntilTrailRecord();
+
+        ////
+        simplified_length_record += c.size();
+
+        afterSize = c.size();
+        //printf("\nbefore : %d, after : %d ", beforeSize, afterSize);
+            if(beforeSize == c.size()) break;
     }
 
-    cancelUntilTrailRecord();
-
-    ////
-    simplified_length_record += c.size();
-
+    // make sure the original order is restored, in case we resorted
+    if(reversed) c.reverse();
 }
 
 bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)

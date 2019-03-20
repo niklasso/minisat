@@ -461,6 +461,7 @@ public:
     long curSimplify;
     int nbconfbeforesimplify;
     int incSimplify;
+    bool reverse_LCM;
 
     bool collectFirstUIP(CRef confl);
     vec<double> var_iLevel,var_iLevel_tmp;
