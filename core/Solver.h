@@ -215,6 +215,10 @@ public:
     /** calculate the level to jump to for restarts */
     int getRestartLevel();
 
+    int64_t VSIDS_switch_seconds; // seconds after which we want to switch back to VSIDS
+    int64_t VSIDS_conflicts;      // conflicts after which we want to switch back to VSIDS
+    int64_t VSIDS_propagations;   // propagated literals after which we want to switch back to VSIDS
+
 protected:
 
     // Helper structures:
