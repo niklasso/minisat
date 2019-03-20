@@ -1712,7 +1712,8 @@ lbool Solver::search(int& nof_conflicts)
     //
     if (conflicts >= curSimplify * nbconfbeforesimplify){
         //        printf("c ### simplifyAll on conflict : %lld\n", conflicts);
-        printf("nbClauses: %d, nbLearnts_core: %d, nbLearnts_tier2: %d, nbLearnts_local: %d, nbLearnts: %d\n",
+        if (verbosity >= 1)
+            printf("c schedule LCM with: nbClauses: %d, nbLearnts_core: %d, nbLearnts_tier2: %d, nbLearnts_local: %d, nbLearnts: %d\n",
                 clauses.size(), learnts_core.size(), learnts_tier2.size(), learnts_local.size(),
                 learnts_core.size() + learnts_tier2.size() + learnts_local.size());
         nbSimplifyAll++;
