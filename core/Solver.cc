@@ -33,6 +33,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Sort.h"
 #include "core/Solver.h"
 
+#include "utils/System.h"
+
 using namespace Minisat;
 
 //#define PRINT_OUT
@@ -417,6 +419,7 @@ void Solver::simplifyLearnt(Clause& c)
     for (size_t iteration = 0; iteration < (reverse_LCM ? 2 : 1); ++iteration)
     {
         True_confl = false;
+        statistics.solveSteps ++;
     // reorder the current clause for next iteration?
     // (only useful if size changed in first iteration)
         if(iteration > 0)
@@ -1440,7 +1443,7 @@ void Solver::reduceDB()
                 c.removable(true);
                 learnts_local[j++] = learnts_local[i]; }
     }
-    statistics.solveSteps += learnts.size();
+    statistics.solveSteps += learnts_local.size();
     learnts_local.shrink(i - j);
     checkGarbage();
 }
@@ -1460,6 +1463,7 @@ void Solver::reduceDB_Tier2()
                 learnts_tier2[j++] = learnts_tier2[i];
     }
     learnts_tier2.shrink(i - j);
+    statistics.solveSteps += learnts_tier2.size();
 }
 
 
@@ -2169,10 +2173,8 @@ void Solver::relocAll(ClauseAllocator& to)
 
         // Note: it is not safe to call 'locked()' on a relocated clause. This is why we keep
         // 'dangling' reasons here. It is safe and does not hurt.
-        if (reason(v) != CRef_Undef && statistics.solveSteps ++ && (ca[reason(v)].reloced() || locked(ca[reason(v)]))){
-            assert(!isRemoved(reason(v)));
+        if (reason(v) != CRef_Undef && statistics.solveSteps ++ && (ca[reason(v)].reloced() || locked(ca[reason(v)])))
             ca.reloc(vardata[v].reason, to);
-        }
     }
 
     // All learnt:
