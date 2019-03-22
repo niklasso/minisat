@@ -379,9 +379,9 @@ protected:
     
 public:
     int      level            (Var x) const;
+    bool     withinBudget     ()      const;
 protected:
     double   progressEstimate ()      const; // DELETE THIS ?? IT'S NOT VERY USEFUL ...
-    bool     withinBudget     ()      const;
 
     template<class V> int computeLBD(const V& c) {
         int lbd = 0;
