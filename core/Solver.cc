@@ -115,6 +115,7 @@ Solver::Solver() :
     drup_file        (NULL)
   , reparsed_options (updateOptions())
   , verbosity        (0)
+  , status_every     (100000)
   , step_size        (opt_step_size)
   , step_size_dec    (opt_step_size_dec)
   , min_step_size    (opt_min_step_size)
@@ -1892,12 +1893,11 @@ lbool Solver::search(int& nof_conflicts)
 
             }*/
 
-            if((conflicts % 10000) == 0)
-                if (verbosity >= 1)
-                    printf("c | %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n",
-                           (int)conflicts,
-                           (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals,
-                           (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progressEstimate()*100);
+            if(verbosity >= 1 && (conflicts % status_every) == 0)
+                printf("c | %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n",
+                       (int)conflicts,
+                       (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals,
+                       (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progressEstimate()*100);
 
         }else{
             // NO CONFLICT

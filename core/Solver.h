@@ -166,6 +166,7 @@ public:
     FILE*     drup_file;
     bool      reparsed_options;   // Indicate whether the update parameter method has been used
     int       verbosity;
+    int       status_every;       // print status update every X conflicts
     double    step_size;
     double    step_size_dec;
     double    min_step_size;
