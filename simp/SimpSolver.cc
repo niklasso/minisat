@@ -45,7 +45,7 @@ static IntOption    opt_grow             (_cat, "grow",         "Allow a variabl
 static IntOption    opt_clause_lim       (_cat, "cl-lim",       "Variables are not eliminated if it produces a resolvent with a length above this limit. -1 means no limit", 20,   IntRange(-1, INT32_MAX));
 static IntOption    opt_subsumption_lim  (_cat, "sub-lim",      "Do not check if subsumption against a clause larger than this. -1 means no limit.", 1000, IntRange(-1, INT32_MAX));
 static DoubleOption opt_simp_garbage_frac(_cat, "simp-gc-frac", "The fraction of wasted memory allowed before a garbage collection is triggered during simplification.",  0.5, DoubleRange(0, false, HUGE_VAL, false));
-static Int64Option  opt_max_simplify_step(_cat, "max-simp-steps","Do not perform more simplification steps than this. -1 means no limit.", -1, Int64Range(-1, INT64_MAX));
+static Int64Option  opt_max_simplify_step(_cat, "max-simp-steps","Do not perform more simplification steps than this. -1 means no limit.", 40000000000, Int64Range(-1, INT64_MAX));
 
 
 //=================================================================================================
