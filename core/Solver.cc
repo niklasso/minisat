@@ -2064,7 +2064,7 @@ lbool Solver::solve_()
 
         if (!VSIDS && switch_mode){
             VSIDS = true;
-            printf("c Switched to VSIDS after %d conflicts, %ld propagations, %lu steps.\n", conflicts, propagations, statistics.solveSteps);
+            printf("c Switched to VSIDS after %d conflicts, %ld propagations, %lu steps, %f seconds.\n", conflicts, propagations, statistics.solveSteps, cpuTime());
             fflush(stdout);
             picked.clear();
             conflicted.clear();
