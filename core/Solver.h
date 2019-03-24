@@ -216,9 +216,9 @@ public:
     /** calculate the level to jump to for restarts */
     int getRestartLevel();
 
-    int64_t VSIDS_switch_seconds; // seconds after which we want to switch back to VSIDS
     int64_t VSIDS_conflicts;      // conflicts after which we want to switch back to VSIDS
     int64_t VSIDS_propagations;   // propagated literals after which we want to switch back to VSIDS
+    bool reactivate_VSIDS;        // indicate whether we change the decision heuristic back to VSIDS
 
     /// Single object to hold most statistics
     struct SolverStats

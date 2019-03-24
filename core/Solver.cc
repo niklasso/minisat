@@ -71,9 +71,8 @@ static IntOption     opt_conf_to_chrono    (_cat, "confl-to-chrono",  "Controls 
 static IntOption     opt_restart_select    (_cat, "rtype",        "How to select the restart level (0=0, 1=matching trail, 2=reused trail)", 2, IntRange(0, 2));
 static BoolOption    opt_almost_pure       (_cat, "almost-pure",  "Try to optimize polarity by ignoring units", false);
 static BoolOption    opt_reverse_lcm       (_cat, "lcm-reverse",  "Try to continue LCM with reversed clause in case of success", true);
-static Int64Option   opt_vsids_s           (_cat, "vsids-s",  "seconds after which we want to switch back to VSIDS (0=off)", 2500, Int64Range(0, INT64_MAX));
-static Int64Option   opt_vsids_c           (_cat, "vsids-c",  "conflicts after which we want to switch back to VSIDS (0=off)", 0, Int64Range(0, INT64_MAX));
-static Int64Option   opt_vsids_p           (_cat, "vsids-p",  "propagations after which we want to switch back to VSIDS (0=off)", 0, Int64Range(0, INT64_MAX));
+static Int64Option   opt_vsids_c           (_cat, "vsids-c",  "conflicts after which we want to switch back to VSIDS (0=off)", 1400000, Int64Range(0, INT64_MAX));
+static Int64Option   opt_vsids_p           (_cat, "vsids-p",  "propagations after which we want to switch back to VSIDS (0=off)", 600000000, Int64Range(0, INT64_MAX));
 
 
 //=================================================================================================
@@ -154,9 +153,9 @@ Solver::Solver() :
 
   , restart(opt_restart_select)
 
-  , VSIDS_switch_seconds(opt_vsids_s)
   , VSIDS_conflicts(opt_vsids_c)
   , VSIDS_propagations(opt_vsids_p)
+  , reactivate_VSIDS(false)
 
   , ok                 (true)
   , cla_inc            (1)
@@ -2007,17 +2006,9 @@ static double luby(double y, int x){
     return pow(y, seq);
 }
 
-static bool switch_mode = false;
-static void SIGALRM_switch(int signum) { switch_mode = true; }
-
 // NOTE: assumptions passed in member-variable 'assumptions'.
 lbool Solver::solve_()
 {
-    if(VSIDS_switch_seconds > 0) {
-        signal(SIGALRM, SIGALRM_switch);
-        alarm(VSIDS_switch_seconds);
-    }
-
     model.clear();
     conflict.clear();
     if (!ok) return l_False;
@@ -2059,12 +2050,16 @@ lbool Solver::solve_()
             status = search(nof_conflicts);
         }
 
-        // switch to VSIDS?
-        if(VSIDS_conflicts > conflicts || VSIDS_propagations > propagations) switch_mode = true;
+        // switch back to VSIDS?
+        if (!reactivate_VSIDS && ((VSIDS_conflicts > 0 && VSIDS_conflicts < conflicts) ||
+                                  (VSIDS_propagations > 0 && VSIDS_propagations < propagations)))
+            reactivate_VSIDS = true;
 
-        if (!VSIDS && switch_mode){
+        if (!VSIDS && reactivate_VSIDS){
             VSIDS = true;
-            printf("c Switched to VSIDS after %d conflicts, %ld propagations, %lu steps, %f seconds.\n", conflicts, propagations, statistics.solveSteps, cpuTime());
+            if (verbosity >= 1)
+                printf("c Switched to VSIDS after %d conflicts, %ld propagations, %lu steps, %f seconds.\n",
+                       conflicts, propagations, statistics.solveSteps, cpuTime());
             fflush(stdout);
             picked.clear();
             conflicted.clear();
