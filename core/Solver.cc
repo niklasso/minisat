@@ -1417,7 +1417,7 @@ CRef Solver::propagate()
 					if (nMaxInd != 1)
 					{
 						std::swap(c[1], c[nMaxInd]);
-						*j--; // undo last watch
+						j--; // undo last watch
 						watches[~c[1]].push(w);
 					}
 					
