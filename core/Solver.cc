@@ -71,8 +71,8 @@ static IntOption     opt_conf_to_chrono    (_cat, "confl-to-chrono",  "Controls 
 static IntOption     opt_restart_select    (_cat, "rtype",        "How to select the restart level (0=0, 1=matching trail, 2=reused trail)", 2, IntRange(0, 2));
 static BoolOption    opt_almost_pure       (_cat, "almost-pure",  "Try to optimize polarity by ignoring units", false);
 static BoolOption    opt_reverse_lcm       (_cat, "lcm-reverse",  "Try to continue LCM with reversed clause in case of success", true);
-static Int64Option   opt_vsids_c           (_cat, "vsids-c",  "conflicts after which we want to switch back to VSIDS (0=off)", 1400000, Int64Range(0, INT64_MAX));
-static Int64Option   opt_vsids_p           (_cat, "vsids-p",  "propagations after which we want to switch back to VSIDS (0=off)", 600000000, Int64Range(0, INT64_MAX));
+static Int64Option   opt_vsids_c           (_cat, "vsids-c",  "conflicts after which we want to switch back to VSIDS (0=off)", 12000000, Int64Range(0, INT64_MAX));
+static Int64Option   opt_vsids_p           (_cat, "vsids-p",  "propagations after which we want to switch back to VSIDS (0=off)", 3000000000, Int64Range(0, INT64_MAX));
 
 
 //=================================================================================================
