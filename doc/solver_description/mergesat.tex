@@ -1,0 +1,85 @@
+\documentclass[conference]{IEEEtran}
+% packages
+\usepackage{xspace}
+\usepackage{hyperref}
+\usepackage{todonotes}
+\usepackage{tikz}
+\usepackage[utf8]{inputenc}
+
+\def\CC{{C\nolinebreak[4]\hspace{-.05em}\raisebox{.4ex}{\tiny\bf ++}}}
+\def\ea{\,et\,al.\ }
+
+\begin{document}
+	
+% paper title
+\title{MergeSAT}
+
+% author names and affiliations
+% use a multiple column layout for up to three different
+% affiliations
+\author{
+\IEEEauthorblockN{Norbert Manthey}
+\IEEEauthorblockA{nmanthey@conp-solutions.com\\Dresden, Germany}
+}
+
+\maketitle
+
+\def\coprocessor{\textsc{Coprocessor}\xspace}
+\def\glucose{\textsc{Glucose~2.2}\xspace}
+\def\minisat{\textsc{Minisat~2.2}\xspace}
+\def\riss{\textsc{Riss}\xspace}
+\def\mergesat{\textsc{MergeSAT}\xspace}
+
+% the abstract is optional
+\begin{abstract}
+The sequential SAT solver \mergesat starts from last years competition winner, and adds known as well as novel implementation and search improvements.
+\mergesat is setup to simplify merging solver contributions into one solver, to motivate more collaboration among solver developers.
+\end{abstract}
+
+\section{Introduction}
+
+When looking at recent SAT competitions, the winner of the current year was typically last years winner plus a single modification.
+However, each year there are several novel ideas that the winner does not pick up.
+Hence, lots of potential with respect to maximal performance is likely lost, and bug fixes of previous versions do not make it into novel ones.
+
+The CDCL solver \mergesat is based on the competition winner of 2018, \textsc{Maple\_LCM\_Dist\_ChronoBT}~\cite{MapleLCMDistChronoBT}, and adds several known techniques, fixes, as well as adds some novel ideas.
+To make continuing the long list of work2 that influenced \mergesat simpler, \mergesat uses git to combine changes,
+and comes with continuous integration to simplify extending the solver further.
+
+\section{Integrated Techniques and Fixes}
+
+Most recently, backtracking has been improved by~\cite{10.1007/978-3-319-94144-8_7}. Backtracking improvements during restarts have already been proposed in~\cite{10.1007/978-3-642-21581-0_18}.
+\mergesat uses the \emph{partial trail} based backtracking during restarts.
+
+Learned clause minimization (LCM)~\cite{ijcai2017-98} is also kept. It is still open research in which order literals should be considered during vivification~\cite{DBLP:conf/ecai/PietteHS08}.
+\mergesat uses the improvement from~\cite{riss71}, which repeats vivification in reverse order, in case a clause could be simplified with the first order.
+The original implementation of LCM adds a bit to the clause header to indicate that this clause has been considered already.
+However, no other bit has been dropped from the header, resulting in a 65\,bit header structure.
+Along~\cite{HolldoblerMS:2010}, this can result in a major slow down of the solver.
+Consequently, \mergesat drops a bit in the size representation of the clause.
+
+Large formulas require a long simplification time, even though simplification algorithms are polynomial.
+While for a 5000 second timeout, large simplification times are acceptable for effective simplifications, usually an incomplete simplification helps the solver already.
+Therefore, we introduce a step counter, that is increased whenever simplification touches a clause.
+Next, we interrupt simplification as soon as this counter reaches a predefined limit, similarly to~\cite{precosat}.
+To speed simplification up further, the linear subsumption implementation and related optimizations from~\cite{POS-18:Tuning_Parallel_SAT_Solvers} have been integrated into \mergesat.
+
+Since the solver \textsc{MapleSAT}~\cite{MapleSAT}, the decision heuristic is switched back from the currently selected one to VSIDS -- after 2500 seconds.
+As solver execution does not correlate with run time, this decision results in solver runs not being reproducible.
+To fix this property, the switch to VSIDS is now dependent on the number of performed propagations as well as conflicts.
+Once, one of the two hits a predefined limit, the heuristic is switched back to VSIDS.
+
+\section{Availability}
+
+The source of the solver is publicly available under the MIT license at \url{https://github.com/conp-solutions/mergesat}.
+The version with the git tag ``mergesat-2019'' is used for the submission.
+The submitted starexec package can be reproduced by running ``./scripts/make-starexec.sh'' on this commit.
+
+\section*{Acknowledgment}
+
+The author would like to thank the developers of all predecessors of \mergesat, and all the authors who contributed the modifications that have been integrated.
+
+\bibliographystyle{IEEEtranS}
+\bibliography{local}
+
+\end{document}
