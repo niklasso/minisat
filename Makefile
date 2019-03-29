@@ -49,8 +49,8 @@ datarootdir ?= $(prefix)/share
 mandir      ?= $(datarootdir)/man
 
 # Target file names
-MINISAT      = minisat#       Name of MiniSat main executable.
-MINISAT_CORE = minisat_core#  Name of simplified MiniSat executable (only core solver support).
+MINISAT      = mergesat#       Name of MiniSat main executable.
+MINISAT_CORE = mergesat_core#  Name of simplified MiniSat executable (only core solver support).
 MINISAT_SLIB = lib$(MINISAT).a#  Name of MiniSat static library.
 MINISAT_DLIB = lib$(MINISAT).so# Name of MiniSat shared library.
 
