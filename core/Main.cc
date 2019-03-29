@@ -158,7 +158,7 @@ int main(int argc, char** argv)
         signal(SIGXCPU,SIGINT_interrupt);
 
         if (!S.simplify()){
-            if (res != NULL) fprintf(res, "UNSAT\n"), fclose(res);
+            if (res != NULL) fprintf(res, "s UNSATISFIABLE\n"), fclose(res);
             if (S.verbosity > 0){
                 printf("c ===============================================================================\n");
                 printf("c Solved by unit propagation\n");
@@ -190,15 +190,15 @@ int main(int argc, char** argv)
 
         if (res != NULL){
             if (ret == l_True){
-                fprintf(res, "SAT\n");
+                fprintf(res, "s SATISFIABLE\nv ");
                 for (int i = 0; i < S.nVars(); i++)
                     if (S.model[i] != l_Undef)
                         fprintf(res, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
                 fprintf(res, " 0\n");
             }else if (ret == l_False)
-                fprintf(res, "UNSAT\n");
+                fprintf(res, "s UNSATISFIABLE\n");
             else
-                fprintf(res, "INDET\n");
+                fprintf(res, "s UNKNOWN\n");
             fclose(res);
         }
         
