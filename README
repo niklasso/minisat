@@ -37,7 +37,8 @@ Building
 ================================================================================
 Install
 
-  [ TODO: ? ]
+  For ubuntu type destros:
+  > sudo apt-get install minisat
 
 ================================================================================
 Directory Overview:
