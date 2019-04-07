@@ -67,7 +67,7 @@ ifeq (Darwin,$(findstring Darwin,$(shell uname)))
 	RELEASE_LDFLAGS +=
 else
 	SHARED_LDFLAGS += -shared -Wl,-soname,$(MINISAT_DLIB).$(SOMAJOR)
-	RELEASE_LDFLAGS += -static
+#	RELEASE_LDFLAGS += -static
 endif
 
 ECHO=@echo
