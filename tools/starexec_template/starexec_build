@@ -1,6 +1,30 @@
 #!/bin/bash
 
 #make minisat
-cd minisat
+pushd minisat
+
+# by now, we need a "minisat" link to build
+ln -s . minisat || true
+
+# build
 make 2>&1
+
+# provide build artifact to starexec
 cp build/release/bin/minisat ../bin/
+popd
+
+# do not build glibc, if we do not have it
+[ -r glibc-starexec-thp-2.17-157.el7_3.1.tar.gz ] || exit 0
+
+# build glibc
+tar xzf glibc-starexec-thp-2.17-157.el7_3.1.tar.gz
+pushd glibc-starexec-thp-2.17-157.el7_3.1
+bash -x build.sh
+
+# provide build artifact to starexec
+cp build/libc.so ../bin/
+rm -rf build
+popd
+
+# cleanup
+rm -rf glibc-starexec-thp-2.17-157.el7_3.1
