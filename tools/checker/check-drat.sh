@@ -16,7 +16,10 @@ p=p.proof
 o=drat-minimize-output.txt
 t=$(readlink -e ../../build/release/bin/minisat)
 # allow to override the solver location via environment variable
-[ -z "${FUZZ_SOLVER:-}" ] || t=$(readlink -e "${FUZZ_SOLVER:-}")
+if [ -n "${FUZZ_SOLVER:-}" ]
+then
+	t=$(readlink -e "${FUZZ_SOLVER:-}")
+fi
 d=$(readlink -e drat-trim)
 
 # run solver
