@@ -1,0 +1,123 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage{xspace}
+\usepackage{hyperref}
+\newcommand{\todo}[1]{$\langle\!\langle$\marginpar[\raggedleft$\triangleright\triangleright\triangleright$]{$\triangleleft\triangleleft\triangleleft$}\textsf{#1}$\rangle\!\rangle$}
+\def\CC{{C\nolinebreak[4]\hspace{-.05em}\raisebox{.4ex}{\tiny\bf ++}}}
+
+\usepackage{color}
+
+\begin{document}
+	
+% paper title
+\title{\textsc{SparrowToMergeSAT} 2018}
+
+% author names and affiliations
+% use a multiple column layout for up to three different
+% affiliations
+
+\author{
+\IEEEauthorblockN{Adrian Balint}
+\IEEEauthorblockA{adrian.c.balint@gmail.com}
+\and
+\IEEEauthorblockN{Norbert Manthey}
+\IEEEauthorblockA{nmanthey@conp-solutions.com}
+% \and
+% \IEEEauthorblockN{James Kirk\\ and Montgomery Scott}
+% \IEEEauthorblockA{Starfleet Academy\\
+%   San Francisco, CA, USA}
+}
+
+% conference papers do not typically use \thanks and this command
+% is locked out in conference mode. If really needed, such as for
+% the acknowledgment of grants, issue a \IEEEoverridecommandlockouts
+% after \documentclass
+
+% use for special paper notices
+%\IEEEspecialpapernotice{(Invited Paper)}
+
+\def\cp{\textsc{Coprocessor}\xspace}
+\def\cpt{\textsc{CP3}\xspace}
+\def\glucose{\textsc{Glucose~2.2}\xspace}
+\def\minisat{\textsc{Minisat~2.2}\xspace}
+\def\riss{\textsc{Riss}\xspace}
+\def\mergesat{\textsc{MergeSAT}\xspace}
+\def\sparrow{\textsc{Sparrow}\xspace}
+\def\scp{\textsc{Sparrow+CP3}\xspace}
+\def\str{\textsc{SparrowToRiss}\xspace}
+\def\stm{\textsc{SparrowToMergeSAT}\xspace}
+
+\definecolor{midgrey}{rgb}{0.5,0.5,0.5}
+\definecolor{darkred}{rgb}{0.7,0.1,0.1}
+\newcommand{\nnote}[1]{$[$\textcolor{darkred}{norbert}:~~\emph{\textcolor{midgrey}{#1}}$]$}
+
+\maketitle
+
+% the abstract is optional
+\begin{abstract}
+\stm is a combination of the solvers \sparrow and \mergesat, and is heavily inspired by \str.
+\stm is first trying to solve the problem with \scp, limiting its execution to $5\cdot10^8$ flips.
+If the formula could not be solved, the CDCL solver \mergesat then tries to solve the problem.
+
+The SLS solver \sparrow is the same version as used in 2014 and 2018.
+The solver \mergesat is the same solver as used plain in this years competition.
+\end{abstract}
+
+\section{Introduction}
+
+While in 2014, where this solver combination was submitted for the first time, the benchmark was split in industrial and combinatorial families, recent competitions did not insist on this split any more.
+Last year, \str performed amazingly well in the \textsc{NOLIMIT} track of the competition, when the number of solved formulas is considered.
+However, in the main track, \str did not perform well.
+The major difference is due to the fact that \str does not use \sparrow, as soon as a unsatisfiability proof is required, even though the input formula might be satisfiable.
+As there is no \textsc{NOLIMIT} track this year, the solver has been adapted.
+
+The motivation of the combination of a SLS and CDCL solver can be found in~\cite{bm-pos-2013}, where formula simplification is used to boost the efficiency of SLS solvers on crafted families. 
+The best found technique together with \sparrow represents the basis of our solver \scp.
+As SLS solvers cannot show unsatisfiability, we run a CDCL solver after a fixed amount of $5\cdot10^8$ flips, so that the overall solver behavior stays deterministic.
+
+%The combination of both solvers, \str, first executes \cpt to simplify the formula for the SLS solver \sparrow, which is then executed for a limited amount of $XYZ$ flips. If no solution is found within this limit, \riss processes the input formula.
+
+\section{Main Techniques}
+
+\sparrow is a clause weighting SLS solvers that uses promising variables and probability distribution based selection heuristics.
+It is described in detail in \cite{Balint:2010:ISL:2164073.2164078}.
+Compared to the original version, the one submitted here is updating weights of unsatisfied clauses in every step where no promising variable can be found. 
+
+The used preprocessor \cpt is an extension of \textsc{Coprocessor 2}~\cite{Manthey:2012:CFC:2352219.2352264}, and received updates, but no changes since 2018.
+
+The CDCL solver \mergesat uses the \textsc{Minisat} search engine~\cite{DBLP:conf/sat/EenS03}, more specifically the extensions added in \glucose~\cite{lbd,Audemard:2012:RRS:2405292.2405308},
+\textsc{MapleSAT}~\cite{MapleSAT} up until \textsc{Maple\_LCM\_Dist\_ChronoBT}~\cite{MapleLCMDistChronoBT}.
+
+Currently, no information is forwarded from the SLS solver to the CDCL solver.
+However, by using \mergesat, a powerful CDCL engine is used, which is capable of producing unsatisfiability proofs.
+To motivate our approach, we now start with \scp, even if proofs are required. In case the SLS solver hits the step limit, we fall back to \mergesat, which will produce the unsatisfiability proof.
+
+\section{Main Parameters}
+\sparrow is using the same parameters as \sparrow 2011. 
+
+The configuration of \cpt has been tuned for \sparrow in~\cite{bm-pos-2013} on the SAT Challenge 2012 satisfiable hard combinatorial benchmarks.
+The configuration used in 2019 is the same configuration used in the version of 2014 and 2018.
+
+The details of \mergesat are described in this years solver description~\cite{mergesat2019}.
+
+% \section{Special Algorithms, Data Structures, and Other Features}
+% 
+% \nnote{Nothing, simple script that executes the two solvers / single solver}
+\section{Implementation details}
+
+\sparrow is implemented in C.
+%
+The solver \mergesat is build on top of \minisat, and is implemented in \CC.
+ 
+\section{Availability}
+
+\sparrow is available at \url{https://github.com/adrianopolus/Sparrow}.
+
+The source of \mergesat, as well as \stm is publicly available under the MIT license at \url{https://github.com/conp-solutions/mergesat}.
+The version with the git tag ``mergesat-2019'' is used for the submission.
+The submitted starexec package can be reproduced by running ``./scripts/make-starexec.sh'' on this commit.
+
+\bibliographystyle{IEEEtranS}
+\bibliography{sparrow2mergesat}
+
+\end{document}
