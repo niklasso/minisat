@@ -14,7 +14,7 @@ shift
 # static variables
 p=p.proof
 o=drat-minimize-output.txt
-t=$(readlink -e ../../build/release/bin/minisat)
+t=$(readlink -e ../../build/release/bin/mergesat)
 # allow to override the solver location via environment variable
 if [ -n "${FUZZ_SOLVER:-}" ]
 then
