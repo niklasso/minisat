@@ -147,8 +147,8 @@ pushd "$TMPD"
 cp -r $SOLVERDIR/tools/starexec_template/* .
 
 # copy actual source by using the git tree, only the current branch
-git clone "$SOLVERDIR" --branch "$BRANCH" --single-branch minisat
-pushd minisat
+git clone "$SOLVERDIR" --branch "$BRANCH" --single-branch mergesat
+pushd mergesat
 git checkout $BRANCH
 git gc
 git prune
@@ -162,8 +162,8 @@ popd
 echo "Note, sub-packages might come with different licenses!" > LICENSE
 
 # compress
-zip -r -y -9 Minisat.zip *
+zip -r -y -9 MergeSAT.zip *
 
-# jump back and move Minisat.zip here
+# jump back and move MergeSAT.zip here
 popd
-mv "$TMPD"/Minisat.zip .
+mv "$TMPD"/MergeSAT.zip .
