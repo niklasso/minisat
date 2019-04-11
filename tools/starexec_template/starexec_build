@@ -1,4 +1,12 @@
 #!/bin/bash
+# starexec_build.sh, Norbert Manthey, 2019
+#
+# build MergeSAT, and SparrowToMergeSAT in case the package contains the dependencies
+
+set -x
+
+# let's use a more recent toolchain
+scl enable devtoolset-7 bash
 
 #make minisat
 pushd minisat
@@ -10,21 +18,33 @@ ln -s . minisat || true
 make 2>&1
 
 # provide build artifact to starexec
-cp build/release/bin/minisat ../bin/
+cp build/release/bin/mergesat ../bin/
 popd
 
-# do not build glibc, if we do not have it
-[ -r glibc-starexec-thp-2.17-157.el7_3.1.tar.gz ] || exit 0
+# For Sparrow2MergeSAT, we need Sparrow, as well as Coprocessor
 
-# build glibc
-tar xzf glibc-starexec-thp-2.17-157.el7_3.1.tar.gz
-pushd glibc-starexec-thp-2.17-157.el7_3.1
-bash -x build.sh
+# in case we have the Sparrow package, build it as well
+if [ -d Sparrow ]
+then
+	# build Sparrow
+	pushd Sparrow
+	unzip Sparrow.zip
+	make -j $(nproc)
+	popd
 
-# provide build artifact to starexec
-cp build/libc.so ../bin/
-rm -rf build
-popd
+	# make sparrow binary available to starexec
+	cp Sparrow/sparrow bin/
+fi
 
-# cleanup
-rm -rf glibc-starexec-thp-2.17-157.el7_3.1
+# in case we have the Riss package, build it as well
+if [ -d Riss ]
+then
+	# build Sparrow
+	pushd Riss
+	unzip Riss.zip
+	./starexec_build
+	popd
+
+	# make coprocessor binary available to starexec
+	cp Riss/bin/coprocessor bin/
+fi
