@@ -6,7 +6,7 @@
 set -x
 
 # let's use a more recent toolchain
-scl enable devtoolset-7 bash
+scl enable devtoolset-7 bash || true
 
 #make minisat
 pushd minisat
