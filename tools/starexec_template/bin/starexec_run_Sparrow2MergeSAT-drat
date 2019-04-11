@@ -7,5 +7,11 @@
 # call solver from the directory where this script is located
 SOLVERDIR="$(dirname "${BASH_SOURCE[0]}" )"
 
+TMPDIR=$2
+if [ -n "${DEFAULT_MERGESAT_TMPDIR:-}" ]
+then
+	TMPDIR=$(readlink -e "${DEFAULT_MERGESAT_TMPDIR:-}")
+fi
+
 # call the solver without a special configuration, no proof will be generated
-"$SOLVERDIR"/Sparrow2MergeSAT.sh "$1" 0 "$2" 1
+"$SOLVERDIR"/Sparrow2MergeSAT.sh "$1" 0 "$TMPDIR" 1
