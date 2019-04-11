@@ -158,6 +158,9 @@ popd
 [ -z "$RISSOPT" ] || get_riss "$RISSOPT"
 [ -z "$SPARROWOPT" ] || get_sparrow "$SPARROWOPT"
 
+# Generate a license stub
+echo "Note, sub-packages might come with different licenses!" > LICENSE
+
 # compress
 zip -r -y -9 Minisat.zip *
 
