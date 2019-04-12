@@ -8,8 +8,8 @@ set -x
 # let's use a more recent toolchain
 scl enable devtoolset-7 bash || true
 
-#make minisat
-pushd minisat
+#make mergesat
+pushd mergesat
 
 # by now, we need a "minisat" link to build
 ln -s . minisat || true
