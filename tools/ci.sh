@@ -39,7 +39,7 @@ STAREXEC_TMPDIR=$(readlink -e ci_starexec_tmpdir)
 
 unzip "$MERGEZIP"
 ./starexec_build
-TARGETS=$(ls ./bin/starexec_run_*)
+TARGETS=$(ls ./bin/starexec_run_*_proof)
 
 # fuzz each of the starexec targets
 for target in $TARGETS
