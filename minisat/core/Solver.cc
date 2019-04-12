@@ -1928,7 +1928,7 @@ lbool Solver::search(int& nof_conflicts)
                 reduceDB(); }
 
             Lit next = lit_Undef;
-            /*while (decisionLevel() < assumptions.size()){
+            while (decisionLevel() < assumptions.size()){
                 // Perform user provided assumption:
                 Lit p = assumptions[decisionLevel()];
                 if (value(p) == l_True){
@@ -1943,7 +1943,7 @@ lbool Solver::search(int& nof_conflicts)
                 }
             }
 
-            if (next == lit_Undef)*/{
+            if (next == lit_Undef){
                 // New variable decision:
                 decisions++;
                 next = pickBranchLit();
