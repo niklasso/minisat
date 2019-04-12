@@ -5,10 +5,38 @@
 
 set -x
 
+echo "Build MergeSAT"
+uname -a
+
+# For Sparrow2MergeSAT, we need Sparrow, as well as Coprocessor
+# in case we have the Sparrow package, build it as well
+# As it seems to strugle with the more recent compiler, build it first
+if [ -d Sparrow ]
+then
+	echo "Building Sparrow ..."
+	# let's use a more recent toolchain
+	scl disable devtoolset-7 bash || true
+	# show environment
+	which gcc || true
+	gcc -v || true
+	# build Sparrow
+	pushd Sparrow
+	unzip Sparrow.zip
+	make -j $(nproc)
+	popd
+
+	# make sparrow binary available to starexec
+	cp Sparrow/sparrow bin/
+fi
+
+
 # let's use a more recent toolchain
 scl enable devtoolset-7 bash || true
 
-#make mergesat
+which gcc || true
+gcc -v || true
+
+echo "Build MergeSAT"
 pushd mergesat
 
 # by now, we need a "minisat" link to build
@@ -21,22 +49,9 @@ make 2>&1
 cp build/release/bin/mergesat ../bin/
 popd
 
-# For Sparrow2MergeSAT, we need Sparrow, as well as Coprocessor
-
-# in case we have the Sparrow package, build it as well
-if [ -d Sparrow ]
-then
-	# build Sparrow
-	pushd Sparrow
-	unzip Sparrow.zip
-	make -j $(nproc)
-	popd
-
-	# make sparrow binary available to starexec
-	cp Sparrow/sparrow bin/
-fi
-
-# in case we have the Riss package, build it as well
+# In case we have the Riss package, build it as well
+# As Riss is build via it's starexec_build script, which might
+# change the environment further, build it last
 if [ -d Riss ]
 then
 	# build Sparrow
@@ -48,3 +63,6 @@ then
 	# make coprocessor binary available to starexec
 	cp Riss/bin/coprocessor bin/
 fi
+
+# show produced files
+ls bin
