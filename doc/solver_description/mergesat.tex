@@ -72,8 +72,15 @@ Once, one of the two hits a predefined limit, the heuristic is switched back to 
 \section{Availability}
 
 The source of the solver is publicly available under the MIT license at \url{https://github.com/conp-solutions/mergesat}.
-The version with the git tag ``mergesat-2019'' is used for the submission.
+The version with the git tag ``satrace-2019'' is used for the submission.
 The submitted starexec package can be reproduced by running ``./scripts/make-starexec.sh'' on this commit.
+
+\section{Continuous Testing}
+
+The submitted version of \mergesat compiles on Linux and Mac OS.
+GitHub allows to use continuous testing, which essentially build \mergesat, and tests basic functionality:
+i) producing unsatisfiability proofs, ii) building the starexec package and producing proofs, as well as iii) being used as an incremental SAT backend in Open-WBO.
+All these steps are executed by executing the script ``tools/ci.sh'' from the repository.
 
 \section*{Acknowledgment}
 
