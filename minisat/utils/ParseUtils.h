@@ -24,41 +24,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <zlib.h>
-
 namespace Minisat {
 
-//-------------------------------------------------------------------------------------------------
-// A simple buffered character stream class:
-
-static const int buffer_size = 1048576;
-
-
-class StreamBuffer {
-    gzFile        in;
-    unsigned char buf[buffer_size];
-    int           pos;
-    int           size;
-
-    void assureLookahead() {
-        if (pos >= size) {
-            pos  = 0;
-            size = gzread(in, buf, sizeof(buf)); } }
-
-public:
-    explicit StreamBuffer(gzFile i) : in(i), pos(0), size(0) { assureLookahead(); }
-
-    int  operator *  () const { return (pos >= size) ? EOF : buf[pos]; }
-    void operator ++ ()       { pos++; assureLookahead(); }
-    int  position    () const { return pos; }
-};
-
-
-//-------------------------------------------------------------------------------------------------
-// End-of-file detection functions for StreamBuffer and char*:
-
-
-static inline bool isEof(StreamBuffer& in) { return *in == EOF;  }
 static inline bool isEof(const char*   in) { return *in == '\0'; }
 
 //-------------------------------------------------------------------------------------------------
