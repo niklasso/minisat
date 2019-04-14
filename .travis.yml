@@ -20,7 +20,7 @@ addons:
     notification_email: nmanthey@conp-solutions.com
     build_command_prepend: "true"
     build_command: "make cd cp cr csh d r p sh lr ld lp lsh"
-    branch_pattern: coverity_scan
+    branch_pattern: master
 
 before_install:
   - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
