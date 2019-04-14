@@ -3,6 +3,7 @@
 # Run steps to check integrity of the solver
 
 FUZZ_ROUNDS=${CIFUZZROUNDS:-100}
+STAREXEC_FUZZ_ROUNDS=${CISTAREXECFUZZROUNDS:-50}
 CLEANUP=${CICLEANUP:-1}
 
 TESTFUZZ=${RUNFUZZ:-1}
@@ -61,7 +62,7 @@ then
 	do
 		FULL_TARGET=$(readlink -e $target)
 		pushd $CHECKERDIR
-		FUZZ_SOLVER="$FULL_TARGET" DEFAULT_MERGESAT_TMPDIR="$STAREXEC_TMPDIR" ./fuzz-drat.sh 10 5 || STATUS=$?
+		FUZZ_SOLVER="$FULL_TARGET" DEFAULT_MERGESAT_TMPDIR="$STAREXEC_TMPDIR" ./fuzz-drat.sh $STAREXEC_FUZZ_ROUNDS 5 || STATUS=$?
 		popd
 	done
 	# finish starexec fuzzing
