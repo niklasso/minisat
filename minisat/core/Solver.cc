@@ -92,7 +92,7 @@ bool Minisat::updateOptions()
   char* argv[len+2];
   int count = 1;
 
-  argv[0] = "minisat";
+  argv[0] = "mergesat";
   while (isspace(*args)) ++args;
   while(*args)
   {

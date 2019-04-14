@@ -14,7 +14,7 @@ TESTOPENWBO=${RUNOPENWBO:-1}
 [ -x tools/ci.sh ] || exit 1
 
 # Check whether MiniSat is built
-[ ! -x build/release/bin/minisat ] || make -j $(nproc)
+[ ! -x build/release/bin/mergesat ] || make -j $(nproc)
 
 TOOLSDIR=$(readlink -e tools)
 CHECKERDIR=$(readlink -e tools/checker)
