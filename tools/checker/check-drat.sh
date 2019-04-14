@@ -41,7 +41,7 @@ then
 	VERIFY_STATUS=0
 	$d $f $p -v -v -n &> $o || exit $VERIFY_STATUS
 	echo "verify status: $VERIFY_STATUS"
-	grep " does not occur: " $o && exit 2
+	grep " does not occur: " $o && exit 3
 	exit 20
 fi
 exit "$STATUS"
