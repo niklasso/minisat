@@ -1,24 +1,22 @@
 ================================================================================
 DIRECTORY OVERVIEW:
 
-mtl/            Mini Template Library
-utils/          Generic helper code (I/O, Parsing, CPU-time, etc)
-core/           A core version of the solver
-simp/           An extended solver with simplification capabilities
-README
-LICENSE
+minisat/mtl/            Mini Template Library
+minisat/utils/          Generic helper code (I/O, Parsing, CPU-time, etc)
+minisat/core/           A core version of the solver
+minisat/simp/           An extended solver with simplification capabilities
 
 ================================================================================
 BUILDING: (release version: without assertions, statically linked, etc)
 
-export MROOT=<minisat-dir>              (or setenv in cshell)
-cd { core | simp }
-gmake rs
-cp minisat_static <install-dir>/minisat
+make r
+cp build/release/bin/mergesat <install-dir>/mergesat
 
 ================================================================================
 EXAMPLES:
 
-Run minisat with same heuristics as version 2.0:
+Solve some CNF file:
+ ./mergesat "input.cnf"
 
-> minisat <cnf-file> -no-luby -rinc=1.5 -phase-saving=0 -rnd-freq=0.02
+Solve some CNF file and produce an unsatisfiability proof:
+ ./mergesat "input.cnf" -drup-file="$TMPDIR"/proof.out
