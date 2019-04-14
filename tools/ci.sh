@@ -36,7 +36,7 @@ fi
 
 # check starexec build
 # build starexec package, also for Sparrow2MergeSAT, currently based on local code
-./tools/make-starexec.sh -r ~/git/riss-public -s ~/git/Sparrow
+./tools/make-starexec.sh -r satrace-2019 -s satrace-2019
 
 # build starexec build
 MERGEZIP=$(ls MergeSAT*.zip | sort -V | tail -n 1)
