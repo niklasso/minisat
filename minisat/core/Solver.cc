@@ -168,6 +168,7 @@ Solver::Solver() :
   , simpDB_props       (0)
   , order_heap_CHB     (VarOrderLt(activity_CHB))
   , order_heap_VSIDS   (VarOrderLt(activity_VSIDS))
+  , order_heap_distance(VarOrderLt(activity_distance))
   , progress_estimate  (0)
   , remove_satisfied   (true)
 
@@ -201,11 +202,9 @@ Solver::Solver() :
   , LCM_dropped_lits(0)
   , LCM_dropped_reverse(0)
 
+  , var_iLevel_inc     (1)
   , my_var_decay       (0.6)
   , DISTANCE           (true)
-  , var_iLevel_inc     (1)
-  , order_heap_distance(VarOrderLt(activity_distance))
-
 {}
 
 
@@ -442,7 +441,7 @@ void Solver::simplifyLearnt(Clause& c)
     bool True_confl = false, reversed = false;
     int beforeSize = c.size(), preReserve = 0;
     int i, j;
-    CRef confl;
+    CRef confl = CRef_Undef;
 
     LCM_total_tries ++;
 
@@ -522,12 +521,9 @@ void Solver::simplifyLearnt(Clause& c)
 
 bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
 {
-    int beforeSize, afterSize;
-    int target_learnts_size_before = target_learnts.size();
-
     int ci, cj, li, lj;
     bool sat, false_lit;
-    unsigned int nblevels;
+    int nblevels;
     ////
     ////
     int nbSimplified = 0;
@@ -575,12 +571,10 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                     c.shrink(li - lj);
                 }
 
-                beforeSize = c.size();
                 assert(c.size() > 1);
                 // simplify a learnt clause c
                 simplifyLearnt(c);
                 assert(c.size() > 0);
-                afterSize = c.size();
                 
                 if(drup_file && saved_size !=c.size()){
 #ifdef BIN_DRUP
@@ -597,8 +591,6 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                     //                    fprintf(drup_file, "0\n");
 #endif
                 }
-
-                //printf("beforeSize: %2d, afterSize: %2d\n", beforeSize, afterSize);
 
                 if (c.size() == 1){
                     // when unit clause occur, enqueue and propagate
@@ -625,7 +617,6 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
 
                     nblevels = computeLBD(c);
                     if (nblevels < c.lbd()){
-                        //printf("lbd-before: %d, lbd-after: %d\n", c.lbd(), nblevels);
                         c.set_lbd(nblevels);
                     }
 
@@ -642,9 +633,6 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
         }
     }
     target_learnts.shrink(ci - cj);
-
-    //    printf("c nbtarget_learnts %d / %d, nbSimplified: %d, nbSimplifing: %d\n",
-    //           target_learnts_size_before, target_learnts.size(), nbSimplified, nbSimplifing);
 
     return true;
 
@@ -2058,7 +2046,7 @@ lbool Solver::solve_()
         if (!VSIDS && reactivate_VSIDS){
             VSIDS = true;
             if (verbosity >= 1)
-                printf("c Switched to VSIDS after %d conflicts, %ld propagations, %lu steps, %f seconds.\n",
+                printf("c Switched to VSIDS after %ld conflicts, %ld propagations, %lu steps, %f seconds.\n",
                        conflicts, propagations, statistics.solveSteps, cpuTime());
             fflush(stdout);
             picked.clear();
