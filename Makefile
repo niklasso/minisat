@@ -69,7 +69,7 @@ ifeq (Darwin,$(findstring Darwin,$(shell uname)))
 	RELEASE_LDFLAGS +=
 else
 	SHARED_LDFLAGS += -shared -Wl,-soname,$(MINISAT_DLIB).$(SOMAJOR)
-#	RELEASE_LDFLAGS += -static
+	RELEASE_LDFLAGS +=
 endif
 
 ECHO=@echo
@@ -170,7 +170,7 @@ $(BUILD_DIR)/release/bin/$(MINISAT_CORE) $(BUILD_DIR)/debug/bin/$(MINISAT_CORE) 
 $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE):
 	$(ECHO) Linking Shared Library: $@
 	$(VERB) mkdir -p $(dir $@)
-	$(VERB) $(CXX) $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@ -shared -Wl,-soname,$(MINISAT_DLIB).$(SOMAJOR) $^
+	$(VERB) $(CXX) $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@ $(SHARED_LDFLAGS) $^
 
 $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR): $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)
 	$(VERB) ln -sf $(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)
