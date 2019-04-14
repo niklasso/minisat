@@ -430,8 +430,11 @@ protected:
     }
 
     static inline void binDRUP_flush(FILE* drup_file){
-//        fwrite(drup_buf, sizeof(unsigned char), buf_len, drup_file);
+#if defined(__linux__)
         fwrite_unlocked(drup_buf, sizeof(unsigned char), buf_len, drup_file);
+#else
+        fwrite(drup_buf, sizeof(unsigned char), buf_len, drup_file);
+#endif
         buf_ptr = drup_buf; buf_len = 0;
     }
 #endif
