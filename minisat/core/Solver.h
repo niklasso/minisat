@@ -489,7 +489,6 @@ public:
     int uip1, uip2;
     vec<int> pathCs;
     CRef propagateLits(vec<Lit>& lits);
-    uint64_t previousStarts;
     double var_iLevel_inc;
     vec<Lit> involved_lits;
     double    my_var_decay;

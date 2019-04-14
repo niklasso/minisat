@@ -510,7 +510,7 @@ void Solver::simplifyLearnt(Clause& c)
         if(beforeSize == c.size()) break;
 
         LCM_dropped_lits += (beforeSize - c.size());
-        LCM_dropped_reverse = iteration == 0 ? LCM_dropped_reverse : LCM_dropped_reverse += (preReserve - c.size());
+        LCM_dropped_reverse = iteration == 0 ? LCM_dropped_reverse : LCM_dropped_reverse + (preReserve - c.size());
     }
 
     // make sure the original order is restored, in case we resorted
