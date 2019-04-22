@@ -9,12 +9,14 @@ CLEANUP=${CICLEANUP:-1}
 TESTFUZZ=${RUNFUZZ:-1}
 TESTSTAREXEC=${RUNSTAREXEC:-1}
 TESTOPENWBO=${RUNOPENWBO:-1}
+TESTPIASIR=${RUNIPASIR:-1}
 
 # Check whether this script is called from the repository root
 [ -x tools/ci.sh ] || exit 1
 
 # Check whether MiniSat is built
 [ ! -x build/release/bin/mergesat ] || make -j $(nproc)
+[ ! -r build/release/lib/libmergesat.a ] || make -j $(nproc)
 
 TOOLSDIR=$(readlink -e tools)
 CHECKERDIR=$(readlink -e tools/checker)
@@ -34,6 +36,9 @@ then
 
 	popd
 fi
+
+# locate release library
+STATIC_LIB=$(readlink -e build/release/lib/libmergesat.a)
 
 # check starexec build
 # build starexec package, also for Sparrow2MergeSAT, currently based on local code
@@ -69,11 +74,18 @@ then
 	popd
 fi
 
-# test openwbo with mergesat backend
-if [ $TESTOPENWBO -eq 1 ]
-then
-	OPENWBO_DIR=open-wbo-$$
+test_openwbo ()
+{
+	local OPENWBO_DIR=open-wbo-$$
 	git clone https://github.com/sat-group/open-wbo.git "$OPENWBO_DIR"
+
+	if [ ! -d "$OPENWBO_DIR" ]
+	then
+		echo "failed to clone open-wbo"
+		STATUS=1
+		return
+	fi
+
 	pushd "$OPENWBO_DIR"
 	cp "$MERGEZIP" solvers/
 	cd solvers
@@ -90,7 +102,7 @@ then
 	cd ..
 
 	make d SOLVER=mergesat -j $(nproc) || STATUS=1
-	MAXSATSTATUS=0
+	local MAXSATSTATUS=0
 	./open-wbo_debug -cpu-lim=30 $TOOLSDIR/ci/unsat.cnf.gz || MAXSATSTATUS=$?
 	if [ $MAXSATSTATUS -ne 30 ]
 	then
@@ -99,6 +111,61 @@ then
 	fi
 	popd
 	[ $CLEANUP -eq 0 ] || rm -rf "$OPENWBO_DIR" # try to clean up
+}
+
+# test openwbo with mergesat backend
+if [ $TESTOPENWBO -eq 1 ]
+then
+	test_openwbo
+fi
+
+
+test_ipasir ()
+{
+	local IPASIR_DIR=ipasir-$$
+	git clone https://github.com/conp-solutions/ipasir.git "$IPASIR_DIR"
+
+	if [ ! -d "$IPASIR_DIR" ]
+	then
+		echo "failed to clone ipasir"
+		STATUS=1
+		return
+	fi
+
+	pushd "$IPASIR_DIR"/app
+	for APP in genipasat genipaessentials
+	do
+		cd $APP
+		make $APP.o
+		g++ -o $APP $APP.o $STATIC_LIB
+
+		for I in $(ls inputs/*cnf)
+		do
+			I_STATUS=0
+			./"$APP" $I || I_STATUS=$?
+			if [ "$APP" == genipasat ]
+			then
+				[ $I_STATUS -ne 10 ] && [ $I_STATUS -ne 20 ] || I_STATUS=0
+			fi
+
+			if [ $I_STATUS -ne 0 ]
+			then
+				echo "failed $APP call with $I"
+				STATUS=1
+			fi
+		done
+
+		cd ..
+	done
+
+	popd
+	[ $CLEANUP -eq 0 ] || rm -rf "$IPASIR_DIR" # try to clean up
+}
+
+# test ipasir with mergesat backend
+if [ $TESTPIASIR -eq 1 ]
+then
+	test_ipasir
 fi
 
 # Forward exit status from fuzzing
