@@ -118,6 +118,11 @@ public:
     void    toDimacs     (const char *file, const vec<Lit>& assumps);
     void    toDimacs     (FILE* f, Clause& c, vec<Var>& map, Var& max);
 
+    // IPASIR:
+    //
+    void    setTermCallback(void* state, int (*termCallback)(void*));
+    void setLearnCallback(void * state, int maxLength, void (*learn)(void * state, int * clause));
+
     // Convenience versions of 'toDimacs()':
     void    toDimacs     (const char* file);
     void    toDimacs     (const char* file, Lit p);
@@ -310,6 +315,14 @@ protected:
     
     int 				confl_to_chrono;
     int 				chrono;
+
+    // IPASIR data
+    void*   termCallbackState;
+    int      (*termCallback)(void* state);
+    void*    learnCallbackState;
+    vec<int> learnCallbackBuffer;
+    int      learnCallbackLimit;
+    void     (*learnCallback)(void * state, int * clause);
 
     // Temporaries (to reduce allocation overhead). Each variable is prefixed by the method in which it is
     // used, exept 'seen' wich is used in several places.
@@ -579,7 +592,8 @@ inline void     Solver::budgetOff(){ conflict_budget = propagation_budget = -1; 
 inline bool     Solver::withinBudget() const {
     return !asynch_interrupt &&
             (conflict_budget    < 0 || conflicts < (uint64_t)conflict_budget) &&
-            (propagation_budget < 0 || propagations < (uint64_t)propagation_budget); }
+            (propagation_budget < 0 || propagations < (uint64_t)propagation_budget) &&
+            (termCallback == 0 || 0 == termCallback(termCallbackState)); }
 
 // FIXME: after the introduction of asynchronous interrruptions the solve-versions that return a
 // pure bool do not give a safe interface. Either interrupts must be possible to turn off here, or
@@ -596,6 +610,16 @@ inline void     Solver::toDimacs     (const char* file){ vec<Lit> as; toDimacs(f
 inline void     Solver::toDimacs     (const char* file, Lit p){ vec<Lit> as; as.push(p); toDimacs(file, as); }
 inline void     Solver::toDimacs     (const char* file, Lit p, Lit q){ vec<Lit> as; as.push(p); as.push(q); toDimacs(file, as); }
 inline void     Solver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.push(p); as.push(q); as.push(r); toDimacs(file, as); }
+
+inline void     Solver::setTermCallback(void* state, int (*termCallback)(void*)) {
+      this->termCallbackState = state;
+      this->termCallback = termCallback; }
+
+inline void     Solver::setLearnCallback(void * state, int maxLength, void (*learn)(void * state, int * clause)) {
+      this->learnCallbackState = state;
+      this->learnCallbackLimit = maxLength;
+      this->learnCallbackBuffer.growTo(1+maxLength);
+      this->learnCallback = learn; }
 
 //=================================================================================================
 // Debug etc:
