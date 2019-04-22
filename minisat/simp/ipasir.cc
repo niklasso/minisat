@@ -1,12 +1,18 @@
 /* Copyright (C) 2011 - 2014, Armin Biere, Johannes Kepler University, Linz */
 /* Copyright (C) 2014, Mathias Preiner, Johannes Kepler University, Linz */
+/* Copyright (C) 2019, Norbert Manthey */
 
 /* This file contains code original developped for the Boolector project,
  * but is also available under the standard IPASIR license.
  */
+#ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS
+#endif
+
+#ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
-#include "SimpSolver.h"
+#endif
+#include "simp/SimpSolver.h"
 
 #include <cassert>
 #include <cstdio>
@@ -18,7 +24,7 @@ using namespace std;
 using namespace Minisat;
 
 extern "C" {
-static const char * sig = "minisat" VERSION;
+static const char * sig = "mergesat";
 #include <sys/resource.h>
 #include <sys/time.h>
 static double getime (void) {
@@ -54,7 +60,7 @@ public:
   IPAsirMiniSAT () : szfmap (0), fmap (0), nomodel (false), calls (0) {
     // MiniSAT by default produces non standard conforming messages.
     // So either we have to set this to '0' or patch the sources.
-    verbosity = 1;
+    verbosity = 0;
   }
   ~IPAsirMiniSAT () { reset (); }
   void add (int lit) {
@@ -113,7 +119,7 @@ public:
 };
 
 extern "C" {
-#include "ipasir.h"
+#include "core/ipasir.h"
 static IPAsirMiniSAT * import (void * s) { return (IPAsirMiniSAT*) s; }
 const char * ipasir_signature () { return sig; }
 void * ipasir_init () { return new IPAsirMiniSAT (); }
