@@ -69,11 +69,18 @@ then
 	popd
 fi
 
-# test openwbo with mergesat backend
-if [ $TESTOPENWBO -eq 1 ]
-then
-	OPENWBO_DIR=open-wbo-$$
+test_openwbo ()
+{
+	local OPENWBO_DIR=open-wbo-$$
 	git clone https://github.com/sat-group/open-wbo.git "$OPENWBO_DIR"
+
+	if [ ! -d "$OPENWBO_DIR" ]
+	then
+		echo "failed to clone open-wbo"
+		STATUS=1
+		return
+	fi
+
 	pushd "$OPENWBO_DIR"
 	cp "$MERGEZIP" solvers/
 	cd solvers
@@ -90,7 +97,7 @@ then
 	cd ..
 
 	make d SOLVER=mergesat -j $(nproc) || STATUS=1
-	MAXSATSTATUS=0
+	local MAXSATSTATUS=0
 	./open-wbo_debug -cpu-lim=30 $TOOLSDIR/ci/unsat.cnf.gz || MAXSATSTATUS=$?
 	if [ $MAXSATSTATUS -ne 30 ]
 	then
@@ -99,6 +106,12 @@ then
 	fi
 	popd
 	[ $CLEANUP -eq 0 ] || rm -rf "$OPENWBO_DIR" # try to clean up
+}
+
+# test openwbo with mergesat backend
+if [ $TESTOPENWBO -eq 1 ]
+then
+	test_openwbo
 fi
 
 # Forward exit status from fuzzing
