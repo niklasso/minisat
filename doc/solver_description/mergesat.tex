@@ -68,6 +68,24 @@ Since the solver \textsc{MapleSAT}~\cite{MapleSAT}, the decision heuristic is sw
 As solver execution does not correlate with run time, this decision results in solver runs not being reproducible.
 To fix this property, the switch to VSIDS is now dependent on the number of performed propagations as well as conflicts.
 Once, one of the two hits a predefined limit, the heuristic is switched back to VSIDS.
+This change enables reproducibility and deterministic behavior again.
+
+\mergesat implements an experimental -- and hence disabled by default -- heuristic to decide when to disable \emph{phase saving}~\cite{Pipatsrisawat:2007:LCC:1768142.1768170} during backtracking, which has been used in \riss~\cite{riss71} before:
+When the formula is parsed, for each non-unit clause it is tracked whether before applying unit propagation there is a positive literal.
+In case there is no positive literal, a \emph{break} count is incremented.
+For the whole formula, this count approximates how close the formula is to being able to be solved by the \emph{pure literal rule}.
+In case this break count is zero, or below a user defined threshold, no phase saving is used.
+The same rule is applied for negative literals.
+There exists benchmarks, where this heuristic with a threshold zero results in a much better performance.
+However, for a mixed benchmark, this feature has not been tested enough, and hence, remains disabled.
+
+\section{Incremental SAT}
+
+In previous variants of \textsc{MapleSAT}, incremental solving via assumptions was disabled.
+To be able to use \mergesat as backend in model checkers and other tools that require incremental solving capabilities, this feature is brought back.
+Furthermore, an extended version~\footnote{\url{https://github.com/conp-solutions/ipasir}} of the IPASIR interface~\cite{BalyoBiereIserSinz-AI-16} is provided, which besides the usual functionality offers an additional
+function \emph{ipasir\_solve\_final} to tell the SAT solver that this call is the final (or only) call.
+This function allows the solver to use formula simplification more extensively, because usually simplification cannot be applied during incremental solving.
 
 \section{Availability}
 
@@ -79,8 +97,8 @@ The submitted starexec package can be reproduced by running ``./scripts/make-sta
 
 The submitted version of \mergesat compiles on Linux and Mac OS.
 GitHub allows to use continuous testing, which essentially build \mergesat, and tests basic functionality:
-i) producing unsatisfiability proofs, ii) building the starexec package and producing proofs, as well as iii) being used as an incremental SAT backend in Open-WBO.
-All these steps are executed by executing the script ``tools/ci.sh'' from the repository.
+i) producing unsatisfiability proofs, ii) building the starexec package and producing proofs, iii) being used as an incremental SAT backend in Open-WBO as well as  iv) solving via the IPASIR interface.
+All these steps are executed by executing the script ``tools/ci.sh'' from the repository, and the script can be used as a template to derive similar functionality.
 
 \section*{Acknowledgment}
 
