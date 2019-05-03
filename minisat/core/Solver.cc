@@ -2003,6 +2003,8 @@ lbool Solver::solve_()
 
     cancelUntil(0);
 
+    if (status == l_False && conflict.size()) simplifyLearnt(conflict);
+
     systematic_branching_state = 0;
     statistics.solveSeconds += cpuTime() - solve_start; // stop timer and record time consumed until now
 
