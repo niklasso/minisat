@@ -473,7 +473,7 @@ protected:
     //
 public:
     bool	simplifyAll();
-    void	simplifyLearnt(Clause& c);
+    template<class C> void	simplifyLearnt(C& c);
     /** simplify the learnt clauses in the given vector, move to learnt_core if is_tier2 is true*/
     bool        simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2 = false);
     int		trailRecord;
@@ -623,7 +623,8 @@ inline void     Solver::setLearnCallback(void * state, int maxLength, void (*lea
       this->learnCallbackBuffer.growTo(1+maxLength);
       this->learnCallback = learn; }
 
-inline void     Solver::simplifyLearnt(Clause& c)
+template<class C>
+inline void     Solver::simplifyLearnt(C& c)
 {
     ////
     original_length_record += c.size();
