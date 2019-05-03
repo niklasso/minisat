@@ -1777,7 +1777,7 @@ lbool Solver::search(int& nof_conflicts)
     assert(ok);
     int         backtrack_level;
     int         lbd;
-    vec<Lit>    learnt_clause;
+    learnt_clause.clear();
     bool        cached = false;
     starts++;
 

@@ -304,6 +304,8 @@ protected:
     double              progress_estimate;// Set by 'search()'.
     bool                remove_satisfied; // Indicates whether possibly inefficient linear scan for satisfied clauses should be performed in 'simplify'.
 
+    vec<Lit>            learnt_clause;    // Container, used to store result of conflict analysis
+
     int                 core_lbd_cut;
     float               global_lbd_sum;
     MyQueue<int>        lbd_queue;  // For computing moving averages of recent LBD values.
