@@ -1830,7 +1830,11 @@ lbool Solver::search(int& nof_conflicts)
                 cached = false;
                 // Reached bound on number of conflicts:
                 progress_estimate = progressEstimate();
-                cancelUntil(getRestartLevel());
+
+                int restartLevel = getRestartLevel();
+                restartLevel = (assumptions.size() && restartLevel <= assumptions.size())
+                                                    ? assumptions.size() : restartLevel;
+                cancelUntil(restartLevel);
                 return l_Undef; }
 
             // Simplify the set of problem clauses:
