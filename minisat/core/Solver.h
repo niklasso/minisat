@@ -496,6 +496,7 @@ public:
     int nbconfbeforesimplify;
     int incSimplify;
     bool reverse_LCM;
+    bool lcm_core;                  // apply LCM to generated conflict clause?
     uint64_t LCM_total_tries, LCM_successful_tries, LCM_dropped_lits, LCM_dropped_reverse;
 
     bool collectFirstUIP(CRef confl);

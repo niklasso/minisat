@@ -71,9 +71,9 @@ static IntOption     opt_conf_to_chrono    (_cat, "confl-to-chrono",  "Controls 
 static IntOption     opt_restart_select    (_cat, "rtype",        "How to select the restart level (0=0, 1=matching trail, 2=reused trail)", 2, IntRange(0, 2));
 static BoolOption    opt_almost_pure       (_cat, "almost-pure",  "Try to optimize polarity by ignoring units", false);
 static BoolOption    opt_reverse_lcm       (_cat, "lcm-reverse",  "Try to continue LCM with reversed clause in case of success", true);
+static BoolOption    opt_lcm_core          (_cat, "lcm-core",     "Shrink the final conflict with LCM", false);
 static Int64Option   opt_vsids_c           (_cat, "vsids-c",  "conflicts after which we want to switch back to VSIDS (0=off)", 12000000, Int64Range(0, INT64_MAX));
 static Int64Option   opt_vsids_p           (_cat, "vsids-p",  "propagations after which we want to switch back to VSIDS (0=off)", 3000000000, Int64Range(0, INT64_MAX));
-
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -203,6 +203,7 @@ Solver::Solver() :
   , nbconfbeforesimplify(1000)
   , incSimplify(1000)
   , reverse_LCM(opt_reverse_lcm)
+  , lcm_core(opt_lcm_core)
   , LCM_total_tries(0)
   , LCM_successful_tries(0)
   , LCM_dropped_lits(0)
@@ -2007,7 +2008,7 @@ lbool Solver::solve_()
 
     cancelUntil(0);
 
-    if (status == l_False && conflict.size()) simplifyLearnt(conflict);
+    if (status == l_False && conflict.size() && lcm_core) simplifyLearnt(conflict);
 
     systematic_branching_state = 0;
     statistics.solveSeconds += cpuTime() - solve_start; // stop timer and record time consumed until now
