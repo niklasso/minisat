@@ -348,6 +348,8 @@ protected:
     int64_t             propagation_budget; // -1 means no budget.
     bool                asynch_interrupt;
 
+    bool                prefetch_assumptions; // assign all assumptions at once on the first levels
+
     // Main internal methods:
     //
     void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.

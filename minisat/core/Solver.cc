@@ -74,6 +74,7 @@ static BoolOption    opt_reverse_lcm       (_cat, "lcm-reverse",  "Try to contin
 static BoolOption    opt_lcm_core          (_cat, "lcm-core",     "Shrink the final conflict with LCM", false);
 static Int64Option   opt_vsids_c           (_cat, "vsids-c",  "conflicts after which we want to switch back to VSIDS (0=off)", 12000000, Int64Range(0, INT64_MAX));
 static Int64Option   opt_vsids_p           (_cat, "vsids-p",  "propagations after which we want to switch back to VSIDS (0=off)", 3000000000, Int64Range(0, INT64_MAX));
+static BoolOption    opt_pref_assumpts     (_cat, "pref-assumpts", "Assign all assumptions at once", false);
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -193,6 +194,8 @@ Solver::Solver() :
   , conflict_budget    (-1)
   , propagation_budget (-1)
   , asynch_interrupt   (false)
+
+  , prefetch_assumptions (opt_pref_assumpts)
 
   // simplfiy
   , nbSimplifyAll(0)
@@ -1752,6 +1755,34 @@ lbool Solver::search(int& nof_conflicts)
         }
         curSimplify = (conflicts / nbconfbeforesimplify) + 1;
         nbconfbeforesimplify += incSimplify;
+    }
+
+    if(prefetch_assumptions && decisionLevel() == 0)
+    {
+        while (decisionLevel() < assumptions.size()){
+            // Perform user provided assumption:
+            Lit p = assumptions[decisionLevel()];
+
+	    if(value(p) == l_False)
+	    {
+	      // do not continue here, as we'll find a conflict next, and we do not know how to handle that
+	      cancelUntil(0);
+	      break;
+	    }
+
+	    newDecisionLevel();
+	    if(value(p) == l_Undef)
+	      uncheckedEnqueue(p, decisionLevel(), CRef_Undef);
+
+	}
+
+	assert((decisionLevel() == 0 || decisionLevel() == assumptions.size()) && "we propagated all assumptions by now");
+
+	// for now we do not know how to quick-handle conflicts here, so do not investigate. just speedup the SAT case
+	CRef confl = propagate();
+	if(confl != CRef_Undef) {
+	  cancelUntil(0);
+	}
     }
 
     for (;;){
