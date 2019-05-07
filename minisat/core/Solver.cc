@@ -1192,6 +1192,50 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
 }
 
 
+/*_________________________________________________________________________________________________
+|
+|  analyzeFinal : (cr : CRef)  ->  [void]
+|
+|  Description:
+|    Specialized analysis procedure to express the final conflict in terms of assumptions, or
+|    decisions. Calculates the (possibly empty) set of assumptions that led to the assignment
+|    of 'cr', and stores the result in 'out_conflict'.
+|________________________________________________________________________________________________@*/
+void Solver::analyzeFinal(const CRef cr, vec<Lit>& out_conflict)
+{
+    out_conflict.clear();
+
+    if (decisionLevel() == 0)
+        return;
+
+    const Clause& c = ca[cr];
+    for (int i = 0 ; i < c.size(); ++ i) {
+        if (level(var(c[i])) > 0)
+            seen[var(c[i])] = 1;
+    }
+
+    for (int i = trail.size()-1; i >= trail_lim[0]; i--){
+        Var x = var(trail[i]);
+        if (seen[x]){
+            if (reason(x) == CRef_Undef){
+                assert(level(x) > 0);
+                out_conflict.push(~trail[i]);
+            }else{
+                const Clause& c = ca[reason(x)];
+                for (int j = c.size() == 2 ? 0 : 1; j < c.size(); j++)
+                    if (level(var(c[j])) > 0)
+                        seen[var(c[j])] = 1;
+                statistics.solveSteps ++;
+            }
+            seen[x] = 0;
+        }
+    }
+
+    for (int i = 0 ; i < c.size(); ++ i)
+            seen[var(c[i])] = 0;
+}
+
+
 void Solver::uncheckedEnqueue(Lit p, int level, CRef from)
 {
     assert(value(p) == l_Undef);
