@@ -479,7 +479,7 @@ public:
     template<class C> void	simplifyLearnt(C& c);
     /** simplify the learnt clauses in the given vector, move to learnt_core if is_tier2 is true*/
     bool        simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2 = false);
-    int		trailRecord;
+    int		trailRecord ;
     void	litsEnqueue(int cutP, Clause& c);
     void	cancelUntilTrailRecord();
     void	simpleUncheckEnqueue(Lit p, CRef from = CRef_Undef);

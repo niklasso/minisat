@@ -189,6 +189,10 @@ Solver::Solver() :
 
   , counter            (0)
 
+  , max_learnts(0)
+  , learntsize_adjust_confl(0)
+  , learntsize_adjust_cnt(0)
+
   // Resource constraints:
   //
   , conflict_budget    (-1)
@@ -198,7 +202,10 @@ Solver::Solver() :
   , prefetch_assumptions (opt_pref_assumpts)
 
   // simplfiy
+  , trailRecord(0)
   , nbSimplifyAll(0)
+  , simplified_length_record(0)
+  , original_length_record(0)
   , s_propagations(0)
 
   // simplifyAll adjust occasion
@@ -211,6 +218,13 @@ Solver::Solver() :
   , LCM_successful_tries(0)
   , LCM_dropped_lits(0)
   , LCM_dropped_reverse(0)
+
+  , nbcollectfirstuip(0)
+  , nblearntclause(0)
+  , nbDoubleConflicts(0)
+  , nbTripleConflicts(0)
+  , uip1(0)
+  , uip2(0)
 
   , var_iLevel_inc     (1)
   , my_var_decay       (0.6)
