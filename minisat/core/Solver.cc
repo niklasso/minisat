@@ -616,12 +616,13 @@ Var Solver::newVar(bool sign, bool dvar)
     polarity .push(sign);
     decision .push();
     trail    .capacity(v+1);
-    setDecisionVar(v, dvar);
 
     activity_distance.push(0);
     var_iLevel.push(0);
     var_iLevel_tmp.push(0);
     pathCs.push(0);
+
+    setDecisionVar(v, dvar);
     return v;
 }
 
