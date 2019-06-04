@@ -118,6 +118,7 @@ class Heap {
         return x; 
     }
 
+    const vec<int>& elements() const { return heap; }
 
     // Rebuild the heap from scratch, using the elements in 'ns':
     void build(const vec<int>& ns) {
