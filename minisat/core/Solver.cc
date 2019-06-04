@@ -1193,8 +1193,8 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
         Var x = var(trail[i]);
         if (seen[x]){
             if (reason(x) == CRef_Undef){
-                assert(level(x) > 0);
-                out_conflict.push(~trail[i]);
+                // assert(level(x) > 0); // chronological backtracking can make that happen
+                if(level(x) > 0) out_conflict.push(~trail[i]);
             }else{
                 Clause& c = ca[reason(x)];
                 for (int j = c.size() == 2 ? 0 : 1; j < c.size(); j++)
