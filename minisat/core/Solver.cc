@@ -2046,9 +2046,20 @@ lbool Solver::solve_()
 
     VSIDS = true;
     int init = 10000;
+    if(order_heap_VSIDS.size() != order_heap_distance.size() || order_heap_VSIDS.size() != order_heap_CHB.size())
+    {
+        order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
+    }
     while (status == l_Undef && init > 0 && withinBudget())
         status = search(init);
     VSIDS = false;
+    if(status == l_Undef) {
+	    if(order_heap_VSIDS.size() != order_heap_distance.size() || order_heap_VSIDS.size() != order_heap_CHB.size())
+	    {
+                Heap<VarOrderLt>& order_heap = DISTANCE ? order_heap_distance : order_heap_CHB;
+		order_heap.build(order_heap_VSIDS.elements());
+	    }
+    }
 
     // Search:
     int curr_restarts = 0;
@@ -2072,6 +2083,10 @@ lbool Solver::solve_()
             if (verbosity >= 1)
                 printf("c Switched to VSIDS after %ld conflicts, %ld propagations, %lu steps, %f seconds.\n",
                        conflicts, propagations, statistics.solveSteps, cpuTime());
+            if(order_heap_VSIDS.size() != order_heap_distance.size() || order_heap_VSIDS.size() != order_heap_CHB.size())
+            {
+                order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
+            }
             fflush(stdout);
             picked.clear();
             conflicted.clear();
