@@ -508,6 +508,7 @@ public:
     int uip1, uip2;
     vec<int> pathCs;
     CRef propagateLits(vec<Lit>& lits);
+    bool propagateLit(Lit l, vec<Lit>& implied); // propagate l, collect implied lits (without l), return if there has been a conflict
     double var_iLevel_inc;
     vec<Lit> involved_lits;
     double    my_var_decay;

@@ -1735,6 +1735,35 @@ CRef Solver::propagateLits(vec<Lit>& lits) {
     }
     return CRef_Undef;
 }
+
+/// expose propagation (e.g. for Open-WBO)
+bool Solver::propagateLit(Lit l, vec<Lit>& implied){
+    cancelUntil(0);
+    implied.clear();
+    bool conflict = false;
+
+    // literal is a unit clause
+    if (value(l) != l_Undef){
+        return value(l) == l_False;
+    }
+    assert (value(l) == l_Undef);
+
+    // propagate on a new decision level, to be able to roll back
+    newDecisionLevel();
+    uncheckedEnqueue(l, decisionLevel(), CRef_Undef);
+
+    // collect trail literals
+    int pre_size = trail.size();
+    CRef cr = propagate();
+    if (cr != CRef_Undef) conflict = true;
+    for(int i = pre_size; i < trail.size(); i++) {
+        implied.push(trail[i]);
+    }
+    cancelUntil(0);
+
+    return conflict;
+}
+
 /*_________________________________________________________________________________________________
 |
 |  search : (nof_conflicts : int) (params : const SearchParams&)  ->  [lbool]
