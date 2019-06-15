@@ -493,7 +493,7 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                 }
             }
             if (sat){
-                removeClause(cr);
+                removeSatisfiedClause(cr);
             }
             else{
                 detachClause(cr, true);
@@ -765,6 +765,25 @@ void Solver::removeClause(CRef cr) {
         vardata[var(implied)].reason = CRef_Undef; }
     c.mark(1);
     ca.free(cr);
+}
+
+void Solver::removeSatisfiedClause(CRef cr) {
+    Clause& c = ca[cr];
+
+    if (drup_file && locked(c)) {
+            // The following line was copied from Solver::locked.
+            int i = c.size() != 2 ? 0 : (value(c[0]) == l_True ? 0 : 1);
+            Lit unit = c[i];
+#ifdef BIN_DRUP
+            vec<Lit> unitClause;
+            unitClause.push(unit);
+            binDRUP('a', unitClause, drup_file);
+#else
+            fprintf(drup_file, "%i 0\n", (var(unit) + 1) * (-2 * sign(unit) + 1));
+#endif
+    }
+
+    removeClause(cr);
 }
 
 
@@ -1546,7 +1565,7 @@ void Solver::removeSatisfied(vec<CRef>& cs)
     for (i = j = 0; i < cs.size(); i++){
         Clause& c = ca[cs[i]];
         if (satisfied(c))
-            removeClause(cs[i]);
+            removeSatisfiedClause(cs[i]);
         else
             cs[j++] = cs[i];
     }
@@ -1561,7 +1580,7 @@ void Solver::safeRemoveSatisfied(vec<CRef>& cs, unsigned valid_mark)
         Clause& c = ca[cs[i]];
         if (c.mark() == valid_mark)
             if (satisfied(c))
-                removeClause(cs[i]);
+                removeSatisfiedClause(cs[i]);
             else
                 cs[j++] = cs[i];
     }
