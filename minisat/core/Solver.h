@@ -348,6 +348,8 @@ protected:
     int64_t             propagation_budget; // -1 means no budget.
     bool                asynch_interrupt;
 
+    bool                prefetch_assumptions; // assign all assumptions at once on the first levels
+
     // Main internal methods:
     //
     void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.
@@ -358,7 +360,8 @@ protected:
     CRef     propagate        ();                                                      // Perform unit propagation. Returns possibly conflicting clause.
     void     cancelUntil      (int level);                                             // Backtrack until a certain level.
     void     analyze          (CRef confl, vec<Lit>& out_learnt, int& out_btlevel, int& out_lbd);    // (bt = backtrack)
-    void     analyzeFinal     (Lit p, vec<Lit>& out_conflict);                         // COULD THIS BE IMPLEMENTED BY THE ORDINARIY "analyze" BY SOME REASONABLE GENERALIZATION?
+    void     analyzeFinal     (Lit p, vec<Lit>& out_conflict);                         // COULD THIS BE IMPLEMENTED BY THE ORDINARIY "analyze" BY SOME REASONABLE
+    void     analyzeFinal     (const CRef cr, vec<Lit>& out_conflict);                 // Find all assumptions that lead to the given conflict clause
     bool     litRedundant     (Lit p, uint32_t abstract_levels);                       // (helper method for 'analyze()')
     lbool    search           (int& nof_conflicts);                                    // Search for a given number of conflicts.
     lbool    solve_           ();                                                      // Main solve method (assumptions given in 'assumptions').
@@ -473,10 +476,10 @@ protected:
     //
 public:
     bool	simplifyAll();
-    void	simplifyLearnt(Clause& c);
+    template<class C> void	simplifyLearnt(C& c);
     /** simplify the learnt clauses in the given vector, move to learnt_core if is_tier2 is true*/
     bool        simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2 = false);
-    int		trailRecord;
+    int		trailRecord ;
     void	litsEnqueue(int cutP, Clause& c);
     void	cancelUntilTrailRecord();
     void	simpleUncheckEnqueue(Lit p, CRef from = CRef_Undef);
@@ -496,6 +499,7 @@ public:
     int nbconfbeforesimplify;
     int incSimplify;
     bool reverse_LCM;
+    bool lcm_core;                  // apply LCM to generated conflict clause?
     uint64_t LCM_total_tries, LCM_successful_tries, LCM_dropped_lits, LCM_dropped_reverse;
 
     bool collectFirstUIP(CRef confl);
@@ -504,6 +508,7 @@ public:
     int uip1, uip2;
     vec<int> pathCs;
     CRef propagateLits(vec<Lit>& lits);
+    bool propagateLit(Lit l, vec<Lit>& implied); // propagate l, collect implied lits (without l), return if there has been a conflict
     double var_iLevel_inc;
     vec<Lit> involved_lits;
     double    my_var_decay;
@@ -622,6 +627,95 @@ inline void     Solver::setLearnCallback(void * state, int maxLength, void (*lea
       this->learnCallbackLimit = maxLength;
       this->learnCallbackBuffer.growTo(1+maxLength);
       this->learnCallback = learn; }
+
+template<class C>
+inline void     Solver::simplifyLearnt(C& c)
+{
+    ////
+    original_length_record += c.size();
+
+    trailRecord = trail.size();// record the start pointer
+
+    bool True_confl = false, reversed = false;
+    int beforeSize = c.size(), preReserve = 0;
+    int i, j;
+    CRef confl = CRef_Undef;
+
+    LCM_total_tries ++;
+
+    // try to simplify in reverse order, in case original succeeds
+    for (size_t iteration = 0; iteration < (reverse_LCM ? 2 : 1); ++iteration)
+    {
+        True_confl = false;
+        statistics.solveSteps ++;
+    // reorder the current clause for next iteration?
+    // (only useful if size changed in first iteration)
+        if(iteration > 0)
+        {
+            if(c.size() == 1) break;
+            c.reverse();
+            reversed = !reversed;
+            preReserve = c.size();
+        }
+
+        for (i = 0, j = 0; i < c.size(); i++){
+            if (value(c[i]) == l_Undef){
+                //printf("///@@@ uncheckedEnqueue:index = %d. l_Undef\n", i);
+                simpleUncheckEnqueue(~c[i]);
+                c[j++] = c[i];
+                confl = simplePropagate();
+                if (confl != CRef_Undef){
+                    break;
+                }
+            }
+            else{
+                if (value(c[i]) == l_True){
+                    //printf("///@@@ uncheckedEnqueue:index = %d. l_True\n", i);
+                    c[j++] = c[i];
+                    True_confl = true;
+                    confl = reason(var(c[i]));
+                    break;
+                }
+                else{
+                    //printf("///@@@ uncheckedEnqueue:index = %d. l_False\n", i);
+                }
+            }
+        }
+        c.shrink(c.size() - j);
+
+        if (confl != CRef_Undef || True_confl == true){
+            simp_learnt_clause.clear();
+            simp_reason_clause.clear();
+            if (True_confl == true){
+                simp_learnt_clause.push(c.last());
+            }
+            simpleAnalyze(confl, simp_learnt_clause, simp_reason_clause, True_confl);
+
+            if (simp_learnt_clause.size() < c.size()){
+                for (i = 0; i < simp_learnt_clause.size(); i++){
+                    c[i] = simp_learnt_clause[i];
+                }
+                c.shrink(c.size() - i);
+            }
+        }
+
+        cancelUntilTrailRecord();
+
+        ////
+        simplified_length_record += c.size();
+
+        //printf("\nbefore : %d, after : %d ", beforeSize, afterSize);
+        if(beforeSize == c.size()) break;
+
+        LCM_dropped_lits += (beforeSize - c.size());
+        LCM_dropped_reverse = iteration == 0 ? LCM_dropped_reverse : LCM_dropped_reverse + (preReserve - c.size());
+    }
+
+    // make sure the original order is restored, in case we resorted
+    if(reversed) c.reverse();
+
+    LCM_successful_tries = beforeSize == c.size() ? LCM_successful_tries : LCM_successful_tries + 1;
+}
 
 //=================================================================================================
 // Debug etc:

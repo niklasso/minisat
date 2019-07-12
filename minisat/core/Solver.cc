@@ -71,9 +71,10 @@ static IntOption     opt_conf_to_chrono    (_cat, "confl-to-chrono",  "Controls 
 static IntOption     opt_restart_select    (_cat, "rtype",        "How to select the restart level (0=0, 1=matching trail, 2=reused trail)", 2, IntRange(0, 2));
 static BoolOption    opt_almost_pure       (_cat, "almost-pure",  "Try to optimize polarity by ignoring units", false);
 static BoolOption    opt_reverse_lcm       (_cat, "lcm-reverse",  "Try to continue LCM with reversed clause in case of success", true);
+static BoolOption    opt_lcm_core          (_cat, "lcm-core",     "Shrink the final conflict with LCM", false);
 static Int64Option   opt_vsids_c           (_cat, "vsids-c",  "conflicts after which we want to switch back to VSIDS (0=off)", 12000000, Int64Range(0, INT64_MAX));
 static Int64Option   opt_vsids_p           (_cat, "vsids-p",  "propagations after which we want to switch back to VSIDS (0=off)", 3000000000, Int64Range(0, INT64_MAX));
-
+static BoolOption    opt_pref_assumpts     (_cat, "pref-assumpts", "Assign all assumptions at once", false);
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -188,14 +189,23 @@ Solver::Solver() :
 
   , counter            (0)
 
+  , max_learnts(0)
+  , learntsize_adjust_confl(0)
+  , learntsize_adjust_cnt(0)
+
   // Resource constraints:
   //
   , conflict_budget    (-1)
   , propagation_budget (-1)
   , asynch_interrupt   (false)
 
+  , prefetch_assumptions (opt_pref_assumpts)
+
   // simplfiy
+  , trailRecord(0)
   , nbSimplifyAll(0)
+  , simplified_length_record(0)
+  , original_length_record(0)
   , s_propagations(0)
 
   // simplifyAll adjust occasion
@@ -203,10 +213,18 @@ Solver::Solver() :
   , nbconfbeforesimplify(1000)
   , incSimplify(1000)
   , reverse_LCM(opt_reverse_lcm)
+  , lcm_core(opt_lcm_core)
   , LCM_total_tries(0)
   , LCM_successful_tries(0)
   , LCM_dropped_lits(0)
   , LCM_dropped_reverse(0)
+
+  , nbcollectfirstuip(0)
+  , nblearntclause(0)
+  , nbDoubleConflicts(0)
+  , nbTripleConflicts(0)
+  , uip1(0)
+  , uip2(0)
 
   , var_iLevel_inc     (1)
   , my_var_decay       (0.6)
@@ -437,94 +455,6 @@ void Solver::simpleAnalyze(CRef confl, vec<Lit>& out_learnt, vec<CRef>& reason_c
     } while (pathC >= 0);
 }
 
-void Solver::simplifyLearnt(Clause& c)
-{
-    ////
-    original_length_record += c.size();
-
-    trailRecord = trail.size();// record the start pointer
-
-    bool True_confl = false, reversed = false;
-    int beforeSize = c.size(), preReserve = 0;
-    int i, j;
-    CRef confl = CRef_Undef;
-
-    LCM_total_tries ++;
-
-    // try to simplify in reverse order, in case original succeeds
-    for (size_t iteration = 0; iteration < (reverse_LCM ? 2 : 1); ++iteration)
-    {
-        True_confl = false;
-        statistics.solveSteps ++;
-    // reorder the current clause for next iteration?
-    // (only useful if size changed in first iteration)
-        if(iteration > 0)
-        {
-            if(c.size() == 1) break;
-            c.reverse();
-            reversed = !reversed;
-            preReserve = c.size();
-        }
-
-        for (i = 0, j = 0; i < c.size(); i++){
-            if (value(c[i]) == l_Undef){
-                //printf("///@@@ uncheckedEnqueue:index = %d. l_Undef\n", i);
-                simpleUncheckEnqueue(~c[i]);
-                c[j++] = c[i];
-                confl = simplePropagate();
-                if (confl != CRef_Undef){
-                    break;
-                }
-            }
-            else{
-                if (value(c[i]) == l_True){
-                    //printf("///@@@ uncheckedEnqueue:index = %d. l_True\n", i);
-                    c[j++] = c[i];
-                    True_confl = true;
-                    confl = reason(var(c[i]));
-                    break;
-                }
-                else{
-                    //printf("///@@@ uncheckedEnqueue:index = %d. l_False\n", i);
-                }
-            }
-        }
-        c.shrink(c.size() - j);
-
-        if (confl != CRef_Undef || True_confl == true){
-            simp_learnt_clause.clear();
-            simp_reason_clause.clear();
-            if (True_confl == true){
-                simp_learnt_clause.push(c.last());
-            }
-            simpleAnalyze(confl, simp_learnt_clause, simp_reason_clause, True_confl);
-
-            if (simp_learnt_clause.size() < c.size()){
-                for (i = 0; i < simp_learnt_clause.size(); i++){
-                    c[i] = simp_learnt_clause[i];
-                }
-                c.shrink(c.size() - i);
-            }
-        }
-
-        cancelUntilTrailRecord();
-
-        ////
-        simplified_length_record += c.size();
-
-        //printf("\nbefore : %d, after : %d ", beforeSize, afterSize);
-        if(beforeSize == c.size()) break;
-
-        LCM_dropped_lits += (beforeSize - c.size());
-        LCM_dropped_reverse = iteration == 0 ? LCM_dropped_reverse : LCM_dropped_reverse + (preReserve - c.size());
-    }
-
-    // make sure the original order is restored, in case we resorted
-    if(reversed) c.reverse();
-
-    LCM_successful_tries = beforeSize == c.size() ? LCM_successful_tries : LCM_successful_tries + 1;
-}
-
 bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
 {
     int ci, cj, li, lj;
@@ -700,12 +630,13 @@ Var Solver::newVar(bool sign, bool dvar)
     polarity .push(sign);
     decision .push();
     trail    .capacity(v+1);
-    setDecisionVar(v, dvar);
 
     activity_distance.push(0);
     var_iLevel.push(0);
     var_iLevel_tmp.push(0);
     pathCs.push(0);
+
+    setDecisionVar(v, dvar);
     return v;
 }
 
@@ -1262,8 +1193,8 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
         Var x = var(trail[i]);
         if (seen[x]){
             if (reason(x) == CRef_Undef){
-                assert(level(x) > 0);
-                out_conflict.push(~trail[i]);
+                // assert(level(x) > 0); // chronological backtracking can make that happen
+                if(level(x) > 0) out_conflict.push(~trail[i]);
             }else{
                 Clause& c = ca[reason(x)];
                 for (int j = c.size() == 2 ? 0 : 1; j < c.size(); j++)
@@ -1276,6 +1207,50 @@ void Solver::analyzeFinal(Lit p, vec<Lit>& out_conflict)
     }
 
     seen[var(p)] = 0;
+}
+
+
+/*_________________________________________________________________________________________________
+|
+|  analyzeFinal : (cr : CRef)  ->  [void]
+|
+|  Description:
+|    Specialized analysis procedure to express the final conflict in terms of assumptions, or
+|    decisions. Calculates the (possibly empty) set of assumptions that led to the assignment
+|    of 'cr', and stores the result in 'out_conflict'.
+|________________________________________________________________________________________________@*/
+void Solver::analyzeFinal(const CRef cr, vec<Lit>& out_conflict)
+{
+    out_conflict.clear();
+
+    if (decisionLevel() == 0)
+        return;
+
+    const Clause& c = ca[cr];
+    for (int i = 0 ; i < c.size(); ++ i) {
+        if (level(var(c[i])) > 0)
+            seen[var(c[i])] = 1;
+    }
+
+    for (int i = trail.size()-1; i >= trail_lim[0]; i--){
+        Var x = var(trail[i]);
+        if (seen[x]){
+            if (reason(x) == CRef_Undef){
+                assert(level(x) > 0);
+                out_conflict.push(~trail[i]);
+            }else{
+                const Clause& c = ca[reason(x)];
+                for (int j = c.size() == 2 ? 0 : 1; j < c.size(); j++)
+                    if (level(var(c[j])) > 0)
+                        seen[var(c[j])] = 1;
+                statistics.solveSteps ++;
+            }
+            seen[x] = 0;
+        }
+    }
+
+    for (int i = 0 ; i < c.size(); ++ i)
+            seen[var(c[i])] = 0;
 }
 
 
@@ -1760,6 +1735,35 @@ CRef Solver::propagateLits(vec<Lit>& lits) {
     }
     return CRef_Undef;
 }
+
+/// expose propagation (e.g. for Open-WBO)
+bool Solver::propagateLit(Lit l, vec<Lit>& implied){
+    cancelUntil(0);
+    implied.clear();
+    bool conflict = false;
+
+    // literal is a unit clause
+    if (value(l) != l_Undef){
+        return value(l) == l_False;
+    }
+    assert (value(l) == l_Undef);
+
+    // propagate on a new decision level, to be able to roll back
+    newDecisionLevel();
+    uncheckedEnqueue(l, decisionLevel(), CRef_Undef);
+
+    // collect trail literals
+    int pre_size = trail.size();
+    CRef cr = propagate();
+    if (cr != CRef_Undef) conflict = true;
+    for(int i = pre_size; i < trail.size(); i++) {
+        implied.push(trail[i]);
+    }
+    cancelUntil(0);
+
+    return conflict;
+}
+
 /*_________________________________________________________________________________________________
 |
 |  search : (nof_conflicts : int) (params : const SearchParams&)  ->  [lbool]
@@ -1795,6 +1799,34 @@ lbool Solver::search(int& nof_conflicts)
         }
         curSimplify = (conflicts / nbconfbeforesimplify) + 1;
         nbconfbeforesimplify += incSimplify;
+    }
+
+    if(prefetch_assumptions && decisionLevel() == 0)
+    {
+        while (decisionLevel() < assumptions.size()){
+            // Perform user provided assumption:
+            Lit p = assumptions[decisionLevel()];
+
+	    if(value(p) == l_False)
+	    {
+	      // do not continue here, as we'll find a conflict next, and we do not know how to handle that
+	      cancelUntil(0);
+	      break;
+	    }
+
+	    newDecisionLevel();
+	    if(value(p) == l_Undef)
+	      uncheckedEnqueue(p, decisionLevel(), CRef_Undef);
+
+	}
+
+	assert((decisionLevel() == 0 || decisionLevel() == assumptions.size()) && "we propagated all assumptions by now");
+
+	// for now we do not know how to quick-handle conflicts here, so do not investigate. just speedup the SAT case
+	CRef confl = propagate();
+	if(confl != CRef_Undef) {
+	  cancelUntil(0);
+	}
     }
 
     for (;;){
@@ -1918,7 +1950,11 @@ lbool Solver::search(int& nof_conflicts)
                 cached = false;
                 // Reached bound on number of conflicts:
                 progress_estimate = progressEstimate();
-                cancelUntil(getRestartLevel());
+
+                int restartLevel = getRestartLevel();
+                restartLevel = (assumptions.size() && restartLevel <= assumptions.size())
+                                                    ? assumptions.size() : restartLevel;
+                cancelUntil(restartLevel);
                 return l_Undef; }
 
             // Simplify the set of problem clauses:
@@ -2039,9 +2075,20 @@ lbool Solver::solve_()
 
     VSIDS = true;
     int init = 10000;
+    if(order_heap_VSIDS.size() != order_heap_distance.size() || order_heap_VSIDS.size() != order_heap_CHB.size())
+    {
+        order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
+    }
     while (status == l_Undef && init > 0 && withinBudget())
         status = search(init);
     VSIDS = false;
+    if(status == l_Undef) {
+	    if(order_heap_VSIDS.size() != order_heap_distance.size() || order_heap_VSIDS.size() != order_heap_CHB.size())
+	    {
+                Heap<VarOrderLt>& order_heap = DISTANCE ? order_heap_distance : order_heap_CHB;
+		order_heap.build(order_heap_VSIDS.elements());
+	    }
+    }
 
     // Search:
     int curr_restarts = 0;
@@ -2065,6 +2112,10 @@ lbool Solver::solve_()
             if (verbosity >= 1)
                 printf("c Switched to VSIDS after %ld conflicts, %ld propagations, %lu steps, %f seconds.\n",
                        conflicts, propagations, statistics.solveSteps, cpuTime());
+            if(order_heap_VSIDS.size() != order_heap_distance.size() || order_heap_VSIDS.size() != order_heap_CHB.size())
+            {
+                order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
+            }
             fflush(stdout);
             picked.clear();
             conflicted.clear();
@@ -2090,6 +2141,8 @@ lbool Solver::solve_()
         ok = false;
 
     cancelUntil(0);
+
+    if (status == l_False && conflict.size() && lcm_core) simplifyLearnt(conflict);
 
     systematic_branching_state = 0;
     statistics.solveSeconds += cpuTime() - solve_start; // stop timer and record time consumed until now
