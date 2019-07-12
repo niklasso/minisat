@@ -641,7 +641,7 @@ void SimpSolver::removeSatisfied()
         const Clause& c = ca[clauses[i]];
         if (c.mark() == 0)
             if (satisfied(c))
-                removeClause(clauses[i]);
+                removeSatisfiedClause(clauses[i]);
             else
                 clauses[j++] = clauses[i];
     }
