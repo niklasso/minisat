@@ -30,7 +30,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "simp/SimpSolver.h"
 #include "utils/System.h"
 
-using namespace Minisat;
+using namespace MERGESAT_NSPACE;
 
 //=================================================================================================
 // Options:

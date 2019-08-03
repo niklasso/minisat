@@ -26,7 +26,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "utils/ParseUtils.h"
 #include "core/SolverTypes.h"
 
-namespace Minisat {
+namespace MERGESAT_NSPACE {
 
 //=================================================================================================
 // DIMACS Parser:

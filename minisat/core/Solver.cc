@@ -36,7 +36,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include "utils/System.h"
 
-using namespace Minisat;
+using namespace MERGESAT_NSPACE;
 
 //#define PRINT_OUT
 
@@ -79,7 +79,7 @@ static BoolOption    opt_pref_assumpts     (_cat, "pref-assumpts", "Assign all a
 //=================================================================================================
 // Constructor/Destructor:
 
-bool Minisat::updateOptions()
+bool MERGESAT_NSPACE::updateOptions()
 {
   if(getenv("MINISAT_RUNTIME_ARGS") == NULL)
     return false;

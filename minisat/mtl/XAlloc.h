@@ -24,7 +24,12 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <errno.h>
 #include <stdlib.h>
 
-namespace Minisat {
+// To not introduce this multiple times, use this header, as it's rather central
+#ifndef MERGESAT_NSPACE
+#define MERGESAT_NSPACE Minisat
+#endif
+
+namespace MERGESAT_NSPACE {
 
 //=================================================================================================
 // Simple layer on top of malloc/realloc to catch out-of-memory situtaions and provide some typing:

@@ -26,7 +26,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include <zlib.h>
 
-namespace Minisat {
+#include "mtl/XAlloc.h"
+
+namespace MERGESAT_NSPACE {
 
 //-------------------------------------------------------------------------------------------------
 // A simple buffered character stream class:

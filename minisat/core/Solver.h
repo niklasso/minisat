@@ -53,7 +53,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define TIER2 2
 #define CORE  3
 
-namespace Minisat {
+namespace MERGESAT_NSPACE {
 
 //=================================================================================================
 // Solver -- the main class:

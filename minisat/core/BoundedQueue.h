@@ -27,7 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 //=================================================================================================
 
-namespace Glucose {
+namespace MERGESAT_NSPACE {
 
 template <class T>
 class bqueue {

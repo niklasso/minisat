@@ -27,7 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 // Some sorting algorithms for vec's
 
 
-namespace Minisat {
+namespace MERGESAT_NSPACE {
 
 template<class T>
 struct LessThan_default {

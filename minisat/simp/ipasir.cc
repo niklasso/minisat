@@ -21,7 +21,7 @@
 #include <climits>
 
 using namespace std;
-using namespace Minisat;
+using namespace MERGESAT_NSPACE;
 
 extern "C" {
 static const char * sig = "mergesat";

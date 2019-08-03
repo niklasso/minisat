@@ -39,7 +39,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Alloc.h"
 #include <iostream>
 
-namespace Minisat {
+namespace MERGESAT_NSPACE {
 
 //=================================================================================================
 // Variables, literals, lifted booleans, clauses:
