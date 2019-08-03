@@ -160,6 +160,9 @@ public:
     void    checkGarbage(double gf);
     void    checkGarbage();
 
+    // Incremental mode:
+    void    setIncrementalMode();
+
     // Extra results: (read-only member variable)
     //
     vec<lbool> model;             // If problem is satisfiable, this vector contains the model (if any).

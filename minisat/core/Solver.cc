@@ -602,6 +602,17 @@ bool Solver::simplifyAll()
 // Minor methods:
 
 
+/****************************************************************
+ Set the incremental mode
+****************************************************************/
+
+// This function set the incremental mode to true.
+// You can add special code for this mode here.
+
+void Solver::setIncrementalMode() {
+  // TODO decide which features to enable as incremental mode (see glucose 3.0)
+}
+
 // Creates a new SAT variable in the solver. If 'decision' is cleared, variable will not be
 // used as a decision variable (NOTE! This has effects on the meaning of a SATISFIABLE result).
 //
