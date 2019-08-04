@@ -1898,7 +1898,7 @@ lbool Solver::search(int& nof_conflicts)
             }
 
             // check chrono backtrack condition
-            if ((confl_to_chrono < 0 || confl_to_chrono <= conflicts) && chrono > -1 && (decisionLevel() - backtrack_level) >= chrono)
+            if ((confl_to_chrono < 0 || confl_to_chrono <= (int64_t)conflicts) && chrono > -1 && (decisionLevel() - backtrack_level) >= chrono)
             {
 				++chrono_backtrack;
 				cancelUntil(data.nHighestLevel -1);

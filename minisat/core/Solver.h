@@ -225,8 +225,8 @@ public:
     /** calculate the level to jump to for restarts */
     int getRestartLevel();
 
-    int64_t VSIDS_conflicts;      // conflicts after which we want to switch back to VSIDS
-    int64_t VSIDS_propagations;   // propagated literals after which we want to switch back to VSIDS
+    uint64_t VSIDS_conflicts;      // conflicts after which we want to switch back to VSIDS
+    uint64_t VSIDS_propagations;   // propagated literals after which we want to switch back to VSIDS
     bool reactivate_VSIDS;        // indicate whether we change the decision heuristic back to VSIDS
 
     /// Single object to hold most statistics
@@ -318,8 +318,8 @@ protected:
 
     ClauseAllocator     ca;
     
-    int 				confl_to_chrono;
-    int 				chrono;
+    int64_t             confl_to_chrono;
+    int64_t             chrono;
 
     // IPASIR data
     void*   termCallbackState;
@@ -499,8 +499,8 @@ public:
     // in redundant
     bool removed(CRef cr);
     // adjust simplifyAll occasion
-    long curSimplify;
-    int nbconfbeforesimplify;
+    uint64_t curSimplify;
+    uint64_t nbconfbeforesimplify;
     int incSimplify;
     bool reverse_LCM;
     bool lcm_core;                  // apply LCM to generated conflict clause?
