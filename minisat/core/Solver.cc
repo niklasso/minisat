@@ -846,7 +846,7 @@ void Solver::cancelUntil(int bLevel) {
 #ifdef PRINT_OUT
 				std::cout << "undo " << x << "\n";
 #endif				
-	            if (phase_saving > 1 || (phase_saving == 1) && c > trail_lim.last())
+	            if (phase_saving > 1 || ((phase_saving == 1) && c > trail_lim.last()))
 					polarity[x] = sign(trail[c]);
 				insertVarOrder(x);
 			}
@@ -1465,13 +1465,14 @@ void Solver::reduceDB()
     int limit = learnts_local.size() / 2;
     for (i = j = 0; i < learnts_local.size(); i++){
         Clause& c = ca[learnts_local[i]];
-        if (c.mark() == LOCAL)
-            if (c.removable() && !locked(c) && i < limit)
+        if (c.mark() == LOCAL) {
+            if (c.removable() && !locked(c) && i < limit) {
                 removeClause(learnts_local[i]);
-            else{
+            } else {
                 if (!c.removable()) limit++;
                 c.removable(true);
                 learnts_local[j++] = learnts_local[i]; }
+            }
     }
     statistics.solveSteps += learnts_local.size();
     learnts_local.shrink(i - j);
@@ -1482,15 +1483,17 @@ void Solver::reduceDB_Tier2()
     int i, j;
     for (i = j = 0; i < learnts_tier2.size(); i++){
         Clause& c = ca[learnts_tier2[i]];
-        if (c.mark() == TIER2)
+        if (c.mark() == TIER2) {
             if (!locked(c) && c.touched() + 30000 < conflicts){
                 learnts_local.push(learnts_tier2[i]);
                 c.mark(LOCAL);
                 //c.removable(true);
                 c.activity() = 0;
                 claBumpActivity(c);
-            }else
+            } else {
                 learnts_tier2[j++] = learnts_tier2[i];
+            }
+        }
     }
     learnts_tier2.shrink(i - j);
     statistics.solveSteps += learnts_tier2.size();
@@ -1589,11 +1592,12 @@ void Solver::safeRemoveSatisfied(vec<CRef>& cs, unsigned valid_mark)
     int i, j;
     for (i = j = 0; i < cs.size(); i++){
         Clause& c = ca[cs[i]];
-        if (c.mark() == valid_mark)
-            if (satisfied(c))
+        if (c.mark() == valid_mark) {
+            if (satisfied(c)) {
                 removeSatisfiedClause(cs[i]);
-            else
+            } else {
                 cs[j++] = cs[i];
+            } }
     }
     cs.shrink(i - j);
 }

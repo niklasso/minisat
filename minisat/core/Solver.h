@@ -428,7 +428,7 @@ protected:
     static inline void byteDRUP(Lit l){
         unsigned int u = 2 * (var(l) + 1) + sign(l);
         do{
-            *buf_ptr++ = u & 0x7f | 0x80; buf_len++;
+            *buf_ptr++ = (u & 0x7f) | 0x80; buf_len++;
             u = u >> 7;
         }while (u);
         *(buf_ptr - 1) &= 0x7f; // End marker of this unsigned number.
