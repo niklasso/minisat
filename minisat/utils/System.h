@@ -30,13 +30,14 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 //-------------------------------------------------------------------------------------------------
 
-namespace MERGESAT_NSPACE {
+namespace MERGESAT_NSPACE
+{
 
 static inline double cpuTime(void); // CPU-time in seconds.
 extern double memUsed();            // Memory in mega bytes (returns 0 for unsupported architectures).
 extern double memUsedPeak();        // Peak-memory in mega bytes (returns 0 for unsupported architectures).
 
-}
+} // namespace MERGESAT_NSPACE
 
 //-------------------------------------------------------------------------------------------------
 // Implementation of inline functions:
@@ -47,14 +48,16 @@ extern double memUsedPeak();        // Peak-memory in mega bytes (returns 0 for 
 static inline double MERGESAT_NSPACE::cpuTime(void) { return (double)clock() / CLOCKS_PER_SEC; }
 
 #else
-#include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/time.h>
 #include <unistd.h>
 
-static inline double MERGESAT_NSPACE::cpuTime(void) {
+static inline double MERGESAT_NSPACE::cpuTime(void)
+{
     struct rusage ru;
     getrusage(RUSAGE_SELF, &ru);
-    return (double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1000000; }
+    return (double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1000000;
+}
 
 #endif
 

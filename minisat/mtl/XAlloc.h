@@ -29,22 +29,25 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define MERGESAT_NSPACE Minisat
 #endif
 
-namespace MERGESAT_NSPACE {
+namespace MERGESAT_NSPACE
+{
 
 //=================================================================================================
 // Simple layer on top of malloc/realloc to catch out-of-memory situtaions and provide some typing:
 
-class OutOfMemoryException{};
-static inline void* xrealloc(void *ptr, size_t size)
+class OutOfMemoryException
 {
-    void* mem = realloc(ptr, size);
-    if (mem == NULL && errno == ENOMEM){
+};
+static inline void *xrealloc(void *ptr, size_t size)
+{
+    void *mem = realloc(ptr, size);
+    if (mem == NULL && errno == ENOMEM) {
         throw OutOfMemoryException();
-    }else
+    } else
         return mem;
 }
 
 //=================================================================================================
-}
+} // namespace MERGESAT_NSPACE
 
 #endif
