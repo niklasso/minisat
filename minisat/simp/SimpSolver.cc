@@ -30,7 +30,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "simp/SimpSolver.h"
 #include "utils/System.h"
 
-using namespace Minisat;
+using namespace MERGESAT_NSPACE;
 
 //=================================================================================================
 // Options:
@@ -285,11 +285,12 @@ bool SimpSolver::merge(const Clause& _ps, const Clause& _qs, Var v, vec<Lit>& ou
 
     for(int i = 0 ; i < _qs.size();i++){
         if(var(_qs[i]) != v){
-            if(seen2[_qs[i].x] != counter)
-                if(seen2[(~_qs[i]).x] != counter)
-                    out_clause.push(_qs[i]);
-                else
-                    return false;
+            if(seen2[_qs[i].x] != counter) {
+                if(seen2[(~_qs[i]).x] != counter) {
+                    out_clause.push(_qs[i]); }
+                else {
+                    return false; }
+            }
         }
     }
 
@@ -639,11 +640,12 @@ void SimpSolver::removeSatisfied()
     int i, j;
     for (i = j = 0; i < clauses.size(); i++){
         const Clause& c = ca[clauses[i]];
-        if (c.mark() == 0)
-            if (satisfied(c))
-                removeSatisfiedClause(clauses[i]);
-            else
-                clauses[j++] = clauses[i];
+        if (c.mark() == 0) {
+            if (satisfied(c)) {
+                removeSatisfiedClause(clauses[i]); }
+            else {
+                clauses[j++] = clauses[i]; }
+        }
     }
     clauses.shrink(i - j);
 }
