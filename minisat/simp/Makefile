@@ -1,4 +1,4 @@
-EXEC      = glucose
+EXEC      = mergesat
 DEPDIR    = mtl utils core
 MROOT     = ../
 
