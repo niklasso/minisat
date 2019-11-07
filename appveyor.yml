@@ -1,0 +1,92 @@
+# branches to build
+branches:
+  # whitelist
+  only:
+    - master
+    - appveyor_debug
+
+# Operating system (build VM template)
+os: Visual Studio 2015
+
+# scripts that are called at very beginning, before repo cloning
+init:
+  - git config --global core.autocrlf input
+
+
+# clone directory
+clone_folder: c:\projects\minisat
+
+platform:
+  - x64
+#  - x86
+
+environment:
+  global:
+    BOOST_ROOT: C:\projects\minisat\boost_1_59_0_install
+    ZLIB_ROOT: C:\projects\minisat\zlib\myinstall
+    BUILD_TYPE: Release
+    MSBUILD_FLAGS: /maxcpucount /nologo
+
+configuration:
+  - Release
+
+build_script:
+  #- IF "%PLATFORM%" == "x86" ( SET BOOST_LIBRARYDIR=C:/Libraries/boost_1_59_0/lib32-msvc-14.0)
+  - IF "%PLATFORM%" == "x86" ( SET CMAKE_GENERATOR="Visual Studio 14 2015")
+
+  #- IF "%PLATFORM%" == "x64" ( SET BOOST_LIBRARYDIR=C:/Libraries/boost_1_59_0/lib64-msvc-14.0)
+  - IF "%PLATFORM%" == "x64" ( SET CMAKE_GENERATOR="Visual Studio 14 2015 Win64")
+
+  - echo %PLATFORM%
+  - echo %BOOST_LIBRARYDIR%
+  - echo %CMAKE_GENERATOR%
+  - echo %configuration%
+  - echo %APPVEYOR_BUILD_FOLDER%
+  - echo %cd%
+
+  # zlib
+  # TODO check out http://stackoverflow.com/questions/10507893/libzip-with-visual-studio-2010
+  - cd C:\projects\minisat
+  - git clone https://github.com/madler/zlib
+  - cd zlib
+  - git checkout v1.2.8
+  - echo %cd%
+  - mkdir build
+  - mkdir myinstall
+  - cd build
+  - cmake -G %CMAKE_GENERATOR% -DCMAKE_INSTALL_PREFIX=%ZLIB_ROOT% ..
+  - if %PLATFORM%==x86 call msbuild %MSBUILD_FLAGS% /t:Build /p:Configuration=%CONFIGURATION% /p:Platform="x86" zlib.sln
+  - if %PLATFORM%==x64 call msbuild %MSBUILD_FLAGS% /t:Build /p:Configuration=%CONFIGURATION% /p:Platform="x64" zlib.sln
+  - msbuild %MSBUILD_FLAGS% INSTALL.vcxproj
+  - dir ..\myinstall\
+
+  # minisat
+  - cd C:\projects\minisat
+  - mkdir build
+  - mkdir myinstall
+  - cd build
+  - cmake -G %CMAKE_GENERATOR% -DCMAKE_INSTALL_PREFIX=%MINISAT_ROOT% -DZLIB_ROOT=%ZLIB_ROOT% ..
+  - cmake --build . --config %CONFIGURATION%
+  - dir ..\myinstall\
+
+
+build:
+  # project: INSTALL.vcxproj      # path to Visual Studio solution or project
+  parallel: true
+  verbosity: minimal
+
+
+# scripts to run after build
+after_build:
+  - 7z a c:\projects\minisat\minisat.zip %APPVEYOR_BUILD_FOLDER%\build -tzip
+  - cd c:\projects\minisat
+
+artifacts:
+  - path: minisat.zip
+    name: minisat.zip
+
+deploy_script:
+  #- cd c:\projects\minisat
+  #- curl -T minisat.zip --user %ACCOUNT% https://someplace/
+
+test: off

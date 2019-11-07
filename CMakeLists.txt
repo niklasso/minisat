@@ -6,6 +6,7 @@ project(minisat)
 # Configurable options:
 
 option(STATIC_BINARIES "Link binaries statically." ON)
+option(BUILD_STATIC_LIBS "Build static library." ON)
 option(USE_SORELEASE   "Use SORELEASE in shared library filename." ON)
 
 #--------------------------------------------------------------------------------------------------
@@ -22,6 +23,13 @@ else()
   set(MINISAT_VERSION ${MINISAT_SOMAJOR}.${MINISAT_SOMINOR})
 endif()
 set(MINISAT_SOVERSION ${MINISAT_SOMAJOR})
+
+# Reference specific library paths used during linking for install
+if (POLICY CMP0042)
+  # Enable `MACOSX_RPATH` by default.
+  cmake_policy(SET CMP0042 NEW)
+endif()
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 #--------------------------------------------------------------------------------------------------
 # Dependencies:
@@ -44,11 +52,19 @@ set(MINISAT_LIB_SOURCES
     minisat/core/Solver.cc
     minisat/simp/SimpSolver.cc)
 
-add_library(minisat-lib-static STATIC ${MINISAT_LIB_SOURCES})
-add_library(minisat-lib-shared SHARED ${MINISAT_LIB_SOURCES})
+if (BUILD_STATIC_LIBS OR STATIC_BINARIES)
+	add_library(minisat-lib-static STATIC ${MINISAT_LIB_SOURCES})
+	target_link_libraries(minisat-lib-static ${ZLIB_LIBRARY})
+	set_target_properties(minisat-lib-static PROPERTIES OUTPUT_NAME "minisat")
+endif()
 
+add_library(minisat-lib-shared SHARED ${MINISAT_LIB_SOURCES})
 target_link_libraries(minisat-lib-shared ${ZLIB_LIBRARY})
-target_link_libraries(minisat-lib-static ${ZLIB_LIBRARY})
+set_target_properties(minisat-lib-shared
+  PROPERTIES
+    OUTPUT_NAME "minisat"
+    VERSION ${MINISAT_VERSION}
+    SOVERSION ${MINISAT_SOVERSION})
 
 add_executable(minisat_core minisat/core/Main.cc)
 add_executable(minisat_simp minisat/simp/Main.cc)
@@ -61,22 +77,22 @@ else()
   target_link_libraries(minisat_simp minisat-lib-shared)
 endif()
 
-set_target_properties(minisat-lib-static PROPERTIES OUTPUT_NAME "minisat")
-set_target_properties(minisat-lib-shared
-  PROPERTIES
-    OUTPUT_NAME "minisat" 
-    VERSION ${MINISAT_VERSION}
-    SOVERSION ${MINISAT_SOVERSION})
-
 set_target_properties(minisat_simp       PROPERTIES OUTPUT_NAME "minisat")
 
 #--------------------------------------------------------------------------------------------------
 # Installation targets:
 
-install(TARGETS minisat-lib-static minisat-lib-shared minisat_core minisat_simp 
+set(CMAKE_INSTALL_LIBDIR lib CACHE STRING "Output directory for libraries")
+
+if (BUILD_STATIC_LIBS)
+	install(TARGETS minisat-lib-static
+		ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
+
+install(TARGETS minisat-lib-shared minisat_core minisat_simp
         RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 install(DIRECTORY minisat/mtl minisat/utils minisat/core minisat/simp
         DESTINATION include/minisat
