@@ -398,7 +398,8 @@ class Solver
     void removeSatisfied(vec<CRef> &cs); // Shrink 'cs' to contain only non-satisfied clauses.
     void safeRemoveSatisfied(vec<CRef> &cs, unsigned valid_mark);
     void rebuildOrderHeap();
-    bool binResMinimize(vec<Lit> &out_learnt); // Further learnt clause minimization by binary resolution.
+    bool binResMinimize(vec<Lit> &out_learnt);     // Further learnt clause minimization by binary resolution.
+    void toggle_decision_heuristic(bool to_VSIDS); // Switch between decision heuristic heaps.
 
     // Maintaining Variable/Clause activity:
     //

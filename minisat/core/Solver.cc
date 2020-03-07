@@ -2100,6 +2100,16 @@ static double luby(double y, int x)
     return pow(y, seq);
 }
 
+void Solver::toggle_decision_heuristic(bool to_VSIDS)
+{
+    if (to_VSIDS) { // initialize VSIDS heap again?
+        order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
+    } else {
+        order_heap_distance.build(order_heap_VSIDS.elements());
+        order_heap_CHB.build(order_heap_VSIDS.elements());
+    }
+}
+
 // NOTE: assumptions passed in member-variable 'assumptions'.
 lbool Solver::solve_()
 {
@@ -2126,19 +2136,14 @@ lbool Solver::solve_()
 
     add_tmp.clear();
 
+    // toggle back to VSIDS
+    if (!VSIDS) toggle_decision_heuristic(true);
     VSIDS = true;
     int init = 10000;
-    if (order_heap_VSIDS.size() != order_heap_distance.size() || order_heap_VSIDS.size() != order_heap_CHB.size()) {
-        order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
-    }
     while (status == l_Undef && init > 0 && withinBudget()) status = search(init);
     VSIDS = false;
-    if (status == l_Undef) {
-        if (order_heap_VSIDS.size() != order_heap_distance.size() || order_heap_VSIDS.size() != order_heap_CHB.size()) {
-            Heap<VarOrderLt> &order_heap = DISTANCE ? order_heap_distance : order_heap_CHB;
-            order_heap.build(order_heap_VSIDS.elements());
-        }
-    }
+    // do not use VSIDS now
+    toggle_decision_heuristic(false);
 
     // Search:
     uint64_t curr_props = 0;
@@ -2168,12 +2173,7 @@ lbool Solver::solve_()
                 printf("c Switched to LRB/DISTANCE.\n");
             }
 
-            if (VSIDS) { // initialize VSIDS heap again?
-                order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
-            } else {
-                order_heap_distance.build(order_heap_VSIDS.elements());
-                order_heap_CHB.build(order_heap_VSIDS.elements());
-            }
+            toggle_decision_heuristic(true);
 
             fflush(stdout);
             picked.clear();
