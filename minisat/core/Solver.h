@@ -366,6 +366,10 @@ class Solver
     double learntsize_adjust_confl;
     int learntsize_adjust_cnt;
 
+    // duplicate learnts version
+    uint64_t VSIDS_props_limit;
+    bool switch_mode;
+
     // Resource contraints:
     //
     int64_t conflict_budget;    // -1 means no budget.

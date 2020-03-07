@@ -9,7 +9,9 @@ minimisation approach Reference: M. Luo, C.-M. Li, F. Xiao, F. Manya, and Z. L. 
 minimization approach for cdcl sat solvers,” in IJCAI-2017, 2017, pp. to–appear.
 
 Maple_LCM_Dist, Based on Maple_LCM -- Copyright (c) 2017, Fan Xiao, Chu-Min LI, Mao Luo: using a new branching heuristic
-called Distance at the beginning of search
+called Distance at the beginning of search MapleLCMDistChronoBT-DL, based on MapleLCMDistChronoBT -- Copyright (c),
+Stepan Kochemazov, Oleg Zaikin, Victor Kondratiev, Alexander Semenov: The solver was augmented with heuristic that moves
+duplicate learnt clauses into the core/tier2 tiers depending on a number of parameters.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -93,6 +95,13 @@ opt_vsids_c(_cat, "vsids-c", "conflicts after which we want to switch back to VS
 static Int64Option
 opt_vsids_p(_cat, "vsids-p", "propagations after which we want to switch back to VSIDS (0=off)", 3000000000, Int64Range(0, INT64_MAX));
 static BoolOption opt_pref_assumpts(_cat, "pref-assumpts", "Assign all assumptions at once", false);
+
+static IntOption opt_VSIDS_props_limit("_cat",
+                                       "VSIDS-lim",
+                                       "specifies the number of propagations after which the solver switches between "
+                                       "LRB and VSIDS(in millions).",
+                                       30,
+                                       IntRange(1, INT32_MAX));
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -221,6 +230,9 @@ Solver::Solver()
   , max_learnts(0)
   , learntsize_adjust_confl(0)
   , learntsize_adjust_cnt(0)
+
+  , VSIDS_props_limit(opt_VSIDS_props_limit * 1000000)
+  , switch_mode(false)
 
   // Resource constraints:
   //
@@ -2129,8 +2141,14 @@ lbool Solver::solve_()
     }
 
     // Search:
+    uint64_t curr_props = 0;
     int curr_restarts = 0;
     while (status == l_Undef && withinBudget()) {
+        if (propagations - curr_props > VSIDS_props_limit) {
+            curr_props = propagations;
+            switch_mode = true;
+            VSIDS_props_limit = VSIDS_props_limit + VSIDS_props_limit / 10;
+        }
         if (VSIDS) {
             int weighted = INT32_MAX;
             status = search(weighted);
@@ -2140,19 +2158,23 @@ lbool Solver::solve_()
             status = search(nof_conflicts);
         }
 
-        // switch back to VSIDS?
-        if (!reactivate_VSIDS && ((VSIDS_conflicts > 0 && VSIDS_conflicts < conflicts) ||
-                                  (VSIDS_propagations > 0 && VSIDS_propagations < propagations)))
-            reactivate_VSIDS = true;
-
-        if (!VSIDS && reactivate_VSIDS) {
-            VSIDS = true;
-            if (verbosity >= 1)
-                printf("c Switched to VSIDS after %ld conflicts, %ld propagations, %lu steps, %f seconds.\n", conflicts,
-                       propagations, statistics.solveSteps, cpuTime());
-            if (order_heap_VSIDS.size() != order_heap_distance.size() || order_heap_VSIDS.size() != order_heap_CHB.size()) {
-                order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
+        // toggle VSIDS?
+        if (switch_mode) {
+            switch_mode = false;
+            VSIDS = !VSIDS;
+            if (VSIDS) {
+                printf("c Switched to VSIDS.\n");
+            } else {
+                printf("c Switched to LRB/DISTANCE.\n");
             }
+
+            if (VSIDS) { // initialize VSIDS heap again?
+                order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
+            } else {
+                order_heap_distance.build(order_heap_VSIDS.elements());
+                order_heap_CHB.build(order_heap_VSIDS.elements());
+            }
+
             fflush(stdout);
             picked.clear();
             conflicted.clear();
