@@ -32,12 +32,12 @@ using namespace MERGESAT_NSPACE;
 
 static inline int memReadStat(int field)
 {
-    char  name[256];
+    char name[256];
     pid_t pid = getpid();
-    int   value;
+    int value;
 
     sprintf(name, "/proc/%d/statm", pid);
-    FILE* in = fopen(name, "rb");
+    FILE *in = fopen(name, "rb");
     if (in == NULL) return 0;
 
     for (; field >= 0; field--)
@@ -50,11 +50,11 @@ static inline int memReadStat(int field)
 
 static inline int memReadPeak(void)
 {
-    char  name[256];
+    char name[256];
     pid_t pid = getpid();
 
     sprintf(name, "/proc/%d/status", pid);
-    FILE* in = fopen(name, "rb");
+    FILE *in = fopen(name, "rb");
     if (in == NULL) return 0;
 
     // Find the correct line, beginning with "VmPeak:":
@@ -67,29 +67,34 @@ static inline int memReadPeak(void)
     return peak_kb;
 }
 
-double MERGESAT_NSPACE::memUsed() { return (double)memReadStat(0) * (double)getpagesize() / (1024*1024); }
-double MERGESAT_NSPACE::memUsedPeak() {
+double MERGESAT_NSPACE::memUsed() { return (double)memReadStat(0) * (double)getpagesize() / (1024 * 1024); }
+double MERGESAT_NSPACE::memUsedPeak()
+{
     double peak = memReadPeak() / 1024;
-    return peak == 0 ? memUsed() : peak; }
+    return peak == 0 ? memUsed() : peak;
+}
 
 #elif defined(__FreeBSD__)
 
-double MERGESAT_NSPACE::memUsed(void) {
+double MERGESAT_NSPACE::memUsed(void)
+{
     struct rusage ru;
     getrusage(RUSAGE_SELF, &ru);
-    return (double)ru.ru_maxrss / 1024; }
+    return (double)ru.ru_maxrss / 1024;
+}
 double MERGESAT_NSPACE::memUsedPeak(void) { return memUsed(); }
 
 
 #elif defined(__APPLE__)
 #include <malloc/malloc.h>
 
-double MERGESAT_NSPACE::memUsed(void) {
+double MERGESAT_NSPACE::memUsed(void)
+{
     malloc_statistics_t t;
     malloc_zone_statistics(NULL, &t);
-    return (double)t.max_size_in_use / (1024*1024); }
-double MERGESAT_NSPACE::memUsedPeak(void) {return memUsed(); }
+    return (double)t.max_size_in_use / (1024 * 1024);
+}
+double MERGESAT_NSPACE::memUsedPeak(void) { return memUsed(); }
 #else
-double MERGESAT_NSPACE::memUsed() {
-    return 0; }
+double MERGESAT_NSPACE::memUsed() { return 0; }
 #endif
