@@ -498,6 +498,8 @@ class Solver
         buf_ptr = drup_buf;
         buf_len = 0;
     }
+#else
+#error BINDRUP is enforced for proof generation due to using binDRUP, binDRUP_strengthen, binDRUP_flush
 #endif
 
     // Static helpers:
