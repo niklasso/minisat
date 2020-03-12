@@ -258,6 +258,14 @@ class Clause
         data[0].rel = c;
     }
 
+    /// remove the literal at the given position
+    void remove_lit(uint32_t pos)
+    {
+        assert(pos < size());
+        data[pos].lit = last();
+        pop();
+    }
+
     int lbd() const { return header.lbd; }
     void set_lbd(int lbd) { header.lbd = lbd; }
     bool removable() const { return header.removable; }
