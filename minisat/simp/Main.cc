@@ -118,6 +118,7 @@ int main(int argc, char **argv)
         //
         IntOption verb("MAIN", "verb", "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 2));
         BoolOption pre("MAIN", "pre", "Completely turn on/off any preprocessing.", true);
+        BoolOption s_model("MAIN", "model", "Do report a model if the formula is satisfiable.", true);
         StringOption dimacs("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
         IntOption cpu_lim("MAIN", "cpu-lim", "Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
         IntOption mem_lim("MAIN", "mem-lim", "Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX));
@@ -246,7 +247,7 @@ int main(int argc, char **argv)
             printf("\n");
         }
         printf(ret == l_True ? "s SATISFIABLE\n" : ret == l_False ? "s UNSATISFIABLE\n" : "s UNKNOWN\n");
-        if (ret == l_True) {
+        if (ret == l_True && s_model) {
             printf("v ");
             for (int i = 0; i < S.nVars(); i++)
                 if (S.model[i] != l_Undef)
