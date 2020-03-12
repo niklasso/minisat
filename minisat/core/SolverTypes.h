@@ -105,7 +105,7 @@ const Lit lit_Error = { -1 }; // }
 
 inline std::ostream &operator<<(std::ostream &out, const Lit &val)
 {
-    out << (sign(val) ? -var(val) : var(val)) << std::flush;
+    out << (sign(val) ? -var(val) - 1 : var(val)) + 1 << std::flush;
     return out;
 }
 
@@ -374,6 +374,15 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
 
 
 inline std::ostream &operator<<(std::ostream &out, const Clause &cls)
+{
+    for (int i = 0; i < cls.size(); ++i) {
+        out << cls[i] << " ";
+    }
+
+    return out;
+}
+
+template <class T> inline std::ostream &operator<<(std::ostream &out, const vec<T> &cls)
 {
     for (int i = 0; i < cls.size(); ++i) {
         out << cls[i] << " ";
