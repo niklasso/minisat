@@ -1995,7 +1995,7 @@ lbool Solver::search(int &nof_conflicts)
                 restart = lbd_queue.full() && (lbd_queue.avg() * 0.8 > global_lbd_sum / conflicts_VSIDS);
                 cached = true;
             }
-            if (restart /*|| !withinBudget()*/) {
+            if (restart || !withinBudget()) {
                 lbd_queue.clear();
                 cached = false;
                 // Reached bound on number of conflicts:
