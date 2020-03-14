@@ -160,6 +160,7 @@ class SimpSolver : public Solver
     // Temporaries:
     //
     CRef bwdsub_tmpunit;
+    vec<Lit> merge_count_cls; // temporary vector to be reused for merge counting
 
     // Main internal methods:
     //

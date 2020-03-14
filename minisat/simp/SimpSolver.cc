@@ -321,9 +321,9 @@ bool SimpSolver::merge(const Clause &_ps, const Clause &_qs, Var v, vec<Lit> &ou
 bool SimpSolver::merge(const Clause &_ps, const Clause &_qs, Var v, int &size)
 {
     merges++;
-    vec<Lit> c;
-    bool ret = merge(_ps, _qs, v, c);
-    size = c.size();
+    merge_count_cls.clear();
+    bool ret = merge(_ps, _qs, v, merge_count_cls);
+    size = merge_count_cls.size();
     return ret;
 }
 
