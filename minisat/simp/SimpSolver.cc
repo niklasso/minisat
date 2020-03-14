@@ -175,7 +175,13 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
 bool SimpSolver::addClause_(vec<Lit> &ps)
 {
 #ifndef NDEBUG
-    for (int i = 0; i < ps.size(); i++) assert(!isEliminated(var(ps[i])));
+    bool is_sat = false;
+    bool has_eliminated = false;
+    for (int i = 0; i < ps.size(); i++) {
+        if (value(ps[i]) == l_True) is_sat = true;
+        if (isEliminated(var(ps[i]))) has_eliminated = true;
+    }
+    assert((is_sat || !has_eliminated) && "removing clauses is done lazily");
 #endif
 
     int nclauses = clauses.size();
