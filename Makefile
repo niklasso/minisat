@@ -38,6 +38,9 @@ config:
 
 ## Configurable options end #######################################################################
 
+# determine operating system name
+UNAME_S := $(shell uname -s)
+
 INSTALL ?= install
 
 # GNU Standard Install Variables
@@ -52,7 +55,13 @@ mandir      ?= $(datarootdir)/man
 MINISAT      = minisat#       Name of MiniSat main executable.
 MINISAT_CORE = minisat_core#  Name of simplified MiniSat executable (only core solver support).
 MINISAT_SLIB = lib$(MINISAT).a#  Name of MiniSat static library.
-MINISAT_DLIB = lib$(MINISAT).so# Name of MiniSat shared library.
+ifeq ($(UNAME_S), Darwin)
+  MINISAT_DLIB_MAC_PRE  = lib$(MINISAT)
+  MINISAT_DLIB_MAC_POST = dylib
+  MINISAT_DLIB = $(MINISAT_DLIB_MAC_PRE).$(MINISAT_DLIB_MAC_POST)
+else
+  MINISAT_DLIB = lib$(MINISAT).so# Name of MiniSat shared library (for Linux).
+endif
 
 # Shared Library Version
 SOMAJOR=2
@@ -86,7 +95,11 @@ csh:	$(BUILD_DIR)/dynamic/bin/$(MINISAT_CORE)
 lr:	$(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
 ld:	$(BUILD_DIR)/debug/lib/$(MINISAT_SLIB)
 lp:	$(BUILD_DIR)/profile/lib/$(MINISAT_SLIB)
-lsh:	$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)
+ifeq ($(UNAME_S), Darwin)
+  lsh:	$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB_MAC_PRE).$(SOMAJOR).$(SOMINOR).$(MINISAT_DLIB_MAC_POST)
+else
+  lsh:	$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)
+endif
 
 ## Build-type Compile-flags:
 $(BUILD_DIR)/release/%.o:			MINISAT_CXXFLAGS +=$(MINISAT_REL) $(MINISAT_RELSYM)
@@ -96,9 +109,14 @@ $(BUILD_DIR)/dynamic/%.o:			MINISAT_CXXFLAGS +=$(MINISAT_REL) $(MINISAT_FPIC)
 
 ## Build-type Link-flags:
 $(BUILD_DIR)/profile/bin/$(MINISAT):		MINISAT_LDFLAGS += -pg
-$(BUILD_DIR)/release/bin/$(MINISAT):		MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
 $(BUILD_DIR)/profile/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += -pg
-$(BUILD_DIR)/release/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
+ifeq ($(UNAME_S), Darwin)
+  $(BUILD_DIR)/release/bin/$(MINISAT):		MINISAT_LDFLAGS += $(MINISAT_RELSYM)
+  $(BUILD_DIR)/release/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += $(MINISAT_RELSYM)
+else
+  $(BUILD_DIR)/release/bin/$(MINISAT):		MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
+  $(BUILD_DIR)/release/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += --static $(MINISAT_RELSYM)
+endif
 
 ## Executable dependencies
 $(BUILD_DIR)/release/bin/$(MINISAT):	 	$(BUILD_DIR)/release/minisat/simp/Main.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
@@ -118,9 +136,15 @@ $(BUILD_DIR)/dynamic/bin/$(MINISAT_CORE): 	$(BUILD_DIR)/dynamic/minisat/core/Mai
 $(BUILD_DIR)/release/lib/$(MINISAT_SLIB):	$(foreach o,$(OBJS),$(BUILD_DIR)/release/$(o))
 $(BUILD_DIR)/debug/lib/$(MINISAT_SLIB):		$(foreach o,$(OBJS),$(BUILD_DIR)/debug/$(o))
 $(BUILD_DIR)/profile/lib/$(MINISAT_SLIB):	$(foreach o,$(OBJS),$(BUILD_DIR)/profile/$(o))
-$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
- $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\
- $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB):	$(foreach o,$(OBJS),$(BUILD_DIR)/dynamic/$(o))
+ifeq ($(UNAME_S), Darwin)
+  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB_MAC_PRE).$(SOMAJOR).$(SOMINOR).$(MINISAT_DLIB_MAC_POST)\
+   $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB_MAC_PRE).$(SOMAJOR).$(MINISAT_DLIB_MAC_POST)\
+   $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB):	$(foreach o,$(OBJS),$(BUILD_DIR)/dynamic/$(o))
+else
+  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
+   $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\
+   $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB):	$(foreach o,$(OBJS),$(BUILD_DIR)/dynamic/$(o))
+endif
 
 ## Compile rules (these should be unified, buit I have not yet found a way which works in GNU Make)
 $(BUILD_DIR)/release/%.o:	%.cc
@@ -157,14 +181,27 @@ $(BUILD_DIR)/release/bin/$(MINISAT_CORE) $(BUILD_DIR)/debug/bin/$(MINISAT_CORE) 
 	$(VERB) $(AR) -rcs $@ $^
 
 ## Shared Library rule
-$(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
- $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\
- $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB):
+ifeq ($(UNAME_S), Darwin)
+  ## Shared Library on Mac OS
+  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB_MAC_PRE).$(SOMAJOR).$(SOMINOR).$(MINISAT_DLIB_MAC_POST)\
+   $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB_MAC_PRE).$(SOMAJOR).$(MINISAT_DLIB_MAC_POST)\
+   $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB):
+	$(ECHO) Linking Shared Library: $@
+	$(VERB) mkdir -p $(dir $@)
+	$(VERB) $(CXX) $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@ -dynamiclib -current_version $(SOMAJOR).$(SOMINOR) -compatibility_version $(SOMAJOR).$(SOMINOR) $^
+	$(VERB) ln -sf $(MINISAT_DLIB_MAC_PRE).$(SOMAJOR).$(SOMINOR).$(MINISAT_DLIB_MAC_POST) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB_MAC_PRE).$(SOMAJOR).$(MINISAT_DLIB_MAC_POST)
+	$(VERB) ln -sf $(MINISAT_DLIB_MAC_PRE).$(SOMAJOR).$(MINISAT_DLIB_MAC_POST) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
+else
+  ## Shared Library on Linux
+  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
+   $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\
+   $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB):
 	$(ECHO) Linking Shared Library: $@
 	$(VERB) mkdir -p $(dir $@)
 	$(VERB) $(CXX) $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@ -shared -Wl,-soname,$(MINISAT_DLIB).$(SOMAJOR) $^
 	$(VERB) ln -sf $(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)
 	$(VERB) ln -sf $(MINISAT_DLIB).$(SOMAJOR) $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
+endif
 
 install:	install-headers install-lib install-bin
 install-debug:	install-headers install-lib-debug
@@ -199,10 +236,16 @@ clean:
 	rm -f $(foreach t, release debug profile dynamic, $(foreach o, $(SRCS:.cc=.o), $(BUILD_DIR)/$t/$o)) \
           $(foreach t, release debug profile dynamic, $(foreach d, $(SRCS:.cc=.d), $(BUILD_DIR)/$t/$d)) \
 	  $(foreach t, release debug profile dynamic, $(BUILD_DIR)/$t/bin/$(MINISAT_CORE) $(BUILD_DIR)/$t/bin/$(MINISAT)) \
-	  $(foreach t, release debug profile, $(BUILD_DIR)/$t/lib/$(MINISAT_SLIB)) \
-	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
+	  $(foreach t, release debug profile, $(BUILD_DIR)/$t/lib/$(MINISAT_SLIB))
+ifeq ($(UNAME_S), Darwin)
+	rm -f $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB_MAC_PRE).$(SOMAJOR).$(SOMINOR).$(MINISAT_DLIB_MAC_POST)\
+	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB_MAC_PRE).$(SOMAJOR).$(MINISAT_DLIB_MAC_POST)\
+	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
+else
+	rm -f $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
 	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\
 	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
+endif
 
 distclean:	clean
 	rm -f config.mk
