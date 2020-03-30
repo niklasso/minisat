@@ -55,6 +55,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define TIER2 2
 #define CORE 3
 
+#include <vector>
+
 namespace MERGESAT_NSPACE
 {
 
@@ -361,6 +363,11 @@ class Solver
 
     vec<uint64_t> seen2; // Mostly for efficient LBD computation. 'seen2[i]' will indicate if decision level or variable 'i' has been seen.
     uint64_t counter; // Simple counter for marking purpose with 'seen2'.
+
+    // self-subsuming resolution and subsumption during search
+    vec<uint64_t> M;
+    std::vector<std::vector<CRef>> O; // occurrence data structure
+    uint64_t T, X, Y, L;
 
     double max_learnts;
     double learntsize_adjust_confl;

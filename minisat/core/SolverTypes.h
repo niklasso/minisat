@@ -169,7 +169,7 @@ class Clause
         unsigned learnt : 1;
         unsigned has_extra : 1;
         unsigned reloced : 1;
-        unsigned lbd : 26;
+        unsigned lbd : 25, S : 1;
         unsigned removable : 1;
         unsigned simplified : 1;
         unsigned onQueue : 1;
@@ -194,6 +194,7 @@ class Clause
         header.reloced = 0;
         header.size = ps.size();
         header.lbd = 0;
+        header.S = 0;
         header.removable = 1;
         // simplify
         //
@@ -220,6 +221,8 @@ class Clause
         data[header.size].abs = abstraction;
     }
 
+    int S() { return header.S; }
+    void S(int s) { header.S = s; }
 
     int size() const { return header.size; }
     void shrink(int i)
@@ -372,6 +375,7 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
             to[cr].activity() = c.activity();
             to[cr].set_lbd(c.lbd());
             to[cr].removable(c.removable());
+            to[cr].S(c.S());
             // simplify
             //
             to[cr].setSimplified(c.simplified());
