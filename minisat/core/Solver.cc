@@ -94,7 +94,7 @@ static Int64Option
 opt_vsids_c(_cat, "vsids-c", "conflicts after which we want to switch back to VSIDS (0=off)", 12000000, Int64Range(0, INT64_MAX));
 static Int64Option
 opt_vsids_p(_cat, "vsids-p", "propagations after which we want to switch back to VSIDS (0=off)", 3000000000, Int64Range(0, INT64_MAX));
-static BoolOption opt_pref_assumpts(_cat, "pref-assumpts", "Assign all assumptions at once", false);
+static BoolOption opt_pref_assumpts(_cat, "pref-assumpts", "Assign all assumptions at once", true);
 
 static IntOption opt_VSIDS_props_limit("_cat",
                                        "VSIDS-lim",
