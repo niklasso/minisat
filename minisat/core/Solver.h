@@ -444,11 +444,11 @@ class Solver
     template <class V> int computeLBD(const V &c)
     {
         int lbd = 0;
-
+        const int assumption_level = assumptions.size(); // ignore anything below
         counter++;
         for (int i = 0; i < c.size(); i++) {
             int l = level(var(c[i]));
-            if (l != 0 && seen2[l] != counter) {
+            if (l > assumption_level && seen2[l] != counter) {
                 seen2[l] = counter;
                 lbd++;
             }
