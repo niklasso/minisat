@@ -188,6 +188,7 @@ class Solver
 
     // Incremental mode:
     void setIncrementalMode();
+    lbool prefetchAssumptions(); /// check whether we can apply all assumptions in one go
 
     // Extra results: (read-only member variable)
     //
@@ -384,6 +385,7 @@ class Solver
     bool asynch_interrupt;
 
     bool prefetch_assumptions; // assign all assumptions at once on the first levels
+    uint64_t last_used_assumptions; // store how many assumptions have been assigned during last call to search before jumping back
 
     // Main internal methods:
     //

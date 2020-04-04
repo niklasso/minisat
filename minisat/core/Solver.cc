@@ -241,6 +241,7 @@ Solver::Solver()
   , asynch_interrupt(false)
 
   , prefetch_assumptions(opt_pref_assumpts)
+  , last_used_assumptions(INT32_MAX)
 
   // simplfiy
   , trailRecord(0)
@@ -1817,6 +1818,36 @@ bool Solver::propagateLit(Lit l, vec<Lit> &implied)
     return conflict;
 }
 
+lbool Solver::prefetchAssumptions()
+{
+    if (prefetch_assumptions && decisionLevel() == 0 && assumptions.size() > 0) {
+        while (decisionLevel() < assumptions.size() && decisionLevel() < last_used_assumptions) {
+            // Perform user provided assumption:
+            Lit p = assumptions[decisionLevel()];
+
+            if (value(p) == l_False) {
+                // TODO: write proper conflict handling
+                cancelUntil(0);
+                break;
+            }
+
+            newDecisionLevel();
+            if (value(p) == l_Undef) uncheckedEnqueue(p, decisionLevel(), CRef_Undef);
+        }
+
+        assert((decisionLevel() == 0 || decisionLevel() == assumptions.size()) &&
+               "we propagated all assumptions by now");
+
+        // TODO: write proper conflict handling
+        CRef confl = propagate();
+        if (confl != CRef_Undef) {
+            cancelUntil(0);
+        }
+    }
+
+    return l_Undef; // for now, we just work with the generic case
+}
+
 /*_________________________________________________________________________________________________
 |
 |  search : (nof_conflicts : int) (params : const SearchParams&)  ->  [lbool]
@@ -1855,30 +1886,7 @@ lbool Solver::search(int &nof_conflicts)
         nbconfbeforesimplify += incSimplify;
     }
 
-    if (prefetch_assumptions && decisionLevel() == 0) {
-        while (decisionLevel() < assumptions.size()) {
-            // Perform user provided assumption:
-            Lit p = assumptions[decisionLevel()];
-
-            if (value(p) == l_False) {
-                // do not continue here, as we'll find a conflict next, and we do not know how to handle that
-                cancelUntil(0);
-                break;
-            }
-
-            newDecisionLevel();
-            if (value(p) == l_Undef) uncheckedEnqueue(p, decisionLevel(), CRef_Undef);
-        }
-
-        assert((decisionLevel() == 0 || decisionLevel() == assumptions.size()) &&
-               "we propagated all assumptions by now");
-
-        // for now we do not know how to quick-handle conflicts here, so do not investigate. just speedup the SAT case
-        CRef confl = propagate();
-        if (confl != CRef_Undef) {
-            cancelUntil(0);
-        }
-    }
+    prefetchAssumptions();
 
     for (;;) {
         CRef confl = propagate();
@@ -2055,6 +2063,9 @@ lbool Solver::search(int &nof_conflicts)
 #endif
         }
     }
+
+    // store minimum of assumptions and current level, to forward assumptions again
+    last_used_assumptions = assumptions.size() > decisionLevel() ? decisionLevel() : assumptions.size();
 }
 
 
