@@ -256,6 +256,7 @@ Solver::Solver()
   , incSimplify(1000)
   , reverse_LCM(opt_reverse_lcm)
   , lcm_core(opt_lcm_core)
+  , lcm_core_success(true) // start in the first round
   , LCM_total_tries(0)
   , LCM_successful_tries(0)
   , LCM_dropped_lits(0)
@@ -2213,7 +2214,14 @@ lbool Solver::solve_()
 
     cancelUntil(0);
 
-    if (status == l_False && conflict.size() && lcm_core) simplifyLearnt(conflict);
+    if (status == l_False && conflict.size() && lcm_core) {
+        if (lcm_core_success) {
+            int pre_conflict_size = conflict.size();
+            simplifyLearnt(conflict);
+            lcm_core_success = pre_conflict_size > conflict.size();
+        } else
+            lcm_core_success = true;
+    }
 
     systematic_branching_state = 0;
     statistics.solveSeconds += cpuTime() - solve_start; // stop timer and record time consumed until now

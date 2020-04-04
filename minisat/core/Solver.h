@@ -554,7 +554,8 @@ class Solver
     uint64_t nbconfbeforesimplify;
     int incSimplify;
     bool reverse_LCM;
-    bool lcm_core; // apply LCM to generated conflict clause?
+    bool lcm_core;         // apply LCM to generated conflict clause?
+    bool lcm_core_success; // apply core simplification next time again?
     uint64_t LCM_total_tries, LCM_successful_tries, LCM_dropped_lits, LCM_dropped_reverse;
 
     bool collectFirstUIP(CRef confl);
