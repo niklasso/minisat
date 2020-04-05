@@ -148,6 +148,7 @@ class Solver
     //
     void setTermCallback(void *state, int (*termCallback)(void *));
     void setLearnCallback(void *state, int maxLength, void (*learn)(void *state, int *clause));
+    template <class V> void shareViaCallback(const V &v);
 
     // Convenience versions of 'toDimacs()':
     void toDimacs(const char *file);
@@ -866,6 +867,18 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
     if (reversed) c.reverse();
 
     LCM_successful_tries = beforeSize == c.size() ? LCM_successful_tries : LCM_successful_tries + 1;
+}
+
+template <class V> inline void Solver::shareViaCallback(const V &v)
+{
+    if (learnCallback != 0 && v.size() <= learnCallbackLimit) {
+        for (int i = 0; i < v.size(); i++) {
+            Lit lit = v[i];
+            learnCallbackBuffer[i] = sign(lit) ? -(var(lit) + 1) : (var(lit) + 1);
+        }
+        learnCallbackBuffer[v.size()] = 0;
+        learnCallback(learnCallbackState, &(learnCallbackBuffer[0]));
+    }
 }
 
 //=================================================================================================

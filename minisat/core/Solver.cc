@@ -1919,14 +1919,7 @@ lbool Solver::search(int &nof_conflicts)
             analyze(confl, learnt_clause, backtrack_level, lbd);
 
             // share via IPASIR?
-            if (learnCallback != 0 && learnt_clause.size() <= learnCallbackLimit) {
-                for (int i = 0; i < learnt_clause.size(); i++) {
-                    Lit lit = learnt_clause[i];
-                    learnCallbackBuffer[i] = sign(lit) ? -(var(lit) + 1) : (var(lit) + 1);
-                }
-                learnCallbackBuffer[learnt_clause.size()] = 0;
-                learnCallback(learnCallbackState, &(learnCallbackBuffer[0]));
-            }
+            shareViaCallback(learnt_clause);
 
             // check chrono backtrack condition
             if ((confl_to_chrono < 0 || confl_to_chrono <= (int64_t)conflicts) && chrono > -1 &&
