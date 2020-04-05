@@ -538,20 +538,25 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                 simplifyLearnt(c);
                 assert(c.size() > 0);
 
-                if (drup_file && saved_size != c.size()) {
-#ifdef BIN_DRUP
-                    binDRUP('a', c, drup_file);
-                    //                    binDRUP('d', add_oc, drup_file);
-#else
-                    for (int i = 0; i < c.size(); i++)
-                        fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
-                    fprintf(drup_file, "0\n");
+                if (saved_size != c.size()) {
+                    shareViaCallback(c); // share via IPASIR?
 
-                    //                    fprintf(drup_file, "d ");
-                    //                    for (int i = 0; i < add_oc.size(); i++)
-                    //                        fprintf(drup_file, "%i ", (var(add_oc[i]) + 1) * (-2 * sign(add_oc[i]) + 1));
-                    //                    fprintf(drup_file, "0\n");
+                    // print to proof
+                    if (drup_file) {
+#ifdef BIN_DRUP
+                        binDRUP('a', c, drup_file);
+                        //                    binDRUP('d', add_oc, drup_file);
+#else
+                        for (int i = 0; i < c.size(); i++)
+                            fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
+                        fprintf(drup_file, "0\n");
+
+                        //                    fprintf(drup_file, "d ");
+                        //                    for (int i = 0; i < add_oc.size(); i++)
+                        //                        fprintf(drup_file, "%i ", (var(add_oc[i]) + 1) * (-2 * sign(add_oc[i]) + 1));
+                        //                    fprintf(drup_file, "0\n");
 #endif
+                    }
                 }
 
                 if (c.size() == 1) {
