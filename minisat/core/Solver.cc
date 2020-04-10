@@ -1332,6 +1332,7 @@ void Solver::uncheckedEnqueue(Lit p, int level, CRef from)
 
     assigns[x] = lbool(!sign(p));
     vardata[x] = mkVarData(from, level);
+    __builtin_prefetch(&watches[p], 1, 0); // prefetch the watch, prepare for a write (1), the data is highly temoral (0)
     trail.push_(p);
 }
 
