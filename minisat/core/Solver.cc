@@ -1498,7 +1498,7 @@ void Solver::reduceDB()
                 c.removable(true);
                 learnts_local[j++] = learnts_local[i];
             }
-            }
+        }
     }
     statistics.solveSteps += learnts_local.size();
     learnts_local.shrink(i - j);
