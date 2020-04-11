@@ -531,6 +531,7 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                         }
                     }
                     c.shrink(li - lj);
+                    c.S(0); // this clause might subsume others now
                 }
 
                 assert(c.size() > 1);
