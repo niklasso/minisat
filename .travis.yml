@@ -15,7 +15,7 @@ before_install:
 addons:
   coverity_scan:
     project:
-      name: "conp-solutions/minisat"
+      name: "conp-solutions/mergesat"
       description: "MiniSAT sat solver"
     notification_email: nmanthey@conp-solutions.com
     build_command_prepend: "true"
