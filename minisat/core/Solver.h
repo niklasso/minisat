@@ -257,6 +257,8 @@ class Solver
     uint64_t VSIDS_propagations; // propagated literals after which we want to switch back to VSIDS
     bool reactivate_VSIDS;       // indicate whether we change the decision heuristic back to VSIDS
 
+    uint64_t inprocessing_C, inprocessing_L; // stats wrt improcessing simplification
+
     /// Single object to hold most statistics
     struct SolverStats {
         double simpSeconds, solveSeconds;

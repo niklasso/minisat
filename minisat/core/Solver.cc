@@ -275,6 +275,8 @@ Solver::Solver()
 {
     X = 0;
     Y = 1;
+    inprocessing_C=0;
+    inprocessing_L=0;
 }
 
 
@@ -2374,19 +2376,19 @@ void Solver::inprocessing()
                     // printf ("c for clause %d, hit %d out o %d lits\n", r, p, c.size());
                     if (p == c.size()) { // && k==d.size() ) // in case there is a break statment in the above loop, we need to make sure we processed all literals in d
                         if (l < 0 && (d.learnt() || !c.learnt())) {
-                            printf("c remove clause with reference %d\n", r);
                             removeClause(r); // subsume, if learnt status matches, hence drop
                             Z++;
+                            ++inprocessing_C;
+                            // printf("c remove clause\n");
                         } else if (l >= 0 && l < d.size()) {
                             // drop the one literal, whose complement is in clause 'c'
-                            printf("c remove literal at position %d from clause with reference %d\n", l, r);
                             d[l] = d.last();
                             d.pop();
                             d.S(0); // differently to the glucose hack, allow this clause for simplification again!
-
+                            // printf("c remove literal\n");
                             // drop proof file
                             if (drup_file) binDRUP('a', d, drup_file);
-                            Z++;
+                            Z++; ++inprocessing_L;
                         }
                     }
                 }
