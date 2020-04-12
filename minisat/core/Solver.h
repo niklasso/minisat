@@ -370,6 +370,7 @@ class Solver
     vec<uint64_t> M;
     std::vector<std::vector<CRef>> O; // occurrence data structure
     uint64_t T, X, Y, L;
+    void inprocessing();
 
     double max_learnts;
     double learntsize_adjust_confl;

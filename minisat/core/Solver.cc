@@ -2303,13 +2303,9 @@ void Solver::toDimacs(FILE *f, const vec<Lit> &assumps)
 }
 
 
-//=================================================================================================
-// Garbage Collection methods:
-
-void Solver::relocAll(ClauseAllocator &to)
+void Solver::inprocessing()
 {
     if (solves && X++ > Y) {
-
         L = 60; // clauses with lbd higher than 60 are not considered (and rather large anyways)
         Y = Y * 2;
         int Z = 0, i, j, k, l, p;
@@ -2401,6 +2397,15 @@ void Solver::relocAll(ClauseAllocator &to)
             for (i = 0; i < O.size(); ++i) O[i].clear(); // do not free, just drop elements
         }
     }
+}
+
+//=================================================================================================
+// Garbage Collection methods:
+
+void Solver::relocAll(ClauseAllocator &to)
+{
+    // check whether we want to do inprocessing
+    inprocessing();
 
     // All watchers:
     //
