@@ -2386,6 +2386,7 @@ void Solver::relocAll(ClauseAllocator &to)
                             printf("c remove literal at position %d from clause with reference %d\n", l, r);
                             d[l] = d.last();
                             d.pop();
+                            d.S(0); // differently to the glucose hack, allow this clause for simplification again!
 
                             // drop proof file
                             if (drup_file) binDRUP('a', d, drup_file);
