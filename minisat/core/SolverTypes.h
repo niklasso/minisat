@@ -445,6 +445,8 @@ template <class Idx, class Vec, class Deleted> class OccLists
         dirty.clear(free);
         dirties.clear(free);
     }
+
+    int size() const { return occs.size(); }
 };
 
 
