@@ -149,6 +149,12 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
 
         result = lbool(eliminate(turn_off_simp));
     }
+    occurs.clear(true);
+    touched.clear(true);
+    occurs.clear(true);
+    n_occ.clear(true);
+    elim_heap.clear(true);
+    subsumption_queue.clear(true);
 
     simp_time = cpuTime() - simp_time; // stop timer and record time consumed until now
 
@@ -199,7 +205,8 @@ bool SimpSolver::addClause_(vec<Lit> &ps)
 #endif
     }
 
-    if (use_simplification && clauses.size() == nclauses + 1) {
+    // Only simplify before actually solving
+    if (use_simplification && clauses.size() == nclauses + 1 && solves == 0) {
         CRef cr = clauses.last();
         const Clause &c = ca[cr];
         statistics.simpSteps++;
@@ -833,14 +840,19 @@ void SimpSolver::relocAll(ClauseAllocator &to)
     // All occurs lists:
     //
     occurs.cleanAll();
-    for (int i = 0; i < nVars(); i++) {
-        vec<CRef> &cs = occurs[i];
-        for (int j = 0; j < cs.size(); j++) ca.reloc(cs[j], to);
-        statistics.simpSteps += cs.size();
+    if (occurs.size() >= nVars()) {
+        for (int i = 0; i < nVars(); i++) {
+            vec<CRef> &cs = occurs[i];
+            assert((solves == 0 || cs.size() == 0) && "There should be no occurrences during solving");
+            for (int j = 0; j < cs.size(); j++) ca.reloc(cs[j], to);
+            statistics.simpSteps += cs.size();
+        }
     }
 
     // Subsumption queue:
     //
+    assert((solves == 0 || subsumption_queue.size() == 0) &&
+           "There should be no occurrences subsumption candidates during solving");
     for (int i = subsumption_queue.size(); i > 0; i--) {
         CRef cr = subsumption_queue.peek();
         subsumption_queue.pop();
