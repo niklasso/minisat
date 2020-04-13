@@ -372,6 +372,8 @@ class Solver
     vec<uint64_t> M;
     std::vector<std::vector<CRef>> O; // occurrence data structure
     uint64_t T, X, Y, L;
+    double inprocess_inc; // control how frequent inprocessing is triggered
+    uint64_t inprocess_penalty;
     void inprocessing();
 
     double max_learnts;

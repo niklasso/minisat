@@ -102,6 +102,16 @@ static IntOption opt_VSIDS_props_limit(_cat,
                                        "LRB and VSIDS(in millions).",
                                        30,
                                        IntRange(1, INT32_MAX));
+static DoubleOption opt_inprocessing_inc(_cat,
+                                         "inprocess-delay",
+                                         "Use this factor to wait for next inprocessing (0=off)",
+                                         2,
+                                         DoubleRange(0, true, HUGE_VAL, false));
+static Int64Option opt_inprocessing_penalty(_cat,
+                                            "inprocess-penalty",
+                                            "Add this amount, in case inprocessing did not simplify anything",
+                                            2,
+                                            Int64Range(0, INT64_MAX));
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -227,6 +237,9 @@ Solver::Solver()
 
   , counter(0)
 
+  , inprocess_inc(opt_inprocessing_inc)
+  , inprocess_penalty(opt_inprocessing_penalty)
+
   , max_learnts(0)
   , learntsize_adjust_confl(0)
   , learntsize_adjust_cnt(0)
@@ -275,8 +288,8 @@ Solver::Solver()
 {
     X = 0;
     Y = 1;
-    inprocessing_C=0;
-    inprocessing_L=0;
+    inprocessing_C = 0;
+    inprocessing_L = 0;
 }
 
 
@@ -2307,9 +2320,9 @@ void Solver::toDimacs(FILE *f, const vec<Lit> &assumps)
 
 void Solver::inprocessing()
 {
-    if (solves && X++ > Y) {
+    if (solves && X++ > Y && inprocess_inc != (double)0) {
         L = 60; // clauses with lbd higher than 60 are not considered (and rather large anyways)
-        Y = Y * 2;
+        Y = (uint64_t)((double)Y * inprocess_inc);
         int Z = 0, i, j, k, l, p;
 
         if (verbosity > 0) printf("c inprocessing simplify at try %d, next limit: %d\n", X, Y);
@@ -2379,7 +2392,6 @@ void Solver::inprocessing()
                             removeClause(r); // subsume, if learnt status matches, hence drop
                             Z++;
                             ++inprocessing_C;
-                            // printf("c remove clause\n");
                         } else if (l >= 0 && l < d.size()) {
                             // drop the one literal, whose complement is in clause 'c'
                             d[l] = d.last();
@@ -2388,14 +2400,16 @@ void Solver::inprocessing()
                             // printf("c remove literal\n");
                             // drop proof file
                             if (drup_file) binDRUP('a', d, drup_file);
-                            Z++; ++inprocessing_L;
+                            Z++;
+                            ++inprocessing_L;
                         }
                     }
                 }
                 c.S(1); // memorize that we will not repeat the analysis with this clause
             }
 
-            if (!Z) Y += 2; // in case we did not modify anything, skip a few more relocs before trying again
+            if (!Z)
+                Y += inprocess_penalty; // in case we did not modify anything, skip a few more relocs before trying again
             for (i = 0; i < O.size(); ++i) O[i].clear(); // do not free, just drop elements
         }
     }
