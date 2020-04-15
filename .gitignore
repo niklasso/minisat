@@ -2,3 +2,10 @@ config.mk
 build
 *.log
 *.cnf
+otherSolvers
+tmp
+glucoses
+maplesat
+cov-int
+cnfs
+benchmark

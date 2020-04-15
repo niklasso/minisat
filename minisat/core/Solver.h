@@ -55,6 +55,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define TIER2 2
 #define CORE 3
 
+#include <vector>
+
 namespace MERGESAT_NSPACE
 {
 
@@ -146,6 +148,7 @@ class Solver
     //
     void setTermCallback(void *state, int (*termCallback)(void *));
     void setLearnCallback(void *state, int maxLength, void (*learn)(void *state, int *clause));
+    template <class V> void shareViaCallback(const V &v);
 
     // Convenience versions of 'toDimacs()':
     void toDimacs(const char *file);
@@ -186,6 +189,7 @@ class Solver
 
     // Incremental mode:
     void setIncrementalMode();
+    lbool prefetchAssumptions(); /// check whether we can apply all assumptions in one go
 
     // Extra results: (read-only member variable)
     //
@@ -252,6 +256,8 @@ class Solver
     uint64_t VSIDS_conflicts;    // conflicts after which we want to switch back to VSIDS
     uint64_t VSIDS_propagations; // propagated literals after which we want to switch back to VSIDS
     bool reactivate_VSIDS;       // indicate whether we change the decision heuristic back to VSIDS
+
+    uint64_t inprocessing_C, inprocessing_L; // stats wrt improcessing simplification
 
     /// Single object to hold most statistics
     struct SolverStats {
@@ -362,9 +368,21 @@ class Solver
     vec<uint64_t> seen2; // Mostly for efficient LBD computation. 'seen2[i]' will indicate if decision level or variable 'i' has been seen.
     uint64_t counter; // Simple counter for marking purpose with 'seen2'.
 
+    // self-subsuming resolution and subsumption during search
+    vec<uint64_t> M;
+    std::vector<std::vector<CRef>> O; // occurrence data structure
+    uint64_t T, X, Y, L;
+    double inprocess_inc; // control how frequent inprocessing is triggered
+    uint64_t inprocess_penalty;
+    void inprocessing();
+
     double max_learnts;
     double learntsize_adjust_confl;
     int learntsize_adjust_cnt;
+
+    // duplicate learnts version
+    uint64_t VSIDS_props_limit;
+    bool switch_mode;
 
     // Resource contraints:
     //
@@ -373,6 +391,7 @@ class Solver
     bool asynch_interrupt;
 
     bool prefetch_assumptions; // assign all assumptions at once on the first levels
+    uint64_t last_used_assumptions; // store how many assumptions have been assigned during last call to search before jumping back
 
     // Main internal methods:
     //
@@ -394,7 +413,8 @@ class Solver
     void removeSatisfied(vec<CRef> &cs); // Shrink 'cs' to contain only non-satisfied clauses.
     void safeRemoveSatisfied(vec<CRef> &cs, unsigned valid_mark);
     void rebuildOrderHeap();
-    bool binResMinimize(vec<Lit> &out_learnt); // Further learnt clause minimization by binary resolution.
+    bool binResMinimize(vec<Lit> &out_learnt);     // Further learnt clause minimization by binary resolution.
+    void toggle_decision_heuristic(bool to_VSIDS); // Switch between decision heuristic heaps.
 
     // Maintaining Variable/Clause activity:
     //
@@ -432,11 +452,11 @@ class Solver
     template <class V> int computeLBD(const V &c)
     {
         int lbd = 0;
-
+        const int assumption_level = assumptions.size(); // ignore anything below
         counter++;
         for (int i = 0; i < c.size(); i++) {
             int l = level(var(c[i]));
-            if (l != 0 && seen2[l] != counter) {
+            if (l > assumption_level && seen2[l] != counter) {
                 seen2[l] = counter;
                 lbd++;
             }
@@ -493,6 +513,8 @@ class Solver
         buf_ptr = drup_buf;
         buf_len = 0;
     }
+#else
+#error BINDRUP is enforced for proof generation due to using binDRUP, binDRUP_strengthen, binDRUP_flush
 #endif
 
     // Static helpers:
@@ -538,7 +560,8 @@ class Solver
     uint64_t nbconfbeforesimplify;
     int incSimplify;
     bool reverse_LCM;
-    bool lcm_core; // apply LCM to generated conflict clause?
+    bool lcm_core;         // apply LCM to generated conflict clause?
+    bool lcm_core_success; // apply core simplification next time again?
     uint64_t LCM_total_tries, LCM_successful_tries, LCM_dropped_lits, LCM_dropped_reverse;
 
     bool collectFirstUIP(CRef confl);
@@ -565,8 +588,7 @@ inline int Solver::level(Var x) const { return vardata[x].level; }
 
 inline void Solver::insertVarOrder(Var x)
 {
-    //    Heap<VarOrderLt>& order_heap = VSIDS ? order_heap_VSIDS : order_heap_CHB;
-    Heap<VarOrderLt> &order_heap = DISTANCE ? order_heap_distance : ((!VSIDS) ? order_heap_CHB : order_heap_VSIDS);
+    Heap<VarOrderLt> &order_heap = VSIDS ? order_heap_VSIDS : (DISTANCE ? order_heap_distance : order_heap_CHB);
     if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x);
 }
 
@@ -850,6 +872,18 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
     if (reversed) c.reverse();
 
     LCM_successful_tries = beforeSize == c.size() ? LCM_successful_tries : LCM_successful_tries + 1;
+}
+
+template <class V> inline void Solver::shareViaCallback(const V &v)
+{
+    if (learnCallback != 0 && v.size() <= learnCallbackLimit) {
+        for (int i = 0; i < v.size(); i++) {
+            Lit lit = v[i];
+            learnCallbackBuffer[i] = sign(lit) ? -(var(lit) + 1) : (var(lit) + 1);
+        }
+        learnCallbackBuffer[v.size()] = 0;
+        learnCallback(learnCallbackState, &(learnCallbackBuffer[0]));
+    }
 }
 
 //=================================================================================================

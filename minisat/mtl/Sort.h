@@ -22,6 +22,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define Minisat_Sort_h
 
 #include "mtl/Vec.h"
+#include <cstring> // for memcpy
 
 //=================================================================================================
 // Some sorting algorithms for vec's
@@ -34,6 +35,68 @@ template <class T> struct LessThan_default {
     bool operator()(T x, T y) { return x < y; }
 };
 
+/** for very large arrays, use merge sort (because recursions for quicksort might be too high!)
+ *  Note: elements should be able to be copied cheaply!
+ */
+template <typename T, class LessThan> static inline void mergesort(T *field, const int32_t arraySize, LessThan lt)
+{
+    // if copying is enabled, only half of the elements are needed
+    T *helpArray = new T[arraySize];
+    int swaps = 0;
+
+    int rightHead, rightEnd;
+    int leftRead, rightRead, writeHead = 0;
+
+    for (int windowSize = 1; windowSize < arraySize; windowSize *= 2) {
+        for (int left = 0; left + windowSize < arraySize; left += windowSize * 2) {
+            rightHead = left + windowSize;
+            rightEnd = rightHead + windowSize;
+            if (rightEnd > arraySize) {
+                rightEnd = arraySize;
+            } // stay within the array!
+            writeHead = left;
+            leftRead = left;
+            rightRead = rightHead;
+            while (leftRead < rightHead && rightRead < rightEnd) { // merge the two fields by using the smaller number
+                if (lt(field[leftRead], field[rightRead])) {       // use the smaller element
+                    helpArray[writeHead++] = field[leftRead++];
+                } else {
+                    helpArray[writeHead++] = field[rightRead++];
+                }
+            }
+            // write the remaining positions from the one field that is left
+            while (leftRead < rightHead) {
+                helpArray[writeHead++] = field[leftRead++];
+            }
+            while (rightRead < rightEnd) {
+                helpArray[writeHead++] = field[rightRead++];
+            }
+        }
+        while (writeHead < arraySize) {
+            helpArray[writeHead] = field[writeHead];
+            writeHead++;
+        }
+        // swap fields after the iteration (do not copy!)
+        T *tmp = field;
+        field = helpArray;
+        helpArray = tmp;
+        swaps++;
+    }
+    // copy back original data into original std::vector!
+    if ((swaps & 1) != 0) {
+        // std::cerr << "c swaps: " << swaps << std::endl;
+        memcpy(helpArray, field, sizeof(T) * arraySize); // copy currently sorted data into the other std::vector as well, if necessary!
+        T *tmp = field;
+        helpArray = tmp;
+    }
+    // free space
+    delete[] helpArray;
+}
+
+template <typename T> static inline void mergesort(T *array, int size)
+{
+    mergesort(array, size, LessThan_default<T>());
+}
 
 template <class T, class LessThan> void selectionSort(T *array, int size, LessThan lt)
 {
@@ -57,10 +120,11 @@ template <class T> static inline void selectionSort(T *array, int size)
 
 template <class T, class LessThan> void sort(T *array, int size, LessThan lt)
 {
-    if (size <= 15)
+    if (size <= 15) {
         selectionSort(array, size, lt);
-
-    else {
+    } else if (size > 32) {
+        mergesort(array, size, lt);
+    } else {
         T pivot = array[size / 2];
         T tmp;
         int i = -1;

@@ -32,26 +32,30 @@
 
 % the abstract is optional
 \begin{abstract}
-The sequential SAT solver \mergesat starts from last years competition winner, and adds known as well as novel implementation and search improvements.
+The sequential SAT solver \mergesat is a fork of the 2018 competition winner, and adds known as well as novel implementation and search improvements.
 \mergesat is setup to simplify merging solver contributions into one solver, to motivate more collaboration among solver developers.
 \end{abstract}
 
+
 \section{Introduction}
 
-When looking at recent SAT competitions, the winner of the current year was typically last years winner plus a single modification.
-However, each year there are several novel ideas that the winner does not pick up.
-Hence, lots of potential with respect to maximal performance is likely lost, and bug fixes of previous versions do not make it into novel ones.
+When looking at recent SAT competitions, the winner of the current year was typically last years winner plus a small modification.
+However, each year there are several novel ideas that the next winner does not pick up.
+Hence, lots of potential with respect to maximal performance is likely lost, and bug fixes of previous versions do not make it into novel versions.
 
 The CDCL solver \mergesat is based on the competition winner of 2018, \textsc{Maple\_LCM\_Dist\_ChronoBT}~\cite{MapleLCMDistChronoBT}, and adds several known techniques, fixes, as well as adds some novel ideas.
-To make continuing the long list of work2 that influenced \mergesat simpler, \mergesat uses git to combine changes,
+To make continuing the long list of work that influenced \mergesat simpler, \mergesat uses git to combine changes,
 and comes with continuous integration to simplify extending the solver further.
+Furthermore, starting in 2020, code style is enforced during CI as well, allowing to understand modifications better.
 
 \section{Integrated Techniques and Fixes}
 
-Most recently, backtracking has been improved by~\cite{10.1007/978-3-319-94144-8_7}. Backtracking improvements during restarts have already been proposed in~\cite{10.1007/978-3-642-21581-0_18}.
+Most recently, backtracking has been improved by~\cite{10.1007/978-3-319-94144-8_7}.
+Backtracking improvements during restarts have already been proposed in~\cite{10.1007/978-3-642-21581-0_18}.
 \mergesat uses the \emph{partial trail} based backtracking during restarts.
 
-Learned clause minimization (LCM)~\cite{ijcai2017-98} is also kept. It is still open research in which order literals should be considered during vivification~\cite{DBLP:conf/ecai/PietteHS08}.
+Learned clause minimization (LCM)~\cite{ijcai2017-98} is also kept.
+It is still open research in which order literals should be considered during vivification~\cite{DBLP:conf/ecai/PietteHS08}.
 \mergesat uses the improvement from~\cite{riss71}, which repeats vivification in reverse order, in case a clause could be simplified with the first order.
 The original implementation of LCM adds a bit to the clause header to indicate that this clause has been considered already.
 However, no other bit has been dropped from the header, resulting in a 65\,bit header structure.
@@ -62,13 +66,14 @@ Large formulas require a long simplification time, even though simplification al
 While for a 5000 second timeout, large simplification times are acceptable for effective simplifications, usually an incomplete simplification helps the solver already.
 Therefore, we introduce a step counter, that is increased whenever simplification touches a clause.
 Next, we interrupt simplification as soon as this counter reaches a predefined limit, similarly to~\cite{precosat}.
-To speed simplification up further, the linear subsumption implementation and related optimizations from~\cite{POS-18:Tuning_Parallel_SAT_Solvers} have been integrated into \mergesat.
+To speed up simplification further, the linear subsumption implementation and related optimizations from~\cite{POS-18:Tuning_Parallel_SAT_Solvers} have been integrated into \mergesat.
 
 Since the solver \textsc{MapleSAT}~\cite{MapleSAT}, the decision heuristic is switched back from the currently selected one to VSIDS -- after 2500 seconds.
 As solver execution does not correlate with run time, this decision results in solver runs not being reproducible.
 To fix this property, the switch to VSIDS is now dependent on the number of performed propagations as well as conflicts.
 Once, one of the two hits a predefined limit, the heuristic is switched back to VSIDS.
 This change enables reproducibility and deterministic behavior again.
+Based on~\cite{MapleLCMDistChronoBTDL}, we added toggling VSIDS and LRB heuristic continuously.
 
 \mergesat implements an experimental -- and hence disabled by default -- heuristic to decide when to disable \emph{phase saving}~\cite{Pipatsrisawat:2007:LCC:1768142.1768170} during backtracking, which has been used in \riss~\cite{riss71} before:
 When the formula is parsed, for each non-unit clause it is tracked whether before applying unit propagation there is a positive literal.
@@ -79,6 +84,14 @@ The same rule is applied for negative literals.
 There exists benchmarks, where this heuristic with a threshold zero results in a much better performance.
 However, for a mixed benchmark, this feature has not been tested enough, and hence, remains disabled.
 
+\section{Inprocessing}
+
+The simplification in \mergesat has been limited via the number of allowed steps to perform.
+Hence, the potential to simplify further clauses is still there.
+Following the ideas in~\cite{precosat}, starting 2020 \mergesat runs subsumption and self-subsuming resolution using promising learnt clauses exactly once, as also implemented in an independent glucose hack~\cite{GlucoseWithInprocessing2020}.
+This extension is also motivated by the fact that~\cite{MapleLCMDistChronoBTDL} checks LCM-simplified learnt clauses for duplicates, and drops those.
+With subsumption and simplification, we can drop even more redundant clauses.
+
 \section{Incremental SAT}
 
 In previous variants of \textsc{MapleSAT}, incremental solving via assumptions was disabled.
@@ -87,10 +100,14 @@ Furthermore, an extended version~\footnote{\url{https://github.com/conp-solution
 function \emph{ipasir\_solve\_final} to tell the SAT solver that this call is the final (or only) call.
 This function allows the solver to use formula simplification more extensively, because usually simplification cannot be applied during incremental solving.
 
+\mergesat implements \emph{assumption prefetching}, which fast-forwards assumed literals, and triggers propagation only after all (from the previous calls used) assumptions have been assigned a value.
+In case of a conflict, the whole assumption stack is currently rolled back.
+Furthermore, the final conflict is simplified with LCM (in case the previous conflict was simplified successfully, otherwise, we skip once).
+
 \section{Availability}
 
 The source of the solver is publicly available under the MIT license at \url{https://github.com/conp-solutions/mergesat}.
-The version with the git tag ``satrace-2019'' is used for the submission.
+The version with the git tag ``sat-comp-2020'' is used for the submission.
 The submitted starexec package can be reproduced by running ``./scripts/make-starexec.sh'' on this commit.
 
 \section{Continuous Testing}
@@ -99,10 +116,13 @@ The submitted version of \mergesat compiles on Linux and Mac OS.
 GitHub allows to use continuous testing, which essentially build \mergesat, and tests basic functionality:
 i) producing unsatisfiability proofs, ii) building the starexec package and producing proofs, iii) being used as an incremental SAT backend in Open-WBO as well as  iv) solving via the IPASIR interface.
 All these steps are executed by executing the script ``tools/ci.sh'' from the repository, and the script can be used as a template to derive similar functionality.
+Independently, static code analysis with Coverity is used as part of continuous testing.
 
 \section*{Acknowledgment}
 
 The author would like to thank the developers of all predecessors of \mergesat, and all the authors who contributed the modifications that have been integrated.
+
+\newpage
 
 \bibliographystyle{IEEEtranS}
 \bibliography{local}

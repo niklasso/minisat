@@ -105,7 +105,7 @@ const Lit lit_Error = { -1 }; // }
 
 inline std::ostream &operator<<(std::ostream &out, const Lit &val)
 {
-    out << (sign(val) ? -var(val) : var(val)) << std::flush;
+    out << (sign(val) ? -var(val) - 1 : var(val)) + 1 << std::flush;
     return out;
 }
 
@@ -169,7 +169,7 @@ class Clause
         unsigned learnt : 1;
         unsigned has_extra : 1;
         unsigned reloced : 1;
-        unsigned lbd : 26;
+        unsigned lbd : 25, S : 1;
         unsigned removable : 1;
         unsigned simplified : 1;
         unsigned onQueue : 1;
@@ -194,6 +194,7 @@ class Clause
         header.reloced = 0;
         header.size = ps.size();
         header.lbd = 0;
+        header.S = 0;
         header.removable = 1;
         // simplify
         //
@@ -220,6 +221,8 @@ class Clause
         data[header.size].abs = abstraction;
     }
 
+    int S() { return header.S; }
+    void S(int s) { header.S = s; }
 
     int size() const { return header.size; }
     void shrink(int i)
@@ -256,6 +259,14 @@ class Clause
     {
         header.reloced = 1;
         data[0].rel = c;
+    }
+
+    /// remove the literal at the given position
+    void remove_lit(uint32_t pos)
+    {
+        assert(pos < size());
+        data[pos].lit = last();
+        pop();
     }
 
     int lbd() const { return header.lbd; }
@@ -364,6 +375,7 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
             to[cr].activity() = c.activity();
             to[cr].set_lbd(c.lbd());
             to[cr].removable(c.removable());
+            to[cr].S(c.S());
             // simplify
             //
             to[cr].setSimplified(c.simplified());
@@ -374,6 +386,15 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
 
 
 inline std::ostream &operator<<(std::ostream &out, const Clause &cls)
+{
+    for (int i = 0; i < cls.size(); ++i) {
+        out << cls[i] << " ";
+    }
+
+    return out;
+}
+
+template <class T> inline std::ostream &operator<<(std::ostream &out, const vec<T> &cls)
 {
     for (int i = 0; i < cls.size(); ++i) {
         out << cls[i] << " ";
@@ -424,6 +445,8 @@ template <class Idx, class Vec, class Deleted> class OccLists
         dirty.clear(free);
         dirties.clear(free);
     }
+
+    int size() const { return occs.size(); }
 };
 
 

@@ -152,6 +152,8 @@ pushd mergesat
 git checkout $BRANCH
 git gc
 git prune
+git remote remove origin || true
+git remote add origin https://github.com/conp-solutions/mergesat.git
 popd
 
 # get the other packages?
