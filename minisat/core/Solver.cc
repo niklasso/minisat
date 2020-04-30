@@ -818,8 +818,9 @@ void Solver::removeClause(CRef cr)
             for (int i = 0; i < c.size(); i++) fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
             fprintf(drup_file, "0\n");
 #endif
-        } else
+        } else if (verbosity >= 1) {
             printf("c Bug. I don't expect this to happen.\n");
+        }
     }
 
     detachClause(cr);
