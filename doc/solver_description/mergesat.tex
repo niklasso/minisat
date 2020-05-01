@@ -104,6 +104,20 @@ This function allows the solver to use formula simplification more extensively, 
 In case of a conflict, the whole assumption stack is currently rolled back.
 Furthermore, the final conflict is simplified with LCM (in case the previous conflict was simplified successfully, otherwise, we skip once).
 
+\section{Parallel Solvers and Dockerfile}
+
+We submit the sequential solver as a parallel solver to the competition, in 2 configurations.
+The solver configuration between the main track and the parallel track is the same.
+
+The default (``parallel'') solver  \textsc{MergeSAT}, which is compiled using the provided Dockerfile in the repository.
+This dockerfile links against a modified glibc, which enables \emph{transparent huge pages} (THP) by default for the solver.
+On systems, where this feature is not enabled as ``always'' (like i.e. on the StarExec cluster), using THP can boost the solver runtime by 10\,\% in average, with peaks of up to 20\,\% improvement~\cite{thp}.
+To demonstrate this behavior, the second submitted ``parallel'' solver, \textsc{MergeSAT-NOTHP} uses the exact same configuration, except not using THP.
+
+The README of the \mergesat repository contains the descriptions how to compile a statically linked binary of the solver to use it outside of the container as well.
+These instructions should work for any \minisat based solver.
+For other solvers and tools, additional dependencies would have to be added to the Dockerfile.
+
 \section{Availability}
 
 The source of the solver is publicly available under the MIT license at \url{https://github.com/conp-solutions/mergesat}.
@@ -121,8 +135,6 @@ Independently, static code analysis with Coverity is used as part of continuous 
 \section*{Acknowledgment}
 
 The author would like to thank the developers of all predecessors of \mergesat, and all the authors who contributed the modifications that have been integrated.
-
-\newpage
 
 \bibliographystyle{IEEEtranS}
 \bibliography{local}
