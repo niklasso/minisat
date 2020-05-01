@@ -9,8 +9,32 @@ minisat/simp/           An extended solver with simplification capabilities
 ================================================================================
 BUILDING: (release version: without assertions, statically linked, etc)
 
-make r
-cp build/release/bin/mergesat <install-dir>/mergesat
+ make r
+ cp build/release/bin/mergesat <install-dir>/mergesat
+
+Note: Mergesat can also be used via docker. The resulting docker image contains
+a binary of mergesat that can be used to solve formulas (see examples below).
+
+The docker file Dockerfile brings build dependencies for mergesat, and will
+install the solver in the image, so that CNFs can be solved.
+
+ docker build .
+
+As the release build of mergesat is a statically linked binary, you can also use
+the create container to compile the solver in the cloned repository.
+
+Note, the binary created with the docker file tries to back allocated memory with
+transparent huge pages. This typically results in a 10% speedup (average), but
+also can result in less reproducability of runtime, as transparent huge pages
+might not be available.
+
+ docker run -u=$(id -u) -v $PWD:$PWD -w $PWD $CONTAINER make r -B
+
+Full list of commands to build the solver with the docker file:
+
+ CONTAINER=$(docker build -q .)
+ docker run -u=$(id -u) -v $PWD:$PWD -w $PWD $CONTAINER make r -B
+ cp build/release/bin/mergesat <install-dir>/mergesat
 
 ================================================================================
 EXAMPLES:
@@ -20,3 +44,7 @@ Solve some CNF file:
 
 Solve some CNF file and produce an unsatisfiability proof:
  ./mergesat "input.cnf" -drup-file="$TMPDIR"/proof.out
+
+Solve a CNF in a dockerfile:
+docker run -v $PWD:$PWD $CONTAINER_ID \
+  /opt/mergesat/uild/release/bin/mergesat $INPUT
