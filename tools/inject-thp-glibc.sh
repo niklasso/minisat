@@ -52,7 +52,7 @@ patch_glibc_223_thp()
 	
 	pushd glibc
 	# apply patches in order
-	for p in $(ls ../thp/ubuntu16.04-thp-activated-2.23/*.patch | sort -V)
+	for p in $(ls ../thp/ubuntu16.04-thp-env-2.23/*.patch | sort -V)
 	do
 		echo $p
 		git apply "$p"
