@@ -25,6 +25,11 @@ RUN apt-get -y install fakeroot dpkg-dev \
     texi2html \
     texinfo
 
+# Relevant for interaction with aws
+RUN apt-get install -y unzip
+RUN DEBIAN_FRONTEND=noninteractive apt install -y iproute2 cmake python python-pip gfortran curl
+RUN pip install supervisor awscli
+
 # Get glibc, patch, build, and install (build with default gcc)
 RUN /opt/mergesat/tools/inject-thp-glibc.sh install
 
@@ -55,5 +60,5 @@ ENV GLIBC_THP_ALWAYS=1
 # Check whether the binary is statically linked
 RUN file /opt/mergesat/build/release/bin/mergesat
 
-# Run the solver with the parameters given to the docker run command
-CMD /opt/mergesat/build/release/bin/mergesat
+# Run the solver with the environment variable parameters
+CMD /opt/mergesat/tools/container-default-command.sh
