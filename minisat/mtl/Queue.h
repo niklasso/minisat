@@ -18,8 +18,8 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Minisat_Queue_h
-#define Minisat_Queue_h
+#ifndef MergeSat_Queue_h
+#define MergeSat_Queue_h
 
 #include "mtl/Vec.h"
 
