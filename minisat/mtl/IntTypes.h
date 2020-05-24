@@ -17,8 +17,8 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#ifndef Minisat_IntTypes_h
-#define Minisat_IntTypes_h
+#ifndef MergeSat_IntTypes_h
+#define MergeSat_IntTypes_h
 
 #ifdef __sun
 // Not sure if there are newer versions that support C99 headers. The
