@@ -2197,10 +2197,12 @@ lbool Solver::solve_()
         if (switch_mode) {
             switch_mode = false;
             VSIDS = !VSIDS;
-            if (VSIDS) {
-                printf("c Switched to VSIDS.\n");
-            } else {
-                printf("c Switched to LRB/DISTANCE.\n");
+            if (verbosity >= 1) {
+                if (VSIDS) {
+                    printf("c Switched to VSIDS.\n");
+                } else {
+                    printf("c Switched to LRB/DISTANCE.\n");
+                }
             }
 
             toggle_decision_heuristic(true);
