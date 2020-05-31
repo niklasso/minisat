@@ -11,19 +11,26 @@ cd $(dirname "${BASH_SOURCE[0]}")/..
 
 declare -i STATUS=0
 
-if ! command -v clang-format &> /dev/null
-then
-    echo "error: could not find clang-format, abort"
-    exit 1
-fi
+declare -a TOOL_CANDIDATES=("clang-format-6.0" "clang-format")
 
-echo "info: use clang format, version: $(clang-format --version)"
+for TOOL in "${TOOL_CANDIDATES[@]}"
+do
+    if ! command -v "$TOOL" &> /dev/null
+    then
+        echo "error: could not find clang-format, abort"
+        exit 1
+    else
+        break
+    fi
+done
+
+echo "info: use clang format, version: $("$TOOL" --version)"
 
 # iterate over all files and check style
 for file in $(find minisat -name "*.cc" -o -name "*.h" -type f)
 do
 	echo "check $file"
-	REPLACEMENT=$(clang-format -i -output-replacements-xml "$file")
+	REPLACEMENT=$("$TOOL" -i -output-replacements-xml "$file")
 
 	REPLACEMENT_LINES=$(echo "$REPLACEMENT" | wc -l)
 
