@@ -103,7 +103,7 @@ get_sparrow ()
 
 # make sure we know where the code is
 SOLVERDIR=$(pwd)
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
+BRANCH=$(git rev-parse --short HEAD)
 
 if [ ! -x "$SOLVERDIR"/tools/make-starexec.sh ]
 then
@@ -147,7 +147,7 @@ pushd "$TMPD"
 cp -r $SOLVERDIR/tools/starexec_template/* .
 
 # copy actual source by using the git tree, only the current branch
-git clone "$SOLVERDIR" --branch "$BRANCH" --single-branch mergesat
+git clone "$SOLVERDIR" --single-branch mergesat
 pushd mergesat
 git checkout $BRANCH
 git gc

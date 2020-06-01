@@ -2208,12 +2208,6 @@ lbool Solver::solve_()
             toggle_decision_heuristic(true);
 
             fflush(stdout);
-            picked.clear();
-            conflicted.clear();
-            almost_conflicted.clear();
-#ifdef ANTI_EXPLORATION
-            canceled.clear();
-#endif
         }
     }
 
