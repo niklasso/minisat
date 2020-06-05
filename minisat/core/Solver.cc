@@ -96,12 +96,12 @@ static Int64Option
 opt_vsids_p(_cat, "vsids-p", "propagations after which we want to switch back to VSIDS (0=off)", 3000000000, Int64Range(0, INT64_MAX));
 static BoolOption opt_pref_assumpts(_cat, "pref-assumpts", "Assign all assumptions at once", true);
 
-static IntOption opt_VSIDS_props_limit(_cat,
+static Int64Option opt_VSIDS_props_limit(_cat,
                                        "VSIDS-lim",
                                        "specifies the number of propagations after which the solver switches between "
-                                       "LRB and VSIDS(in millions).",
-                                       30,
-                                       IntRange(1, INT32_MAX));
+                                       "LRB and VSIDS.",
+                                       30*1000000,
+                                       Int64Range(1, INT64_MAX));
 static DoubleOption opt_inprocessing_inc(_cat,
                                          "inprocess-delay",
                                          "Use this factor to wait for next inprocessing (0=off)",
@@ -244,7 +244,7 @@ Solver::Solver()
   , learntsize_adjust_confl(0)
   , learntsize_adjust_cnt(0)
 
-  , VSIDS_props_limit(opt_VSIDS_props_limit * 1000000)
+  , VSIDS_props_limit(opt_VSIDS_props_limit)
   , switch_mode(false)
 
   // Resource constraints:
