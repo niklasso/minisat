@@ -218,6 +218,7 @@ Solver::Solver()
   , order_heap_CHB(VarOrderLt(activity_CHB))
   , order_heap_VSIDS(VarOrderLt(activity_VSIDS))
   , order_heap_distance(VarOrderLt(activity_distance))
+  , full_heap_size(-1)
   , progress_estimate(0)
   , remove_satisfied(true)
 
@@ -1653,6 +1654,10 @@ void Solver::rebuildOrderHeap()
     order_heap_CHB.build(vs);
     order_heap_VSIDS.build(vs);
     order_heap_distance.build(vs);
+
+    assert(order_heap_VSIDS.size() == order_heap_CHB.size());
+    assert(order_heap_VSIDS.size() == order_heap_distance.size());
+    full_heap_size = order_heap_VSIDS.size();
 }
 
 
@@ -1892,6 +1897,10 @@ lbool Solver::search(int &nof_conflicts)
     learnt_clause.clear();
     bool cached = false;
     starts++;
+
+    // make sure that all unassigned variables are in the heap
+    assert(trail.size() + (VSIDS ? order_heap_VSIDS.size() : (DISTANCE ? order_heap_distance.size() : order_heap_CHB.size())) >=
+           full_heap_size);
 
     // simplify
     //
