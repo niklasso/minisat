@@ -1942,10 +1942,17 @@ lbool Solver::search(int &nof_conflicts)
             }
 
             learnt_clause.clear();
-            if (conflicts > 50000)
-                DISTANCE = 0;
-            else
-                DISTANCE = 1;
+            if (conflicts > 50000) {
+                if (DISTANCE != 0) {
+                    if (verbosity) printf("c set DISTANCE to 0\n");
+                    DISTANCE = 0;
+                }
+            } else {
+                if (DISTANCE != 1) {
+                    if (verbosity) printf("c set DISTANCE to 1\n");
+                    DISTANCE = 1;
+                }
+            }
             if (VSIDS && DISTANCE) collectFirstUIP(confl);
 
             analyze(confl, learnt_clause, backtrack_level, lbd);
