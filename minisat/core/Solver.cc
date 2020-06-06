@@ -86,7 +86,7 @@ static IntOption opt_chrono(_cat, "chrono", "Controls if to perform chrono backt
 static IntOption
 opt_conf_to_chrono(_cat, "confl-to-chrono", "Controls number of conflicts to perform chrono backtrack", 4000, IntRange(-1, INT32_MAX));
 static IntOption
-opt_restart_select(_cat, "rtype", "How to select the restart level (0=0, 1=matching trail, 2=reused trail)", 2, IntRange(0, 2));
+opt_restart_select(_cat, "rtype", "How to select the restart level (0=0, 1=matching trail, 2=reused trail, 3=always partial)", 2, IntRange(0, 3));
 static BoolOption opt_almost_pure(_cat, "almost-pure", "Try to optimize polarity by ignoring units", false);
 static BoolOption opt_reverse_lcm(_cat, "lcm-reverse", "Try to continue LCM with reversed clause in case of success", true);
 static BoolOption opt_lcm_core(_cat, "lcm-core", "Shrink the final conflict with LCM", true);
@@ -1545,6 +1545,9 @@ void Solver::reduceDB_Tier2()
 
 int Solver::getRestartLevel()
 {
+    // stay on the current level?
+    if (restart.selection_type == 3) return decisionLevel();
+
     if (restart.selection_type >= 1) {
 
         bool repeatReusedTrail = false;
