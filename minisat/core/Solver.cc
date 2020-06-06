@@ -2142,9 +2142,12 @@ void Solver::toggle_decision_heuristic(bool to_VSIDS)
 {
     if (to_VSIDS) { // initialize VSIDS heap again?
         order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
+        assert((trail.size() + order_heap_VSIDS.size()) >= full_heap_size);
     } else {
         order_heap_distance.build(order_heap_VSIDS.elements());
         order_heap_CHB.build(order_heap_VSIDS.elements());
+        assert((trail.size() + order_heap_distance.size()) >= full_heap_size);
+        assert((trail.size() + order_heap_CHB.size()) >= full_heap_size);
     }
 }
 
