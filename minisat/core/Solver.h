@@ -332,6 +332,7 @@ class Solver
     vec<Lit> assumptions; // Current set of assumptions provided to solve by the user.
     Heap<VarOrderLt> order_heap_CHB, // A priority queue of variables ordered with respect to the variable activity.
     order_heap_VSIDS, order_heap_distance;
+    int full_heap_size;   // Store size of heap in case it is completely filled, to be able to compare it to current size
     double progress_estimate; // Set by 'search()'.
     bool remove_satisfied; // Indicates whether possibly inefficient linear scan for satisfied clauses should be performed in 'simplify'.
 
