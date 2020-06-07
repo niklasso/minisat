@@ -21,6 +21,8 @@ TESTPIASIR=${RUNIPASIR:-1}
 TOOLSDIR=$(readlink -e tools)
 CHECKERDIR=$(readlink -e tools/checker)
 
+STATUS=0
+
 if [ $TESTFUZZ -eq 1 ]
 then
 	# Enter checker repository
@@ -31,7 +33,6 @@ then
 
 	# Perform a basic run, and forward its exit code
 	echo "Solve and check 100 formulas with a 5s timeout"
-	STATUS=0
 	./fuzz-drat.sh $FUZZ_ROUNDS 5 || STATUS=$?
 
 	popd
