@@ -85,12 +85,12 @@ static DoubleOption opt_garbage_frac(_cat,
 static IntOption opt_chrono(_cat, "chrono", "Controls if to perform chrono backtrack", 100, IntRange(-1, INT32_MAX));
 static IntOption
 opt_conf_to_chrono(_cat, "confl-to-chrono", "Controls number of conflicts to perform chrono backtrack", 4000, IntRange(-1, INT32_MAX));
-static IntOption
-opt_restart_select(_cat,
-                   "rtype",
-                   "How to select the restart level (0=0, 1=matching trail, 2=reused trail, 3=always partial)",
-                   2,
-                   IntRange(0, 3));
+static IntOption opt_restart_select(_cat,
+                                    "rtype",
+                                    "How to select the restart level (0=0, 1=matching trail, 2=reused trail, 3=always "
+                                    "partial, 4=random)",
+                                    2,
+                                    IntRange(0, 4));
 static BoolOption opt_almost_pure(_cat, "almost-pure", "Try to optimize polarity by ignoring units", false);
 static BoolOption opt_reverse_lcm(_cat, "lcm-reverse", "Try to continue LCM with reversed clause in case of success", true);
 static BoolOption opt_lcm_core(_cat, "lcm-core", "Shrink the final conflict with LCM", true);
@@ -1562,6 +1562,7 @@ int Solver::getRestartLevel()
 {
     // stay on the current level?
     if (restart.selection_type == 3) return decisionLevel();
+    if (restart.selection_type == 4) return decisionLevel() == 0 ? 0 : rand() % decisionLevel();
 
     if (restart.selection_type >= 1) {
 
@@ -2063,6 +2064,8 @@ lbool Solver::search(int &nof_conflicts)
                 progress_estimate = progressEstimate();
 
                 int restartLevel = getRestartLevel();
+                if (verbosity > 3)
+                    printf("c trigger restart with target level %d from %d\n", restartLevel, decisionLevel());
                 restartLevel = (assumptions.size() && restartLevel <= assumptions.size()) ? assumptions.size() : restartLevel;
                 cancelUntil(restartLevel);
                 return l_Undef;
