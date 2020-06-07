@@ -2237,6 +2237,7 @@ lbool Solver::solve_()
         if (switch_mode) {
             switch_mode = false;
             VSIDS = !VSIDS;
+            toggle_decision_heuristic(VSIDS); // switch to VSIDS
             if (verbosity >= 1) {
                 if (VSIDS) {
                     printf("c Switched to VSIDS.\n");
@@ -2244,9 +2245,6 @@ lbool Solver::solve_()
                     printf("c Switched to LRB/DISTANCE.\n");
                 }
             }
-
-            toggle_decision_heuristic(true);
-
             fflush(stdout);
         }
     }
