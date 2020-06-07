@@ -157,6 +157,7 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
     subsumption_queue.clear(true);
 
     simp_time = cpuTime() - simp_time; // stop timer and record time consumed until now
+    check_satisfiability_simplified = true; // only check SAT answer after the call to extendModel()
 
     if (result == l_True)
         result = Solver::solve_();
@@ -165,7 +166,17 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
 
     simp_time = cpuTime() - simp_time; // continue timer and consider time tracked already
 
-    if (result == l_True) extendModel();
+    if (result == l_True) {
+        extendModel();
+        if (check_satisfiability) {
+            if (!satChecker.checkModel(model)) {
+                assert(false && "model should satisfy full input formula");
+                throw("ERROR: detected model that does not satisfy input formula, abort");
+                exit(1);
+            } else if (verbosity)
+                printf("c validated SAT answer after extending model\n");
+        }
+    }
 
     if (do_simp)
         // Unfreeze the assumptions that were frozen:

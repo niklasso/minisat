@@ -116,6 +116,7 @@ static Int64Option opt_inprocessing_penalty(_cat,
                                             "Add this amount, in case inprocessing did not simplify anything",
                                             2,
                                             Int64Range(0, INT64_MAX));
+static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false);
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -225,6 +226,8 @@ Solver::Solver()
   , full_heap_size(-1)
   , progress_estimate(0)
   , remove_satisfied(true)
+  , check_satisfiability(opt_check_sat)
+  , check_satisfiability_simplified(false)
 
   , core_lbd_cut(3)
   , global_lbd_sum(0)
@@ -706,6 +709,8 @@ bool Solver::addClause_(vec<Lit> &ps)
 {
     assert(decisionLevel() == 0);
     if (!ok) return false;
+
+    if (check_satisfiability) satChecker.addClause(ps); // add for SAT check tracking
 
     // Check if clause is satisfied and remove false/duplicate literals:
     sort(ps);
@@ -2247,6 +2252,16 @@ lbool Solver::solve_()
         // Extend & copy model:
         model.growTo(nVars());
         for (int i = 0; i < nVars(); i++) model[i] = value(i);
+
+        if (check_satisfiability && !check_satisfiability_simplified) {
+            if (!satChecker.checkModel(model)) {
+                assert(false && "model should satisfy full input formula");
+                throw("ERROR: detected model that does not satisfy input formula, abort");
+                exit(1);
+            } else if (verbosity)
+                printf("c validated SAT answer\n");
+        }
+
     } else if (status == l_False && conflict.size() == 0)
         ok = false;
 
