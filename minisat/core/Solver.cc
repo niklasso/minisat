@@ -98,9 +98,13 @@ static BoolOption opt_pref_assumpts(_cat, "pref-assumpts", "Assign all assumptio
 
 static Int64Option opt_VSIDS_props_limit(_cat,
                                        "VSIDS-lim",
-                                       "specifies the number of propagations after which the solver switches between "
-                                       "LRB and VSIDS.",
+                                       "specifies the number of propagations after which the solver switches between LRB and VSIDS.",
                                        30*1000000,
+                                       Int64Range(1, INT64_MAX));
+static Int64Option opt_VSIDS_props_init_limit(_cat,
+                                       "VSIDS-init-lim",
+                                       "specifies the number of propagations before we start with LRB.",
+                                       10000,
                                        Int64Range(1, INT64_MAX));
 static DoubleOption opt_inprocessing_inc(_cat,
                                          "inprocess-delay",
@@ -249,6 +253,7 @@ Solver::Solver()
   , learntsize_adjust_cnt(0)
 
   , VSIDS_props_limit(opt_VSIDS_props_limit)
+  , VSIDS_props_init_limit(opt_VSIDS_props_init_limit)
   , switch_mode(false)
 
   // Resource constraints:
@@ -2195,7 +2200,7 @@ lbool Solver::solve_()
     // toggle back to VSIDS
     if (!VSIDS) toggle_decision_heuristic(true);
     VSIDS = true;
-    int init = 10000;
+    int init = VSIDS_props_init_limit;
     while (status == l_Undef && init > 0 && withinBudget()) status = search(init);
     VSIDS = false;
     // do not use VSIDS now
