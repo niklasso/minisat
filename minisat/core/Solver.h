@@ -335,6 +335,51 @@ class Solver
     int full_heap_size;   // Store size of heap in case it is completely filled, to be able to compare it to current size
     double progress_estimate; // Set by 'search()'.
     bool remove_satisfied; // Indicates whether possibly inefficient linear scan for satisfied clauses should be performed in 'simplify'.
+    bool check_satisfiability; // collect full formula, and check SAT answers before returning them
+    bool check_satisfiability_simplified; // in case we used formula simplification, check satisfiability only after extendModel
+
+    /// class to perform satisfiability checks inside the solver
+    class SATchecker {
+        vec<Lit> check_formula;    // this vector represents all literals of clauses that have been added to the solver, lit_Undef separates clauses
+
+        public:
+            /** add clause to tracking */
+            void addClause(const vec<Lit>& clause)
+            {
+                for(int i = 0; i < clause.size(); ++ i) check_formula.push(clause[i]);
+                check_formula.push(lit_Undef);
+            }
+
+            /** check model, return true if model satisfies formula */
+            bool checkModel(const vec<lbool>& model)
+            {
+                bool valid = true;
+                bool satisfied_current_clause = false;
+                for(int i = 0 ; i < check_formula.size(); ++ i)
+                {
+                    const Lit& l = check_formula[i];
+
+                    // handle end of clause, abort if last clause was not satisfied
+                    if(l == lit_Undef) {
+                        if (!satisfied_current_clause) {
+                            valid = false;
+                            assert(false && "the current clause should have been satisfied by the model");
+                            break;
+                        }
+                        satisfied_current_clause = false; // start fresh for next clause
+                    } else {
+                        Var v = var(l);
+                        if( model.size() < v ) continue; // this variable is not covered by the model
+
+                        // either clause is already satisfied, or this literal is satisfied
+                        satisfied_current_clause = satisfied_current_clause || 
+                            (sign(l) && model[v] == l_False) || (!sign(l) && (model[v] != l_False));
+                    }
+                }
+                return valid;
+            }
+    };
+    SATchecker satChecker;
 
     vec<Lit> learnt_clause; // Container, used to store result of conflict analysis
 
