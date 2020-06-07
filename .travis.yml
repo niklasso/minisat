@@ -3,25 +3,6 @@ dist: xenial
 compiler: g++
 sudo: required
 
-env:
-  global:
-   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
-   #   via the "travis encrypt" command using the project repo's public key
-   - secure: "B+fmNwl588+urFGryTkEfj6jlyO00JFgx5aBRMsoDXoCmHBA6uVmS8GveEp3HpFoojrbTMkU71f9o/bnOpBjRuQVbC7GVy5K1OUl4P/FHwsO3x7sKK/xyqJqJZCYmKZ5OF3eVKyoIf5XG/NF3SdfADxyl2S5eMIwExXFIIEesGWOqfghDO2rR0Dq26CrKor5/j2jHzzHgyZAfsaM5oQGekw2CvtUOjad6oIwU7GQBTbua4LlQvbCMbn21RJcItOLv7PDh0kRzevyShDotdXmEKtk33uhUz9RmWh7Vo6beJWc5e6P2ocCs6vU5minVwSdM7BysKIursL//0qXD5Y2/Dt1Kl/W6Ph2NjEA1O00mIoVn5X8ZkN5+u6BK0T8TO2/31bZ6ryoUrgwYvELXF7Hjl9drlhYKPx3iWvduA5yhj5dO1ftzQd7sTJMH/G/do+HSbxRcua8RZaeIazE5EIBsj3VxbcZUPf+vcGiTU8NHKlt7iB7geuj4BKrgbySgCky438Y/MP0nYOGasZIHICbLdtqY++kfRyQm/tKtvOIKTgqSHvuI1EsnHIQ12or3aKZ8oxnHF6A/DrYULcZpWLqqAUETsIk7dXGNgNNyOAUl1x749v2riYr1PrUI62UwtOgMxHESP8CVgBAAyN6f8Js7CGdyYCo0UVItfRuzdlQzGw="
-
-before_install:
-  - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
-
-addons:
-  coverity_scan:
-    project:
-      name: "conp-solutions/mergesat"
-      description: "MiniSAT sat solver"
-    notification_email: nmanthey@conp-solutions.com
-    build_command_prepend: "true"
-    build_command: "make cd cp cr csh d r p sh lr ld lp lsh"
-    branch_pattern: master
-
 before_install:
   - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
   - sudo apt-get update -q
@@ -32,6 +13,7 @@ before_install:
   - sudo update-alternatives --install /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-7 60
   - sudo update-alternatives --install /usr/bin/x86_64-linux-gnu-gcc x86_64-linux-gnu-gcc /usr/bin/x86_64-linux-gnu-gcc-7 60 --slave /usr/bin/x86_64-linux-gnu-g++ x86_64-linux-gnu-g++ /usr/bin/x86_64-linux-gnu-g++-7
   - sudo apt-get install clang-format-6.0
+  - sudo apt-get install picosat
 
 # run the typical ci checks, for now, compile
 script:

@@ -156,6 +156,12 @@ class lbool
 inline int toInt(lbool l) { return l.value; }
 inline lbool toLbool(int v) { return lbool((uint8_t)v); }
 
+inline std::ostream &operator<<(std::ostream &out, const lbool &l)
+{
+    out << (l == l_True ? "l_True" : (l == l_False ? "l_False" : "l_Undef")) << std::flush;
+    return out;
+}
+
 //=================================================================================================
 // Clause -- a simple class for representing a clause:
 

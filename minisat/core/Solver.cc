@@ -85,8 +85,12 @@ static DoubleOption opt_garbage_frac(_cat,
 static IntOption opt_chrono(_cat, "chrono", "Controls if to perform chrono backtrack", 100, IntRange(-1, INT32_MAX));
 static IntOption
 opt_conf_to_chrono(_cat, "confl-to-chrono", "Controls number of conflicts to perform chrono backtrack", 4000, IntRange(-1, INT32_MAX));
-static IntOption
-opt_restart_select(_cat, "rtype", "How to select the restart level (0=0, 1=matching trail, 2=reused trail)", 2, IntRange(0, 2));
+static IntOption opt_restart_select(_cat,
+                                    "rtype",
+                                    "How to select the restart level (0=0, 1=matching trail, 2=reused trail, 3=always "
+                                    "partial, 4=random)",
+                                    2,
+                                    IntRange(0, 4));
 static BoolOption opt_almost_pure(_cat, "almost-pure", "Try to optimize polarity by ignoring units", false);
 static BoolOption opt_reverse_lcm(_cat, "lcm-reverse", "Try to continue LCM with reversed clause in case of success", true);
 static BoolOption opt_lcm_core(_cat, "lcm-core", "Shrink the final conflict with LCM", true);
@@ -96,12 +100,17 @@ static Int64Option
 opt_vsids_p(_cat, "vsids-p", "propagations after which we want to switch back to VSIDS (0=off)", 3000000000, Int64Range(0, INT64_MAX));
 static BoolOption opt_pref_assumpts(_cat, "pref-assumpts", "Assign all assumptions at once", true);
 
-static IntOption opt_VSIDS_props_limit(_cat,
-                                       "VSIDS-lim",
-                                       "specifies the number of propagations after which the solver switches between "
-                                       "LRB and VSIDS(in millions).",
-                                       30,
-                                       IntRange(1, INT32_MAX));
+static Int64Option
+opt_VSIDS_props_limit(_cat,
+                      "VSIDS-lim",
+                      "specifies the number of propagations after which the solver switches between LRB and VSIDS.",
+                      30 * 1000000,
+                      Int64Range(1, INT64_MAX));
+static Int64Option opt_VSIDS_props_init_limit(_cat,
+                                              "VSIDS-init-lim",
+                                              "specifies the number of propagations before we start with LRB.",
+                                              10000,
+                                              Int64Range(1, INT64_MAX));
 static DoubleOption opt_inprocessing_inc(_cat,
                                          "inprocess-delay",
                                          "Use this factor to wait for next inprocessing (0=off)",
@@ -112,6 +121,7 @@ static Int64Option opt_inprocessing_penalty(_cat,
                                             "Add this amount, in case inprocessing did not simplify anything",
                                             2,
                                             Int64Range(0, INT64_MAX));
+static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false);
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -218,8 +228,11 @@ Solver::Solver()
   , order_heap_CHB(VarOrderLt(activity_CHB))
   , order_heap_VSIDS(VarOrderLt(activity_VSIDS))
   , order_heap_distance(VarOrderLt(activity_distance))
+  , full_heap_size(-1)
   , progress_estimate(0)
   , remove_satisfied(true)
+  , check_satisfiability(opt_check_sat)
+  , check_satisfiability_simplified(false)
 
   , core_lbd_cut(3)
   , global_lbd_sum(0)
@@ -244,7 +257,8 @@ Solver::Solver()
   , learntsize_adjust_confl(0)
   , learntsize_adjust_cnt(0)
 
-  , VSIDS_props_limit(opt_VSIDS_props_limit * 1000000)
+  , VSIDS_props_limit(opt_VSIDS_props_limit)
+  , VSIDS_props_init_limit(opt_VSIDS_props_init_limit)
   , switch_mode(false)
 
   // Resource constraints:
@@ -701,6 +715,8 @@ bool Solver::addClause_(vec<Lit> &ps)
 {
     assert(decisionLevel() == 0);
     if (!ok) return false;
+
+    if (check_satisfiability) satChecker.addClause(ps); // add for SAT check tracking
 
     // Check if clause is satisfied and remove false/duplicate literals:
     sort(ps);
@@ -1544,6 +1560,10 @@ void Solver::reduceDB_Tier2()
 
 int Solver::getRestartLevel()
 {
+    // stay on the current level?
+    if (restart.selection_type == 3) return decisionLevel();
+    if (restart.selection_type == 4) return decisionLevel() == 0 ? 0 : rand() % decisionLevel();
+
     if (restart.selection_type >= 1) {
 
         bool repeatReusedTrail = false;
@@ -1653,6 +1673,10 @@ void Solver::rebuildOrderHeap()
     order_heap_CHB.build(vs);
     order_heap_VSIDS.build(vs);
     order_heap_distance.build(vs);
+
+    assert(order_heap_VSIDS.size() == order_heap_CHB.size());
+    assert(order_heap_VSIDS.size() == order_heap_distance.size());
+    full_heap_size = order_heap_VSIDS.size();
 }
 
 
@@ -1893,6 +1917,10 @@ lbool Solver::search(int &nof_conflicts)
     bool cached = false;
     starts++;
 
+    // make sure that all unassigned variables are in the heap
+    assert(trail.size() + (VSIDS ? order_heap_VSIDS.size() : (DISTANCE ? order_heap_distance.size() : order_heap_CHB.size())) >=
+           full_heap_size);
+
     // simplify
     //
     if (conflicts >= curSimplify * nbconfbeforesimplify) {
@@ -1933,10 +1961,17 @@ lbool Solver::search(int &nof_conflicts)
             }
 
             learnt_clause.clear();
-            if (conflicts > 50000)
-                DISTANCE = 0;
-            else
-                DISTANCE = 1;
+            if (conflicts > 50000) {
+                if (DISTANCE != 0) {
+                    if (verbosity) printf("c set DISTANCE to 0\n");
+                    DISTANCE = 0;
+                }
+            } else {
+                if (DISTANCE != 1) {
+                    if (verbosity) printf("c set DISTANCE to 1\n");
+                    DISTANCE = 1;
+                }
+            }
             if (VSIDS && DISTANCE) collectFirstUIP(confl);
 
             analyze(confl, learnt_clause, backtrack_level, lbd);
@@ -2029,6 +2064,8 @@ lbool Solver::search(int &nof_conflicts)
                 progress_estimate = progressEstimate();
 
                 int restartLevel = getRestartLevel();
+                if (verbosity > 3)
+                    printf("c trigger restart with target level %d from %d\n", restartLevel, decisionLevel());
                 restartLevel = (assumptions.size() && restartLevel <= assumptions.size()) ? assumptions.size() : restartLevel;
                 cancelUntil(restartLevel);
                 return l_Undef;
@@ -2134,9 +2171,12 @@ void Solver::toggle_decision_heuristic(bool to_VSIDS)
 {
     if (to_VSIDS) { // initialize VSIDS heap again?
         order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
+        assert((trail.size() + order_heap_VSIDS.size()) >= full_heap_size);
     } else {
         order_heap_distance.build(order_heap_VSIDS.elements());
         order_heap_CHB.build(order_heap_VSIDS.elements());
+        assert((trail.size() + order_heap_distance.size()) >= full_heap_size);
+        assert((trail.size() + order_heap_CHB.size()) >= full_heap_size);
     }
 }
 
@@ -2169,7 +2209,7 @@ lbool Solver::solve_()
     // toggle back to VSIDS
     if (!VSIDS) toggle_decision_heuristic(true);
     VSIDS = true;
-    int init = 10000;
+    int init = VSIDS_props_init_limit;
     while (status == l_Undef && init > 0 && withinBudget()) status = search(init);
     VSIDS = false;
     // do not use VSIDS now
@@ -2197,6 +2237,7 @@ lbool Solver::solve_()
         if (switch_mode) {
             switch_mode = false;
             VSIDS = !VSIDS;
+            toggle_decision_heuristic(VSIDS); // switch to VSIDS
             if (verbosity >= 1) {
                 if (VSIDS) {
                     printf("c Switched to VSIDS.\n");
@@ -2204,9 +2245,6 @@ lbool Solver::solve_()
                     printf("c Switched to LRB/DISTANCE.\n");
                 }
             }
-
-            toggle_decision_heuristic(true);
-
             fflush(stdout);
         }
     }
@@ -2221,6 +2259,16 @@ lbool Solver::solve_()
         // Extend & copy model:
         model.growTo(nVars());
         for (int i = 0; i < nVars(); i++) model[i] = value(i);
+
+        if (check_satisfiability && !check_satisfiability_simplified) {
+            if (!satChecker.checkModel(model)) {
+                assert(false && "model should satisfy full input formula");
+                throw("ERROR: detected model that does not satisfy input formula, abort");
+                exit(1);
+            } else if (verbosity)
+                printf("c validated SAT answer\n");
+        }
+
     } else if (status == l_False && conflict.size() == 0)
         ok = false;
 

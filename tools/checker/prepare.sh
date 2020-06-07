@@ -32,5 +32,8 @@ make
 mv drat-trim ..
 popd
 
+# build verify model
+g++ verify_model.c -o verify -O3
+
 # clean up
 rm -rf drat-trim-src fuzz-suite.zip
