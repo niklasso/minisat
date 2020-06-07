@@ -156,7 +156,7 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
     elim_heap.clear(true);
     subsumption_queue.clear(true);
 
-    simp_time = cpuTime() - simp_time; // stop timer and record time consumed until now
+    simp_time = cpuTime() - simp_time;      // stop timer and record time consumed until now
     check_satisfiability_simplified = true; // only check SAT answer after the call to extendModel()
 
     if (result == l_True)
