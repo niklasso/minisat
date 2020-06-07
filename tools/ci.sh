@@ -16,6 +16,7 @@ TESTPIASIR=${RUNIPASIR:-1}
 
 # Check whether MiniSat is built
 [ -x build/release/bin/mergesat ] || make -j $(nproc)
+[ -x build/debug/bin/mergesat ] || make d -j $(nproc)
 [ -r build/release/lib/libmergesat.a ] || make -j $(nproc)
 
 TOOLSDIR=$(readlink -e tools)
@@ -34,6 +35,9 @@ then
 	# Perform a basic run, and forward its exit code
 	echo "Solve and check 100 formulas with a 5s timeout"
 	./fuzz-drat.sh $FUZZ_ROUNDS 5 || STATUS=$?
+
+	echo "Fuzz some pre-defined configurations ..."
+	./fuzz-check-configurations.sh || STATUS=$?
 
 	popd
 fi

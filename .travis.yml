@@ -32,6 +32,7 @@ before_install:
   - sudo update-alternatives --install /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-7 60
   - sudo update-alternatives --install /usr/bin/x86_64-linux-gnu-gcc x86_64-linux-gnu-gcc /usr/bin/x86_64-linux-gnu-gcc-7 60 --slave /usr/bin/x86_64-linux-gnu-g++ x86_64-linux-gnu-g++ /usr/bin/x86_64-linux-gnu-g++-7
   - sudo apt-get install clang-format-6.0
+  - sudo apt-get install picosat
 
 # run the typical ci checks, for now, compile
 script:
