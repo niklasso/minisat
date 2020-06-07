@@ -427,7 +427,7 @@ class Solver
     int learntsize_adjust_cnt;
 
     // duplicate learnts version
-    uint64_t VSIDS_props_limit;
+    uint64_t VSIDS_props_limit, VSIDS_props_init_limit;
     bool switch_mode;
 
     // Resource contraints:
