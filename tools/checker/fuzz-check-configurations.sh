@@ -3,6 +3,9 @@
 # This script runs a set of configurations on a set of randomly generated CNF
 # formulas.
 
+# Formulas to test per iteration
+declare -i FORMULA_PER_CONFIG=1000
+
 # List of configurations to consider
 CONFIGURATIONS=("../../build/release/bin/mergesat"
                 "../../build/debug/bin/mergesat -check-sat"
@@ -23,7 +26,7 @@ do
     chmod u+x check-solver-config.sh
     
     status=0
-    ./fuzzcheck.sh ./check-solver-config.sh 200 || status=$?
+    ./fuzzcheck.sh ./check-solver-config.sh "$FORMULA_PER_CONFIG" || status=$?
     if [ "$status" -ne 0 ]
     then
         echo "configuration failed!"
