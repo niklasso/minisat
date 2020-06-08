@@ -16,6 +16,9 @@ jobs:
     - name: mergesat build
       run: make cd cp cr csh d r p sh lr ld lp lsh
 
+    - name: run CI script
+      run: ./tools/ci.sh
+
   MacOS:
 
     runs-on: macos-latest
@@ -28,4 +31,3 @@ jobs:
 
     - name: mergesat build
       run: make cd cr csh d r sh lr ld lsh
-
