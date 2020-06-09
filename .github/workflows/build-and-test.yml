@@ -9,7 +9,7 @@ jobs:
 
     steps:
     - name: Install Packages
-      run: sudo apt-get install zlib1g-dev make cmake
+      run: sudo apt-get install zlib1g-dev make cmake picosat
 
     - uses: actions/checkout@v1
 
