@@ -127,44 +127,101 @@ fi
 
 test_ipasir ()
 {
-	local IPASIR_DIR=ipasir-$$
-	git clone https://github.com/conp-solutions/ipasir.git "$IPASIR_DIR"
+    local IPASIR_DIR=ipasir-$$
+    git clone https://github.com/conp-solutions/ipasir.git "$IPASIR_DIR"
 
-	if [ ! -d "$IPASIR_DIR" ]
-	then
-		echo "failed to clone ipasir"
-		STATUS=1
-		return
-	fi
+    if [ ! -d "$IPASIR_DIR" ]
+    then
+        echo "failed to clone ipasir"
+        STATUS=1
+        return
+    fi
 
-	pushd "$IPASIR_DIR"/app
-	for APP in genipasat genipaessentials
-	do
-		cd $APP
-		make $APP.o
-		g++ -o $APP $APP.o $STATIC_LIB
+    ./tools/make-ipasir.sh
+    if [ ! -r "mergesat-ipasir.zip" ]
+    then
+        echo "failed to create ipasir package"
+        STATUS=1
+        return
+    fi
 
-		for I in $(ls inputs/*cnf)
-		do
-			I_STATUS=0
-			./"$APP" $I || I_STATUS=$?
-			if [ "$APP" == genipasat ]
-			then
-				[ $I_STATUS -ne 10 ] && [ $I_STATUS -ne 20 ] || I_STATUS=0
-			fi
+    # place mergesat in ipasir directory
+    cp mergesat-ipasir.zip "$IPASIR_DIR"/sat
+    pushd "$IPASIR_DIR"/sat
+    cd rm -rf mergesat
+    unzip mergesat-ipasir.zip
+    popd
 
-			if [ $I_STATUS -ne 0 ]
-			then
-				echo "failed $APP call with $I"
-				STATUS=1
-			fi
-		done
+    # build ipasir apps
+    pushd "$IPASIR_DIR"
+    for APP in genipasat genipaessentials ipasir-check-conflict ipasir-check-iterative ipasir-check-satunsat
+    do
+        B_STATUS=0
+        ./scripts/mkone.sh "$APP" mergesat || B_STATUS=$?
+        if [ $B_STATUS -ne 0 ]
+        then
+            echo "failed building $APP failed with $B_STATUS"
+            STATUS=1
+        fi
+    done
+    popd
 
-		cd ..
-	done
+    # run ipasir checks
+    IPASIR_CHECK_STATUS=0
+    pushd "$IPASIR_DIR"
+    # run check conflict examples
+    bin/ipasir-check-conflict-mergesat 1 1 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-conflict-mergesat 2 2 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-conflict-mergesat 2 1 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-conflict-mergesat 1 2 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-conflict-mergesat 10000 10002 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-conflict-mergesat 10002 10000 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-conflict-mergesat 9999 10002 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-conflict-mergesat 10002 9999 || IPASIR_CHECK_STATUS=$?
 
-	popd
-	[ $CLEANUP -eq 0 ] || rm -rf "$IPASIR_DIR" # try to clean up
+    # run check iterative examples
+    bin/ipasir-check-iterative-mergesat 30 3 30000 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-iterative-mergesat 300 3 30000 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-iterative-mergesat 3000 3 3000 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-iterative-mergesat  2000 5 3000 || IPASIR_CHECK_STATUS=$?
+
+    # run sat unsat check
+    bin/ipasir-check-satunsat-mergesat 20000 2 300 || IPASIR_CHECK_STATUS=$?
+    bin/ipasir-check-satunsat-mergesat 300 3 300000 || IPASIR_CHECK_STATUS=$?
+
+    if [ $IPASIR_CHECK_STATUS -ne 0 ]
+    then
+        echo "failed checking ipasir integratipn failed with $IPASIR_CHECK_STATUS"
+        STATUS=1
+    fi
+    popd
+
+    # check ipasir apps
+    for APP in genipasat genipaessentials
+    do
+        pushd "$IPASIR_DIR"/app
+        cd $APP
+        for I in $(ls inputs/*cnf | head -n 2)
+        do
+            I_STATUS=0
+            ./../../bin/"$APP"-mergesat $I || I_STATUS=$?
+            if [ "$APP" == genipasat ]
+            then
+                [ $I_STATUS -ne 10 ] && [ $I_STATUS -ne 20 ] || I_STATUS=0
+            fi
+
+            if [ $I_STATUS -ne 0 ]
+            then
+                echo "failed $APP call with $I"
+                STATUS=1
+            fi
+        done
+
+        cd ..
+    done
+
+    popd
+    [ $CLEANUP -eq 0 ] || rm -rf "$IPASIR_DIR" # try to clean up
 }
 
 # test ipasir with mergesat backend
