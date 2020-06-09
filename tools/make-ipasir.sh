@@ -8,18 +8,10 @@ set -e -x
 
 # make sure we know where the code is
 SOLVERDIR=$(pwd)
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 if [ ! -x "$SOLVERDIR"/tools/make-starexec.sh ]
 then
 	echo "Error: script has to be called from base directory, abort!"
-	exit 1
-fi
-
-# check for being on a branch
-if [ -z "$BRANCH" ]
-then
-	echo "Error: failed to extract a git branch, abort!"
 	exit 1
 fi
 
@@ -37,7 +29,7 @@ cd mergesat
 cp -r $SOLVERDIR/tools/ipasir_template/* .
 
 # copy actual source by using the git tree, only the current branch
-git clone "$SOLVERDIR" --branch "$BRANCH" --single-branch mergesat
+git clone "$SOLVERDIR" --single-branch mergesat
 pushd mergesat
 git checkout $BRANCH
 git gc
