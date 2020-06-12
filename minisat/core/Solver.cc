@@ -1490,7 +1490,6 @@ CRef Solver::propagate()
         ws.shrink(i - j);
     }
 
-ExitProp:;
     propagations += num_props;
     simpDB_props -= num_props;
 
@@ -2370,7 +2369,7 @@ void Solver::inprocessing()
         Y = (uint64_t)((double)Y * inprocess_inc);
         int Z = 0, i, j, k, l, p;
 
-        if (verbosity > 0) printf("c inprocessing simplify at try %d, next limit: %d\n", X, Y);
+        if (verbosity > 0) printf("c inprocessing simplify at try %ld, next limit: %ld\n", X, Y);
         // fill occurrence data structure
         O.resize(2 * nVars());
 
