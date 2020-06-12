@@ -1,4 +1,4 @@
-name: Build and Test
+name: Build and Test on Linux and Mac OS
 
 on: [push]
 
@@ -6,13 +6,28 @@ jobs:
   Linux:
 
     runs-on: ubuntu-18.04
-    
+
     steps:
     - name: Install Packages
-      run: sudo apt-get install zlib1g-dev make cmake
+      run: sudo apt-get install zlib1g-dev make cmake picosat
 
     - uses: actions/checkout@v1
 
     - name: mergesat build
       run: make cd cp cr csh d r p sh lr ld lp lsh
 
+    - name: run CI script
+      run: ./tools/ci.sh
+
+  MacOS:
+
+    runs-on: macos-latest
+
+    steps:
+    - name: Install Packages
+      run: brew install libzip
+
+    - uses: actions/checkout@v1
+
+    - name: mergesat build
+      run: make cd cr csh d r sh lr ld lsh
