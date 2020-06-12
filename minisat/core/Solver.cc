@@ -1490,7 +1490,6 @@ CRef Solver::propagate()
         ws.shrink(i - j);
     }
 
-ExitProp:;
     propagations += num_props;
     simpDB_props -= num_props;
 
