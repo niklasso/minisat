@@ -180,7 +180,7 @@ int main(int argc, char **argv)
 #ifdef USE_LIBZ
         gzFile in = (argc == 1) ? gzdopen(0, "rb") : gzopen(argv[1], "rb");
 #else
-        FILE *in = (argc == 1) ? stdin : fopen(argv[1], "rb");
+        FILE *in = (argc == 1) ? stdin : open_to_read_file(argv[1]);
 #endif
         if (in == NULL) printf("c ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
 
