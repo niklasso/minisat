@@ -30,7 +30,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <errno.h>
 
 #include <signal.h>
+#ifdef USE_LIBZ
 #include <zlib.h>
+#endif
 
 #include "core/Dimacs.h"
 #include "core/Solver.h"
@@ -142,7 +144,11 @@ int main(int argc, char **argv)
 
         if (argc == 1) printf("c Reading from standard input... Use '--help' for help.\n");
 
+#ifdef USE_LIBZ
         gzFile in = (argc == 1) ? gzdopen(0, "rb") : gzopen(argv[1], "rb");
+#else
+        FILE *in = (argc == 1) ? fdopen(0, "rb") : fopen(argv[1], "rb");
+#endif
         if (in == NULL) printf("c ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
 
         if (S.verbosity > 0) {
@@ -151,7 +157,11 @@ int main(int argc, char **argv)
         }
 
         parse_DIMACS(in, S);
+#ifdef USE_LIBZ
         gzclose(in);
+#else
+        fclose(in);
+#endif
         FILE *res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
 
         if (S.verbosity > 0) {

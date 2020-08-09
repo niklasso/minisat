@@ -27,7 +27,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifdef USE_LIBZ
 #include <zlib.h>
+#endif
 
 #include "mtl/XAlloc.h"
 
@@ -42,7 +44,12 @@ static const int buffer_size = 1048576;
 
 class StreamBuffer
 {
+#ifdef USE_LIBZ
     gzFile in;
+#else
+    FILE *in;
+#endif
+
     unsigned char buf[buffer_size];
     int pos;
     int size;
@@ -51,12 +58,20 @@ class StreamBuffer
     {
         if (pos >= size) {
             pos = 0;
+#ifdef USE_LIBZ
             size = gzread(in, buf, sizeof(buf));
+#else
+            size = fread(buf, sizeof(unsigned char), sizeof(buf), in);
+#endif
         }
     }
 
     public:
+#ifdef USE_LIBZ
     explicit StreamBuffer(gzFile i) : in(i), pos(0), size(0) { assureLookahead(); }
+#else
+    explicit StreamBuffer(FILE *i) : in(i), pos(0), size(0) { assureLookahead(); }
+#endif
 
     int operator*() const { return (pos >= size) ? EOF : buf[pos]; }
     void operator++()
