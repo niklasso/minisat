@@ -1,6 +1,14 @@
-GlucoseNbSAT -- Copyright (c) 2016,Chu Min LI,Mao Luo and Fan Xiao
+Copyright (c) 2016-2020 Norbert Manthey
+Copyright (c) 2019-2020 Armin Biere, Johannes Kepler University Linz, Austria
+Maple_LCM_Dist_Chrono -- Copyright (c) 2018, Vadim Ryvchin, Alexander Nadel
+MapleSAT -- Copyright (c) 2016, Jia Hui Liang, Vijay Ganesh
+GlucoseNbSAT -- Copyright (c) 2016, Chu Min LI, Mao Luo and Fan Xiao
 				Huazhong University of science and technology, China
 				MIS, Univ. Picardie Jules Verne, France
+MiniSat -- Copyright (c) 2003-2006, Niklas Een, Niklas Sorensson
+           Copyright (c) 2007-2010  Niklas Sorensson
+
+
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the
