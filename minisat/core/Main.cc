@@ -187,11 +187,6 @@ int main(int argc, char **argv)
         lbool ret = S.solveLimited(dummy);
         if (S.verbosity > 0) {
             printStats(S);
-            if (ret == l_True) {
-                in = (argc == 1) ? gzdopen(0, "rb") : gzopen(argv[1], "rb");
-                check_solution_DIMACS(in, S);
-                gzclose(in);
-            }
             printf("\n");
         }
         printf(ret == l_True ? "s SATISFIABLE\n" : ret == l_False ? "s UNSATISFIABLE\n" : "s UNKNOWN\n");
