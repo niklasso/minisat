@@ -230,7 +230,7 @@ export(
 
 # Create minisatConfig file
 set(EXPORT_TYPE "Build-tree")
-set(CONF_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/include")
+set(CONF_INCLUDE_DIRS "${minisat_SOURCE_DIR}/")
 configure_file(minisatConfig.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/${MINISAT_CONFIG_FILENAME}" @ONLY
 )
@@ -245,7 +245,6 @@ set(MINISAT_INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH
 
 # Create minisatConfig file
 set(EXPORT_TYPE "installed")
-set(CONF_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include")
 configure_file(minisatConfig.cmake.in
    "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/${MINISAT_CONFIG_FILENAME}" @ONLY
 )
