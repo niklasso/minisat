@@ -207,12 +207,11 @@ set_target_properties(minisat_simp       PROPERTIES OUTPUT_NAME "minisat")
 #--------------------------------------------------------------------------------------------------
 # Installation targets:
 
-set(CMAKE_INSTALL_LIBDIR lib CACHE STRING "Output directory for libraries")
 install(TARGETS minisat minisat_core minisat_simp
         EXPORT ${MINISAT_EXPORT_NAME}
         RUNTIME DESTINATION bin
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib)
 
 install(DIRECTORY minisat/mtl minisat/utils minisat/core minisat/simp
         DESTINATION include/minisat
