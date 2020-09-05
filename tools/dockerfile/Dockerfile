@@ -1,11 +1,11 @@
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 RUN apt-get update && apt-get -y upgrade && \
     apt-get -y install apt-utils gcc automake zlib1g-dev make
 
 RUN apt-get -y install g++ git
 
-RUN apt-get -y install build-essential software-properties-common
+RUN DEBIAN_FRONTEND=noninteractivei apt-get -y install build-essential software-properties-common
 
 # Get the solver, as it has the relevant scripts
 ADD . /opt/mergesat

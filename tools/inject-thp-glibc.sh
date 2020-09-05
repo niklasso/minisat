@@ -22,8 +22,8 @@ build_glibc()
 	pushd glibc
 	mkdir -p build
 	cd build
-	../configure --host=x86_64-linux-gnu --prefix=/usr/lib/x86_64-linux-gnu --libdir=/usr/lib/x86_64-linux-gnu --enable-add-ons=libidn,"" --without-selinux --enable-stackguard-randomization --enable-obsolete-rpc --with-pkgversion="Ubuntu GLIBC 2.23-0ubuntu11-thp" --enable-kernel=2.6.32 --enable-systemtap --enable-multi-arch
-#	../configure --host=x86_64-linux-gnu --prefix=/usr/lib/x86_64-linux-gnu --enable-add-ons=libidn,"" --without-selinux --enable-stackguard-randomization --enable-obsolete-rpc --with-pkgversion="Ubuntu GLIBC 2.23-0ubuntu11-thp" --enable-kernel=2.6.32 --enable-systemtap --enable-multi-arch
+	../configure --host=x86_64-linux-gnu --prefix=/usr/lib/x86_64-linux-gnu --libdir=/usr/lib/x86_64-linux-gnu --enable-add-ons=libidn,"" --without-selinux --enable-stackguard-randomization --enable-obsolete-rpc --with-pkgversion="Ubuntu GLIBC 2.27-0ubuntu11-thp" --enable-kernel=2.6.32 --enable-systemtap --enable-multi-arch
+#	../configure --host=x86_64-linux-gnu --prefix=/usr/lib/x86_64-linux-gnu --enable-add-ons=libidn,"" --without-selinux --enable-stackguard-randomization --enable-obsolete-rpc --with-pkgversion="Ubuntu GLIBC 2.27-0ubuntu11-thp" --enable-kernel=2.6.32 --enable-systemtap --enable-multi-arch
 	make -j $(nproc)
 	popd
 }
@@ -38,21 +38,21 @@ install_glibc()
 	popd
 }
 
-get_glibc_223()
+get_glibc_227()
 {
 	[ -d glibc ] || git clone git://sourceware.org/git/glibc.git glibc
 	pushd glibc
-	git checkout glibc-2.23
+	git checkout glibc-2.27
 	popd
 }
 
-patch_glibc_223_thp()
+patch_glibc_227_thp()
 {
 	[ -d thp ] || git clone https://github.com/conp-solutions/thp.git thp
 	
 	pushd glibc
 	# apply patches in order
-	for p in $(ls ../thp/ubuntu16.04-thp-activated-2.23/*.patch | sort -V)
+	for p in $(ls ../thp/ubuntu18.04-thp-activated-2.27/*.patch | sort -V)
 	do
 		echo $p
 		git apply "$p"
@@ -60,8 +60,8 @@ patch_glibc_223_thp()
 	popd
 }
 
-get_glibc_223
-patch_glibc_223_thp
+get_glibc_227
+patch_glibc_227_thp
 
 build_glibc
 
