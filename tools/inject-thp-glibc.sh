@@ -52,7 +52,7 @@ patch_glibc_227_thp()
 	
 	pushd glibc
 	# apply patches in order
-	for p in $(ls ../thp/ubuntu18.04-thp-activated-2.27/*.patch | sort -V)
+	for p in $(ls ../thp/ubuntu18.04-thp-2.27/*.patch | sort -V)
 	do
 		echo $p
 		git apply "$p"
