@@ -23,6 +23,13 @@ else()
 endif()
 set(MINISAT_SOVERSION ${MINISAT_SOMAJOR})
 
+# Reference specific library paths used during linking for install
+if (POLICY CMP0042)
+  # Enable `MACOSX_RPATH` by default.
+  cmake_policy(SET CMP0042 NEW)
+endif()
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 #--------------------------------------------------------------------------------------------------
 # Dependencies:
 
@@ -41,7 +48,6 @@ add_definitions(-D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 option(STATICCOMPILE "Compile static library and executable" OFF)
 
 option(BUILD_SHARED_LIBS "Build the shared library" ON)
-option(STATICCOMPILE "Compile to static executable" OFF)
 if (STATICCOMPILE)
     set(BUILD_SHARED_LIBS OFF)
 endif()
@@ -169,6 +175,19 @@ else()
     set(DEF_INSTALL_CMAKE_DIR CMake)
 endif()
 set(MINISAT_EXPORT_NAME "minisatTargets")
+
+# -----------------------------------------------------------------------------
+# Add uninstall target for makefiles
+# -----------------------------------------------------------------------------
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+    IMMEDIATE @ONLY
+)
+
+add_custom_target(uninstall
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake
+)
 
 
 #--------------------------------------------------------------------------------------------------
