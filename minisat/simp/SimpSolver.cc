@@ -669,9 +669,15 @@ bool SimpSolver::eliminate(bool turn_off_elim)
         checkGarbage();
     }
 
-    if (verbosity >= 1 && elimclauses.size() > 0)
+    if (verbosity >= 1 && elimclauses.size() > 0) {
+        assert(decisionLevel() == 0);
+        printf("|  Eliminated vars:        %10d                                           |\n",
+               eliminated_vars);
+        printf("|  Vars set       :        %10d                                           |\n",
+               trail.size());
         printf("|  Eliminated clauses:     %10.2f Mb                                      |\n", 
                double(elimclauses.size() * sizeof(uint32_t)) / (1024*1024));
+    }
 
     return ok;
 }
