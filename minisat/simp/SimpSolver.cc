@@ -386,7 +386,7 @@ bool SimpSolver::implied(const vec<Lit> &c)
             return true;
         } else if (value(c[i]) != l_False) {
             assert(value(c[i]) == l_Undef);
-            uncheckedEnqueue(~c[i]);
+            uncheckedEnqueue(~c[i], decisionLevel());
         }
 
     bool result = propagate() != CRef_Undef;
@@ -481,7 +481,7 @@ bool SimpSolver::asymm(Var v, CRef cr)
     Lit l = lit_Undef;
     for (int i = 0; i < c.size(); i++)
         if (var(c[i]) != v) {
-            if (value(c[i]) != l_False) uncheckedEnqueue(~c[i]);
+            if (value(c[i]) != l_False) uncheckedEnqueue(~c[i], 0);
         } else
             l = c[i];
 
