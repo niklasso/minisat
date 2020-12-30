@@ -591,7 +591,7 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
 
                 if (c.size() == 1) {
                     // when unit clause occur, enqueue and propagate
-                    uncheckedEnqueue(c[0]);
+                    uncheckedEnqueue(c[0], 0);
                     if (propagate() != CRef_Undef) {
                         ok = false;
                         return false;
@@ -763,7 +763,7 @@ bool Solver::addClause_(vec<Lit> &ps)
     if (ps.size() == 0)
         return ok = false;
     else if (ps.size() == 1) {
-        uncheckedEnqueue(ps[0]);
+        uncheckedEnqueue(ps[0], 0);
         return ok = (propagate() == CRef_Undef);
     } else {
         CRef cr = ca.alloc(ps, false);
@@ -1826,7 +1826,7 @@ CRef Solver::propagateLits(vec<Lit> &lits)
         lit = lits[i];
         if (value(lit) == l_Undef) {
             newDecisionLevel();
-            uncheckedEnqueue(lit);
+            uncheckedEnqueue(lit, decisionLevel());
             CRef confl = propagate();
             if (confl != CRef_Undef) {
                 return confl;
@@ -1998,7 +1998,7 @@ lbool Solver::search(int &nof_conflicts)
             }
 
             if (learnt_clause.size() == 1) {
-                uncheckedEnqueue(learnt_clause[0]);
+                uncheckedEnqueue(learnt_clause[0], decisionLevel());
             } else {
                 CRef cr = ca.alloc(learnt_clause, true);
                 ca[cr].set_lbd(lbd);
