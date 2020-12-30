@@ -932,32 +932,33 @@ void Solver::cancelUntil(int bLevel)
 
             if (level(x) <= bLevel) {
                 add_tmp.push(trail[c]);
-            } else {
-                if (!VSIDS) {
-                    uint32_t age = conflicts - picked[x];
-                    if (age > 0) {
-                        double adjusted_reward = ((double)(conflicted[x] + almost_conflicted[x])) / ((double)age);
-                        double old_activity = activity_CHB[x];
-                        activity_CHB[x] = step_size * adjusted_reward + ((1 - step_size) * old_activity);
-                        if (order_heap_CHB.inHeap(x)) {
-                            if (activity_CHB[x] > old_activity)
-                                order_heap_CHB.decrease(x);
-                            else
-                                order_heap_CHB.increase(x);
-                        }
-                    }
-#ifdef ANTI_EXPLORATION
-                    canceled[x] = conflicts;
-#endif
-                }
-
-                assigns[x] = l_Undef;
-#ifdef PRINT_OUT
-                std::cout << "undo " << x << "\n";
-#endif
-                if (phase_saving > 1 || ((phase_saving == 1) && c > trail_lim.last())) polarity[x] = sign(trail[c]);
-                insertVarOrder(x);
+                continue;
             }
+
+            if (!VSIDS) {
+                uint32_t age = conflicts - picked[x];
+                if (age > 0) {
+                    double adjusted_reward = ((double)(conflicted[x] + almost_conflicted[x])) / ((double)age);
+                    double old_activity = activity_CHB[x];
+                    activity_CHB[x] = step_size * adjusted_reward + ((1 - step_size) * old_activity);
+                    if (order_heap_CHB.inHeap(x)) {
+                        if (activity_CHB[x] > old_activity)
+                            order_heap_CHB.decrease(x);
+                        else
+                            order_heap_CHB.increase(x);
+                    }
+                }
+#ifdef ANTI_EXPLORATION
+                canceled[x] = conflicts;
+#endif
+            }
+
+            assigns[x] = l_Undef;
+#ifdef PRINT_OUT
+            std::cout << "undo " << x << "\n";
+#endif
+            if (phase_saving > 1 || ((phase_saving == 1) && c > trail_lim.last())) polarity[x] = sign(trail[c]);
+            insertVarOrder(x);
         }
         qhead = trail_lim[bLevel];
         trail.shrink(trail.size() - trail_lim[bLevel]);
