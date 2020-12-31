@@ -13,6 +13,9 @@ called Distance at the beginning of search MapleLCMDistChronoBT-DL, based on Map
 Stepan Kochemazov, Oleg Zaikin, Victor Kondratiev, Alexander Semenov: The solver was augmented with heuristic that moves
 duplicate learnt clauses into the core/tier2 tiers depending on a number of parameters.
 
+Maple_LCM_Dist-alluip-trail -- Copyright (c) 2020, Randy Hickey and Fahiem Bacchus,
+Based on Trail Saving on Backtrack SAT 2020 paper.
+
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
 including without limitation the rights to use, copy, modify, merge, publish, distribute,
@@ -133,6 +136,9 @@ static Int64Option opt_inprocessing_penalty(_cat,
 static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false);
 static IntOption opt_checkProofOnline(_cat, "check-proof", "Check proof during run time", 0, IntRange(0, 10));
 
+static BoolOption
+opt_use_backuped_trail(_cat, "use-backup-trail", "Store trail during backtracking, and use it during propagation", true);
+
 //=================================================================================================
 // Constructor/Destructor:
 
@@ -216,6 +222,8 @@ Solver::Solver()
   , tot_literals(0)
   , chrono_backtrack(0)
   , non_chrono_backtrack(0)
+  , backuped_trail_lits(0)
+  , used_backup_lits(0)
 
   , systematic_branching_state(0)
   , posMissingInSome(opt_almost_pure ? 0 : 1)
@@ -238,6 +246,8 @@ Solver::Solver()
   , watches_bin(WatcherDeleted(ca))
   , watches(WatcherDeleted(ca))
   , qhead(0)
+  , use_backuped_trail(opt_use_backuped_trail)
+  , old_trail_qhead(0)
   , simpDB_assigns(-1)
   , simpDB_props(0)
   , order_heap_CHB(VarOrderLt(activity_CHB))
@@ -669,6 +679,8 @@ simplifyLearnt_out:;
 
 bool Solver::simplifyAll()
 {
+    reset_old_trail();
+
     ////
     simplified_length_record = original_length_record = 0;
 
@@ -718,6 +730,7 @@ Var Solver::newVar(bool sign, bool dvar)
     watches.init(mkLit(v, true));
     assigns.push(l_Undef);
     vardata.push(mkVarData(CRef_Undef, 0));
+    oldreasons.push(CRef_Undef);
     activity_CHB.push(0);
     activity_VSIDS.push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
 
@@ -734,6 +747,7 @@ Var Solver::newVar(bool sign, bool dvar)
     polarity.push(sign);
     decision.push();
     trail.capacity(v + 1);
+    old_trail.capacity(v + 1);
 
     activity_distance.push(0);
     var_iLevel.push(0);
@@ -926,6 +940,11 @@ void Solver::cancelUntil(int bLevel)
 #ifdef PRINT_OUT
         std::cout << "bt " << bLevel << "\n";
 #endif
+
+        reset_old_trail();
+
+        bool savetrail = use_backuped_trail && (decisionLevel() - bLevel > 1);
+
         add_tmp.clear();
         for (int c = trail.size() - 1; c >= trail_lim[bLevel]; c--) {
             Var x = var(trail[c]);
@@ -933,6 +952,11 @@ void Solver::cancelUntil(int bLevel)
             if (level(x) <= bLevel) {
                 add_tmp.push(trail[c]);
                 continue;
+            }
+
+            if (savetrail) {
+                old_trail.push_(trail[c]); /* we traverse trail in reverse order */
+                oldreasons[x] = reason(x);
             }
 
             if (!VSIDS) {
@@ -968,6 +992,17 @@ void Solver::cancelUntil(int bLevel)
         }
 
         add_tmp.clear();
+
+        /* reverse saved trail, as we added elements in reverse order as well */
+        if (savetrail) {
+            int i = 0, j = old_trail.size() - 1;
+            while (i < j) {
+                const Lit l = old_trail[i];
+                old_trail[i++] = old_trail[j];
+                old_trail[j--] = l;
+            }
+            backuped_trail_lits += old_trail.size();
+        }
     }
 }
 
@@ -1428,6 +1463,8 @@ CRef Solver::propagate()
     CRef confl = CRef_Undef;
     int num_props = 0;
     lazySATwatch.clear();
+    Lit old_trail_top = lit_Undef;
+    CRef old_reason = CRef_Undef;
     watches.cleanAll();
     watches_bin.cleanAll();
 
@@ -1437,6 +1474,39 @@ CRef Solver::propagate()
         vec<Watcher> &ws = watches[p];
         Watcher *i, *j, *end;
         num_props++;
+
+        /* begin old trail reconstruction */
+        if (use_backuped_trail) {
+            if (old_trail_qhead < old_trail.size()) {
+                old_trail_top = old_trail[old_trail_qhead];
+                old_reason = oldreasons[var(old_trail_top)];
+            }
+            if (p == old_trail_top) {
+                while (old_trail_qhead < old_trail.size() - 1) {
+                    old_trail_qhead++;
+                    old_trail_top = old_trail[old_trail_qhead];
+                    old_reason = oldreasons[var(old_trail_top)];
+                    if (old_reason == CRef_Undef) {
+                        break;
+                    } else if (value(old_trail_top) == l_False) {
+                        confl = old_reason;
+                        used_backup_lits++;
+                        TRACE(std::cout
+                              << "c prop: hit conflict during trail restoring, when trying to propagate literal "
+                              << old_trail_top << " with reason[" << old_reason << "] " << ca[old_reason] << std::endl;);
+                        return confl;
+                    } else if (value(old_trail_top) == l_Undef) {
+                        used_backup_lits++;
+                        TRACE(std::cout << "c prop: enqueue literal " << old_trail_top << " with reason[" << old_reason
+                                        << "] " << ca[old_reason] << std::endl;);
+                        uncheckedEnqueue(old_trail_top, decisionLevel(), old_reason);
+                    }
+                }
+            } else if (var(p) == var(old_trail_top) || value(old_trail_top) == l_False) {
+                reset_old_trail();
+            }
+        }
+        /* end old trail reconstruction */
 
         vec<Watcher> &ws_bin = watches_bin[p]; // Propagate binary clauses first.
         for (int k = 0; k < ws_bin.size(); k++) {
@@ -1569,6 +1639,7 @@ void Solver::reduceDB()
     TRACE(std::cout << "c run reduceDB on level " << decisionLevel() << std::endl);
     // if (local_learnts_dirty) cleanLearnts(learnts_local, LOCAL);
     // local_learnts_dirty = false;
+    reset_old_trail();
 
     sort(learnts_local, reduceDB_lt(ca));
 
@@ -1593,6 +1664,7 @@ void Solver::reduceDB()
 void Solver::reduceDB_Tier2()
 {
     TRACE(std::cout << "c run reduceDB_tier2 on level " << decisionLevel() << std::endl);
+    reset_old_trail();
     int i, j;
     for (i = j = 0; i < learnts_tier2.size(); i++) {
         Clause &c = ca[learnts_tier2[i]];
@@ -1749,6 +1821,8 @@ bool Solver::simplify()
 {
     TRACE(std::cout << "c run simplify on level " << decisionLevel() << std::endl);
     assert(decisionLevel() == 0);
+
+    reset_old_trail();
 
     if (!ok || propagate() != CRef_Undef) return ok = false;
 
@@ -2421,6 +2495,7 @@ lbool Solver::solve_()
     conflict.clear();
     if (!ok) return l_False;
 
+    reset_old_trail();
     solves++;
     TRACE(std::cout << "c start " << solves << " solve call with " << clauses.size() << " clauses and " << nVars()
                     << " variables" << std::endl);
@@ -2763,6 +2838,12 @@ void Solver::relocAll(ClauseAllocator &to)
             ca.reloc(vardata[v].reason, to);
     }
 
+    for (int i = 0; i < old_trail.size(); i++) {
+        Var v = var(old_trail[i]);
+
+        if (oldreasons[v] != CRef_Undef && (ca[oldreasons[v]].reloced())) ca.reloc(oldreasons[v], to);
+    }
+
     // All learnt:
     //
     for (int i = 0; i < learnts_core.size(); i++) ca.reloc(learnts_core[i], to);
@@ -2792,4 +2873,14 @@ void Solver::garbageCollect()
         printf("c |  Garbage collection:   %12d bytes => %12d bytes             |\n",
                ca.size() * ClauseAllocator::Unit_Size, to.size() * ClauseAllocator::Unit_Size);
     to.moveTo(ca);
+}
+
+
+void Solver::reset_old_trail()
+{
+    for (int i = 0; i < old_trail.size(); i++) {
+        oldreasons[var(old_trail[i])] = CRef_Undef;
+    }
+    old_trail.clear();
+    old_trail_qhead = 0;
 }
