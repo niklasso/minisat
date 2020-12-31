@@ -17,6 +17,14 @@ Maple_LCM_Dist-alluip-trail -- Copyright (c) 2020, Randy Hickey and Fahiem Bacch
 Based on Trail Saving on Backtrack SAT 2020 paper.
 
 UWrMaxSat based on KP-MiniSat+ -- Copyright (c) 2019-2020 Marek Piotrów: avoid watching assumption literals
+MapleLCMDistChronoBT, based on Maple_LCM_Dist -- Copyright (c) 2018, Alexander Nadel, Vadim Ryvchin: "Chronological Backtracking" in SAT-2018, pp. 111-121.
+
+MapleLCMDistChronoBT-DL, based on MapleLCMDistChronoBT -- Copyright (c) 2019, Stepan Kochemazov, Oleg Zaikin, Victor Kondratiev,
+Alexander Semenov: The solver was augmented with heuristic that moves duplicate learnt clauses into the core/tier2 tiers depending on a number of parameters.
+
+MapleLCMDistChronoBT-DL-f2trc, based on MapleLCMDistChronoBT -- Copyright (c) 2020, Stepan Kochemazov
+The deterministic variant of the DL-version with modified procedures for handling Tier 2 clauses
+and with added procedures for purging Core learnts.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -140,8 +148,16 @@ static Int64Option opt_inprocessing_penalty(_cat,
 static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false);
 static IntOption opt_checkProofOnline(_cat, "check-proof", "Check proof during run time", 0, IntRange(0, 10));
 
+<<<<<<< HEAD
 static BoolOption
 opt_use_backuped_trail(_cat, "use-backup-trail", "Store trail during backtracking, and use it during propagation", true);
+=======
+static IntOption opt_core_size_lim(_cat,
+                                   "core-size-lim",
+                                   "Start reducing core learnts, if we collected more than the given number",
+                                   50000,
+                                   IntRange(-1, INT32_MAX));
+>>>>>>> f2trc: add core reduction and friends
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -265,6 +281,7 @@ Solver::Solver()
   , check_satisfiability_simplified(false)
 
   , core_lbd_cut(3)
+  , core_size_lim(opt_core_size_lim)
   , global_lbd_sum(0)
   , lbd_queue(50)
   , next_T2_reduce(10000)
@@ -1212,26 +1229,30 @@ void Solver::analyze(CRef confl, vec<Lit> &out_learnt, int &out_btlevel, int &ou
         }
 
         // Update LBD if improved.
-        if (c.learnt() && c.mark() != CORE) {
-            int lbd = computeLBD(c);
-            if (lbd < c.lbd()) {
-                if (c.lbd() <= 30) c.removable(false); // Protect once from reduction.
-                c.set_lbd(lbd);
-                if (lbd <= core_lbd_cut) {
-                    learnts_core.push(confl);
-                    c.mark(CORE);
-                } else if (lbd <= 6 && c.mark() == LOCAL) {
-                    // Bug: 'cr' may already be in 'learnts_tier2', e.g., if 'cr' was demoted from TIER2
-                    // to LOCAL previously and if that 'cr' is not cleaned from 'learnts_tier2' yet.
-                    learnts_tier2.push(confl);
-                    c.mark(TIER2);
-                }
-            }
-
-            if (c.mark() == TIER2)
+        if (c.learnt()) {
+            if (c.mark() == CORE) {
                 c.touched() = conflicts;
-            else if (c.mark() == LOCAL)
-                claBumpActivity(c);
+            } else {
+                int lbd = computeLBD(c);
+                if (lbd < c.lbd()) {
+                    if (c.lbd() <= 30) c.removable(false); // Protect once from reduction.
+                    c.set_lbd(lbd);
+                    if (lbd <= core_lbd_cut) {
+                        learnts_core.push(confl);
+                        c.mark(CORE);
+                    } else if (lbd <= 6 && c.mark() == LOCAL) {
+                        // Bug: 'cr' may already be in 'learnts_tier2', e.g., if 'cr' was demoted from TIER2
+                        // to LOCAL previously and if that 'cr' is not cleaned from 'learnts_tier2' yet.
+                        learnts_tier2.push(confl);
+                        c.mark(TIER2);
+                    }
+                }
+
+                if (c.mark() == TIER2)
+                    c.touched() = conflicts;
+                else if (c.mark() == LOCAL)
+                    claBumpActivity(c);
+            }
         }
 
         for (int j = (p == lit_Undef) ? 0 : 1; j < c.size(); j++) {
@@ -1733,6 +1754,51 @@ struct reduceDB_lt {
     reduceDB_lt(ClauseAllocator &ca_) : ca(ca_) {}
     bool operator()(CRef x, CRef y) const { return ca[x].activity() < ca[y].activity(); }
 };
+
+struct reduceDB_tch {
+    ClauseAllocator &ca;
+    reduceDB_tch(ClauseAllocator &ca_) : ca(ca_) {}
+    bool operator()(CRef x, CRef y) const { return ca[x].touched() < ca[y].touched(); }
+};
+
+struct reduceDB_c {
+    ClauseAllocator &ca;
+    reduceDB_c(ClauseAllocator &ca_) : ca(ca_) {}
+    bool operator()(CRef x, CRef y) const
+    {
+        return (ca[x].lbd() != ca[y].lbd()) && (ca[x].lbd() > ca[y].lbd()) ||
+               (ca[x].lbd() == ca[y].lbd()) && (ca[x].size() > ca[y].size());
+    }
+};
+
+void Solver::reduceDB_Core()
+{
+    if (verbosity > 0) printf("c Core size before reduce: %i\n", learnts_core.size());
+    int i, j;
+    sort(learnts_core, reduceDB_c(ca));
+    int limit = learnts_core.size() / 2;
+
+    for (i = j = 0; i < learnts_core.size(); i++) {
+        Clause &c = ca[learnts_core[i]];
+        if (c.mark() == CORE)
+            if (c.lbd() > 2 && !locked(c) && (c.touched() + 100000 < conflicts) && i < limit) {
+                learnts_tier2.push(learnts_core[i]);
+                c.mark(TIER2);
+                // c.removable(true);
+                // c.activity() = 0;
+                c.touched() = conflicts;
+                // claBumpActivity(c);
+            } else {
+                learnts_core[j++] = learnts_core[i];
+                if (locked(c) || (c.touched() + 50000 < conflicts) || c.lbd() <= 2) {
+                    limit++;
+                }
+            }
+    }
+    learnts_core.shrink(i - j);
+    if (verbosity > 0) printf("c Core size after reduce: %i\n", learnts_core.size());
+}
+
 void Solver::reduceDB()
 {
     int i, j;
@@ -1761,24 +1827,31 @@ void Solver::reduceDB()
     checkGarbage();
     TRACE(std::cout << "c done running reduceDB on level " << decisionLevel() << std::endl);
 }
+
 void Solver::reduceDB_Tier2()
 {
     TRACE(std::cout << "c run reduceDB_tier2 on level " << decisionLevel() << std::endl);
     reset_old_trail();
     int i, j;
+    sort(learnts_tier2, reduceDB_tch(ca));
+    int limit = learnts_tier2.size() / 2;
+
     for (i = j = 0; i < learnts_tier2.size(); i++) {
         Clause &c = ca[learnts_tier2[i]];
-        if (c.mark() == TIER2) {
-            if (!locked(c) && c.touched() + 30000 < conflicts) {
+        if (c.mark() == TIER2)
+            if (!locked(c) && i < limit) {
                 learnts_local.push(learnts_tier2[i]);
                 c.mark(LOCAL);
                 // c.removable(true);
                 c.activity() = 0;
+                c.touched() = conflicts;
                 claBumpActivity(c);
             } else {
                 learnts_tier2[j++] = learnts_tier2[i];
+                if (locked(c)) {
+                    limit++;
+                }
             }
-        }
     }
     learnts_tier2.shrink(i - j);
     statistics.solveSteps += learnts_tier2.size();
@@ -2412,6 +2485,7 @@ lbool Solver::search(int &nof_conflicts)
                 if (lbd <= core_lbd_cut) {
                     learnts_core.push(cr);
                     ca[cr].mark(CORE);
+                    ca[cr].touched() = conflicts;
                 } else if (lbd <= 6) {
                     learnts_tier2.push(cr);
                     ca[cr].mark(TIER2);
@@ -2482,11 +2556,17 @@ lbool Solver::search(int &nof_conflicts)
             // Simplify the set of problem clauses:
             if (decisionLevel() == 0 && !simplify()) return l_False;
 
-            if (conflicts >= next_T2_reduce) {
-                next_T2_reduce = conflicts + 10000;
+            if (core_size_lim != -1 && learnts_core.size() > core_size_lim) {
+                TRACE(std::cout << "c reduce core learnt clauses" << std::endl);
+                reduceDB_Core();
+                core_size_lim += core_size_lim / 10;
+            }
+
+            if (learnts_tier2.size() > 7000) {
                 TRACE(std::cout << "c reduce tier 2 clauses" << std::endl);
                 reduceDB_Tier2();
             }
+
             if (conflicts >= next_L_reduce) {
                 next_L_reduce = conflicts + 15000;
                 TRACE(std::cout << "c reduce learnt clauses" << std::endl);
