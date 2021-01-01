@@ -25,6 +25,8 @@ MapleLCMDistChronoBT-DL-f2trc, based on MapleLCMDistChronoBT -- Copyright (c) 20
 The deterministic variant of the DL-version with modified procedures for handling Tier 2 clauses
 and with added procedures for purging Core learnts.
 
+RelaxedLCMDCBDLnewTech -- Copyright (c) 2020, Xindi Zhang and Shaowei Cai: rephasing
+
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
 including without limitation the rights to use, copy, modify, merge, publish, distribute,
@@ -61,6 +63,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Heap.h"
 #include "mtl/Vec.h"
 #include "utils/Options.h"
+#include "utils/ccnr.h"
 
 
 // Don't change the actual numbers.
@@ -751,6 +754,51 @@ class Solver
     double my_var_decay;
 
     void reset_old_trail();
+
+    protected:
+    //  to avoid the init_soln of two LS too near.
+    int restarts_gap = 300;
+    //  if trail.size() over c*nVars or p*max_trail, call ls.
+    float conflict_ratio = 0.4;
+    float percent_ratio = 0.9;
+    //  control ls time total use.
+    float up_time_ratio = 0.2;
+    //  control ls memory use per call.
+    long long ls_mems_num = 50 * 1000 * 1000;
+    //  control the rephase rate based on restarts;
+    // int     rephase_mod         = 10000;
+    //  the LS used in the first # seconds is to initialize a good ls_best_soln,
+    //  after # seconds, the
+    // int     state_change_time   = 100;//seconds
+    int state_change_time = 2000; // starts
+    //  whether the mediation_soln is used as rephase, if not
+    bool mediation_used = false;
+
+    int switch_heristic_mod = 500; // starts
+    int last_switch_conflicts;
+
+    // informations
+    CCNR::ls_solver ccnr;
+    int freeze_ls_restart_num = 0;
+    double ls_used_time = 0;
+    int ls_call_num = 0;
+    int ls_best_unsat_num = INT_MAX;
+    bool solved_by_ls = false;
+    int max_trail = 0;
+
+
+    // Phases
+    // save the recent ls soln and best ls soln, need to call ls once.
+    std::vector<char> ls_mediation_soln;
+    // with the minimum unsat clauses num in LS.
+    std::vector<char> ls_best_soln;
+    // hold the soln with the best trail size.
+    std::vector<char> top_trail_soln;
+
+    // functions
+    bool call_ls(bool use_up_build);
+    void rand_based_rephase();
+    void info_based_rephase();
 };
 
 // Method to update cli options from the environment variable MINISAT_RUNTIME_ARGS
