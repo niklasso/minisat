@@ -2379,6 +2379,7 @@ void Solver::inprocessing()
                 CRef R = V[j];
                 Clause &c = ca[R];
                 if (c.mark()) continue;
+                if (c.mark() || R == reason(var(c[0])) || R == reason(var(c[1]))) continue;
                 for (k = 0; k < c.size(); ++k) O[toInt(c[k])].push_back(R);
             }
         }
