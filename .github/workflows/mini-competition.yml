@@ -1,0 +1,20 @@
+name: Run Mini-Competition Benchmark on Linux
+
+on: [push]
+
+jobs:
+  Linux:
+
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: Install Packages
+      run: sudo apt-get install zlib1g-dev make cmake picosat runlim xz-utils p7zip-full bzip2
+
+    - uses: actions/checkout@v1
+
+    - name: mergesat build
+      run: make cd cp cr csh d r p sh lr ld lp lsh
+
+    - name: run copmetition script
+      run: bash -x ./tools/ci/mini-competition.sh "build/release/bin/mergesat"
