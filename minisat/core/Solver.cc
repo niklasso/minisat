@@ -2378,8 +2378,7 @@ void Solver::inprocessing()
             for (j = 0; j < V.size(); ++j) {
                 CRef R = V[j];
                 Clause &c = ca[R];
-                if (c.mark()) continue;
-                if (c.mark() || R == reason(var(c[0])) || R == reason(var(c[1]))) continue;
+                if (c.mark() == 1 || R == reason(var(c[0])) || R == reason(var(c[1]))) continue;
                 for (k = 0; k < c.size(); ++k) O[toInt(c[k])].push_back(R);
             }
         }
@@ -2395,7 +2394,7 @@ void Solver::inprocessing()
                 T++;
                 CRef s = learnts[i];
                 Clause &c = ca[s];
-                if (c.mark() || c.S() || c.lbd() > 12) continue; // run this check for each clause exactly once!
+                if (c.mark() == 1 || c.S() || c.lbd() > 12) continue; // run this check for each clause exactly once!
                 Lit m = c[0];
 
                 // get least frequent literal from clause, and mark all lits of clause in array
@@ -2411,7 +2410,7 @@ void Solver::inprocessing()
                     CRef r = V[j];
                     if (r == s) continue; // do not subsume the same clause
                     Clause &d = ca[r];    // get the actual clause
-                    if (d.size() < c.size() || d.mark() || (d.learnt() && d.lbd() > L))
+                    if (d.size() < c.size() || d.mark() == 1 || (d.learnt() && d.lbd() > L))
                         continue; // smaller clauses cannot be (self-)subsumed
 
                     l = -1;
