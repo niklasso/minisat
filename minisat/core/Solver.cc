@@ -2384,6 +2384,7 @@ void Solver::inprocessing()
             }
         }
 
+        M.shrink_(M.size());
         M.growTo(2 * nVars());
         T = 0;
 
