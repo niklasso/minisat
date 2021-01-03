@@ -927,6 +927,9 @@ void Solver::removeSatisfiedClause(CRef cr)
 
 bool Solver::satisfied(const Clause &c) const
 {
+    if (assumptions.size()) // Check clauses with many selectors is too time consuming
+        return (value(c[0]) == l_True) || (value(c[1]) == l_True);
+
     for (int i = 0; i < c.size(); i++)
         if (value(c[i]) == l_True) return true;
     return false;
