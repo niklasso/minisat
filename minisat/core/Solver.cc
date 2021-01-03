@@ -92,6 +92,7 @@ static IntOption opt_restart_select(_cat,
                                     2,
                                     IntRange(0, 4));
 static BoolOption opt_almost_pure(_cat, "almost-pure", "Try to optimize polarity by ignoring units", false);
+static BoolOption opt_lcm(_cat, "lcm", "Use LCM", true);
 static BoolOption opt_reverse_lcm(_cat, "lcm-reverse", "Try to continue LCM with reversed clause in case of success", true);
 static BoolOption opt_lcm_core(_cat, "lcm-core", "Shrink the final conflict with LCM", true);
 static Int64Option
@@ -281,6 +282,7 @@ Solver::Solver()
   , curSimplify(1)
   , nbconfbeforesimplify(1000)
   , incSimplify(1000)
+  , lcm(opt_lcm)
   , reverse_LCM(opt_reverse_lcm)
   , lcm_core(opt_lcm_core)
   , lcm_core_success(true) // start in the first round
@@ -1923,7 +1925,7 @@ lbool Solver::search(int &nof_conflicts)
 
     // simplify
     //
-    if (conflicts >= curSimplify * nbconfbeforesimplify) {
+    if (lcm && conflicts >= curSimplify * nbconfbeforesimplify) {
         //        printf("c ### simplifyAll on conflict : %lld\n", conflicts);
         if (verbosity >= 1)
             printf("c schedule LCM with: nbClauses: %d, nbLearnts_core: %d, nbLearnts_tier2: %d, nbLearnts_local: %d, "
