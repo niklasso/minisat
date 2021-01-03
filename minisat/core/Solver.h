@@ -420,7 +420,7 @@ class Solver
     uint64_t T, X, Y, L;
     double inprocess_inc; // control how frequent inprocessing is triggered
     uint64_t inprocess_penalty;
-    void inprocessing();
+    bool inprocessing();
 
     double max_learnts;
     double learntsize_adjust_confl;
