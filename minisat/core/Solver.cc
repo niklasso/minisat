@@ -1638,6 +1638,7 @@ void Solver::removeSatisfied(vec<CRef> &cs)
     int i, j;
     for (i = j = 0; i < cs.size(); i++) {
         Clause &c = ca[cs[i]];
+        if (c.mark() == 1) continue;
         if (satisfied(c))
             removeSatisfiedClause(cs[i]);
         else
