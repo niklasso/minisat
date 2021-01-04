@@ -1912,6 +1912,130 @@ lbool Solver::prefetchAssumptions()
     return l_Undef; // for now, we just work with the generic case
 }
 
+bool Solver::check_invariants()
+{
+    TRACE(printf("c check solver invariants\n");)
+
+    bool pass = true;
+    bool fatal_on_watch_removed = false;
+
+    /* ensure that each assigned literal has a proper reason clause as well */
+    for (int i = 0; i < trail.size(); ++i) {
+        Var v = var(trail[i]);
+        int l = level(v);
+        if (!(l == 0 || reason(v) != CRef_Undef || trail_lim[l - 1] == i)) {
+            std::cout << "c trail literal " << trail[i] << " at level " << l << " (pos: " << i
+                      << " has no proper reason clause" << std::endl;
+            pass = false;
+        }
+    }
+
+    // check whether clause is in solver in the right watch lists
+    for (int p = 0; p < 4; ++p) {
+
+        const vec<CRef> &clause_list = (p == 0 ? clauses : (p == 1 ? learnts_core : (p == 2 ? learnts_tier2 : learnts_local)));
+        for (int i = 0; i < clause_list.size(); ++i) {
+            const CRef cr = clause_list[i];
+            const Clause &c = ca[cr];
+            if (c.mark() == 1) {
+                continue;
+            }
+
+            if (c.size() == 1) {
+                std::cout << "c there should not be unit clauses! [" << cr << "]" << c << std::endl;
+                pass = false;
+            } else {
+                if (c.size() > 2) {
+                    for (int j = 0; j < 2; ++j) {
+                        const Lit l = ~c[j];
+                        vec<Watcher> &ws = watches[l];
+                        bool didFind = false;
+                        for (int j = 0; j < ws.size(); ++j) {
+                            CRef wcr = ws[j].cref;
+                            if (wcr == cr) {
+                                didFind = true;
+                                break;
+                            }
+                        }
+                        if (!didFind) {
+                            std::cout << "c could not find clause[" << cr << "] " << c << " in watcher for lit " << l << std::endl;
+                            pass = false;
+                        }
+                    }
+                } else {
+                    for (int j = 0; j < 2; ++j) {
+                        const Lit l = ~c[j];
+                        vec<Watcher> &ws = watches_bin[l];
+                        bool didFind = false;
+                        for (int j = 0; j < ws.size(); ++j) {
+                            CRef wcr = ws[j].cref;
+                            if (wcr == cr) {
+                                didFind = true;
+                                break;
+                            }
+                        }
+                        if (!didFind) {
+                            std::cout << "c could not find clause[" << cr << "] " << c << " in watcher for lit " << l << std::endl;
+                            pass = false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for (Var v = 0; v < nVars(); ++v) {
+        for (int p = 0; p < 2; ++p) {
+            const Lit l = mkLit(v, p == 1);
+            vec<Watcher> &ws = watches[l];
+            for (int j = 0; j < ws.size(); ++j) {
+                CRef wcr = ws[j].cref;
+                const Clause &c = ca[wcr];
+                if (c.mark() == 1) {
+                    std::cout << "c found deleted clause [" << wcr << "]" << c << " in watch lists of literal " << l << std::endl;
+                    if (fatal_on_watch_removed) pass = false;
+                }
+                if (c.size() <= 2) {
+                    std::cout << "c found binary or smaller clause [" << wcr << "]" << c << " in watch list of literal "
+                              << l << std::endl;
+                    pass = false;
+                }
+                if (c[0] != ~l && c[1] != ~l) {
+                    std::cout << "c wrong literals for clause [" << wcr << "] " << c
+                              << " are watched. Found in list for " << l << std::endl;
+                    pass = false;
+                }
+            }
+            vec<Watcher> &ws_bin = watches_bin[l];
+            for (int j = 0; j < ws_bin.size(); ++j) {
+                CRef wcr = ws_bin[j].cref;
+                const Clause &c = ca[wcr];
+                if (c.mark() == 1) {
+                    std::cout << "c found deleted clause [" << wcr << "]" << c << " in watch lists of literal " << l << std::endl;
+                    if (fatal_on_watch_removed) pass = false;
+                }
+                if (c.size() != 2) {
+                    std::cout << "c found non-binary clause [" << wcr << "]" << c << " in binary watch list of literal "
+                              << l << std::endl;
+                    pass = false;
+                }
+                if (c[0] != ~l && c[1] != ~l) {
+                    std::cout << "c wrong literals for clause [" << wcr << "] " << c
+                              << " are watched. Found in list for " << l << std::endl;
+                    pass = false;
+                }
+            }
+        }
+        if (seen[v] != 0) {
+            std::cout << "c seen for variable " << v << " is not 0, but " << (int)seen[v] << std::endl;
+            pass = false;
+        }
+    }
+
+    assert(pass && "some solver invariant check failed");
+    return pass;
+}
+
 /*_________________________________________________________________________________________________
 |
 |  search : (nof_conflicts : int) (params : const SearchParams&)  ->  [lbool]
@@ -1958,6 +2082,9 @@ lbool Solver::search(int &nof_conflicts)
     prefetchAssumptions();
 
     for (;;) {
+
+        TRACE(check_invariants();)
+
         TRACE(printf("c propagate literals on level %d with trail size %d\n", decisionLevel(), trail.size());)
         CRef confl = propagate();
 
