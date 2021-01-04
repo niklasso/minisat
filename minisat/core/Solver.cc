@@ -44,6 +44,15 @@ using namespace MERGESAT_NSPACE;
 
 //#define PRINT_OUT
 
+#ifdef DEBUG
+#define TRACE(x)                                                                                                       \
+    if (verbosity > 1) {                                                                                               \
+        x;                                                                                                             \
+    }
+#else
+#define TRACE(x)
+#endif
+
 #ifdef BIN_DRUP
 int Solver::buf_len = 0;
 unsigned char Solver::drup_buf[2 * 1024 * 1024];
@@ -53,7 +62,6 @@ unsigned char *Solver::buf_ptr = drup_buf;
 
 //=================================================================================================
 // Options:
-
 
 static const char *_cat = "CORE";
 
@@ -1515,6 +1523,7 @@ struct reduceDB_lt {
 void Solver::reduceDB()
 {
     int i, j;
+    TRACE(std::cout << "c run reduceDB on level " << decisionLevel() << std::endl);
     // if (local_learnts_dirty) cleanLearnts(learnts_local, LOCAL);
     // local_learnts_dirty = false;
 
@@ -1536,9 +1545,11 @@ void Solver::reduceDB()
     statistics.solveSteps += learnts_local.size();
     learnts_local.shrink(i - j);
     checkGarbage();
+    TRACE(std::cout << "c done running reduceDB on level " << decisionLevel() << std::endl);
 }
 void Solver::reduceDB_Tier2()
 {
+    TRACE(std::cout << "c run reduceDB_tier2 on level " << decisionLevel() << std::endl);
     int i, j;
     for (i = j = 0; i < learnts_tier2.size(); i++) {
         Clause &c = ca[learnts_tier2[i]];
@@ -1556,6 +1567,7 @@ void Solver::reduceDB_Tier2()
     }
     learnts_tier2.shrink(i - j);
     statistics.solveSteps += learnts_tier2.size();
+    TRACE(std::cout << "c done running reduceDB_tier2 on level " << decisionLevel() << std::endl);
 }
 
 
@@ -1692,6 +1704,7 @@ void Solver::rebuildOrderHeap()
 |________________________________________________________________________________________________@*/
 bool Solver::simplify()
 {
+    TRACE(std::cout << "c run simplify on level " << decisionLevel() << std::endl);
     assert(decisionLevel() == 0);
 
     if (!ok || propagate() != CRef_Undef) return ok = false;
@@ -1710,6 +1723,7 @@ bool Solver::simplify()
     simpDB_assigns = nAssigns();
     simpDB_props = clauses_literals + learnts_literals; // (shouldn't depend on stats really, but it will do for now)
 
+    TRACE(std::cout << "c finished simplify on level " << decisionLevel() << std::endl);
     return true;
 }
 
@@ -1912,6 +1926,7 @@ lbool Solver::prefetchAssumptions()
 |________________________________________________________________________________________________@*/
 lbool Solver::search(int &nof_conflicts)
 {
+    TRACE(std::cout << "c start search at level " << decisionLevel() << std::endl);
     assert(ok);
     int backtrack_level;
     int lbd;
@@ -1926,7 +1941,7 @@ lbool Solver::search(int &nof_conflicts)
     // simplify
     //
     if (lcm && conflicts >= curSimplify * nbconfbeforesimplify) {
-        //        printf("c ### simplifyAll on conflict : %lld\n", conflicts);
+        TRACE(printf("c ### simplifyAll on conflict : %lld\n", conflicts);)
         if (verbosity >= 1)
             printf("c schedule LCM with: nbClauses: %d, nbLearnts_core: %d, nbLearnts_tier2: %d, nbLearnts_local: %d, "
                    "nbLearnts: %d\n",
@@ -1943,6 +1958,7 @@ lbool Solver::search(int &nof_conflicts)
     prefetchAssumptions();
 
     for (;;) {
+        TRACE(printf("c propagate literals on level %d with trail size %d\n", decisionLevel(), trail.size());)
         CRef confl = propagate();
 
         if (confl != CRef_Undef) {
@@ -1954,10 +1970,12 @@ lbool Solver::search(int &nof_conflicts)
 
             conflicts++;
             nof_conflicts--;
+            TRACE(printf("c hit conflict %d\n", conflicts);)
             if (conflicts == 100000 && learnts_core.size() < 100) core_lbd_cut = 5;
             ConflictData data = FindConflictLevel(confl);
             if (data.nHighestLevel == 0) return l_False;
             if (data.bOnlyOneLitFromHighest) {
+                TRACE(printf("c chronological backtracking, backtrack until level %d\n", data.nHighestLevel - 1);)
                 cancelUntil(data.nHighestLevel - 1);
                 continue;
             }
@@ -1976,7 +1994,9 @@ lbool Solver::search(int &nof_conflicts)
             }
             if (VSIDS && DISTANCE) collectFirstUIP(confl);
 
+            TRACE(std::cout << "c run conflict analysis on conflict clause [" << confl << "]: " << ca[confl] << std::endl);
             analyze(confl, learnt_clause, backtrack_level, lbd);
+            TRACE(std::cout << "c retrieved learnt clause " << learnt_clause << std::endl);
 
             // share via IPASIR?
             shareViaCallback(learnt_clause);
@@ -1985,10 +2005,12 @@ lbool Solver::search(int &nof_conflicts)
             if ((confl_to_chrono < 0 || confl_to_chrono <= (int64_t)conflicts) && chrono > -1 &&
                 (decisionLevel() - backtrack_level) >= chrono) {
                 ++chrono_backtrack;
+                TRACE(std::cout << "c chronological backtracking until level " << data.nHighestLevel - 1 << std::endl);
                 cancelUntil(data.nHighestLevel - 1);
             } else // default behavior
             {
                 ++non_chrono_backtrack;
+                TRACE(std::cout << "c non-chrono backtracking until level " << backtrack_level << std::endl);
                 cancelUntil(backtrack_level);
             }
 
@@ -2004,6 +2026,7 @@ lbool Solver::search(int &nof_conflicts)
                 uncheckedEnqueue(learnt_clause[0], 0);
             } else {
                 CRef cr = ca.alloc(learnt_clause, true);
+                TRACE(std::cout << "c allocate learnt clause " << learnt_clause << " with cref= " << cr << std::endl);
                 ca[cr].set_lbd(lbd);
                 if (lbd <= core_lbd_cut) {
                     learnts_core.push(cr);
@@ -2060,6 +2083,7 @@ lbool Solver::search(int &nof_conflicts)
                 cached = true;
             }
             if (restart || !withinBudget()) {
+                TRACE(std::cout << "c interrupt search due to restart or budget" << std::endl);
                 lbd_queue.clear();
                 cached = false;
                 // Reached bound on number of conflicts:
@@ -2069,6 +2093,7 @@ lbool Solver::search(int &nof_conflicts)
                 if (verbosity > 3)
                     printf("c trigger restart with target level %d from %d\n", restartLevel, decisionLevel());
                 restartLevel = (assumptions.size() && restartLevel <= assumptions.size()) ? assumptions.size() : restartLevel;
+                TRACE(std::cout << "c jump to level " << restartLevel << " for restart" << std::endl);
                 cancelUntil(restartLevel);
                 return l_Undef;
             }
@@ -2078,10 +2103,12 @@ lbool Solver::search(int &nof_conflicts)
 
             if (conflicts >= next_T2_reduce) {
                 next_T2_reduce = conflicts + 10000;
+                TRACE(std::cout << "c reduce tier 2 clauses" << std::endl);
                 reduceDB_Tier2();
             }
             if (conflicts >= next_L_reduce) {
                 next_L_reduce = conflicts + 15000;
+                TRACE(std::cout << "c reduce learnt clauses" << std::endl);
                 reduceDB();
             }
 
@@ -2113,6 +2140,7 @@ lbool Solver::search(int &nof_conflicts)
 
             // Increase decision level and enqueue 'next'
             newDecisionLevel();
+            TRACE(std::cout << "c use literal " << next << " as decision literal on level " << decisionLevel() << std::endl);
             uncheckedEnqueue(next, decisionLevel());
 #ifdef PRINT_OUT
             std::cout << "d " << next << " l " << decisionLevel() << "\n";
@@ -2190,6 +2218,7 @@ lbool Solver::solve_()
     if (!ok) return l_False;
 
     solves++;
+    TRACE(std::cout << "c start " << solves << " solve call with " << clauses.size() << " clauses and " << nVars() << " variables");
 
     double solve_start = cpuTime();
     systematic_branching_state = 1;
