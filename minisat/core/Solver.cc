@@ -2001,7 +2001,7 @@ lbool Solver::search(int &nof_conflicts)
             }
 
             if (learnt_clause.size() == 1) {
-                uncheckedEnqueue(learnt_clause[0], decisionLevel());
+                uncheckedEnqueue(learnt_clause[0], 0);
             } else {
                 CRef cr = ca.alloc(learnt_clause, true);
                 ca[cr].set_lbd(lbd);
