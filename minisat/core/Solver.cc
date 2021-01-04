@@ -54,9 +54,7 @@ using namespace MERGESAT_NSPACE;
 #endif
 
 #ifdef BIN_DRUP
-int Solver::buf_len = 0;
 unsigned char Solver::drup_buf[2 * 1024 * 1024];
-unsigned char *Solver::buf_ptr = drup_buf;
 #endif
 
 
@@ -131,6 +129,7 @@ static Int64Option opt_inprocessing_penalty(_cat,
                                             2,
                                             Int64Range(0, INT64_MAX));
 static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false);
+static IntOption opt_checkProofOnline(_cat, "check-proof", "Check proof during run time", 0, IntRange(0, 10));
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -226,6 +225,8 @@ Solver::Solver()
   , VSIDS_propagations(opt_vsids_p)
   , reactivate_VSIDS(false)
 
+  , onlineDratChecker(opt_checkProofOnline != 0 ? new OnlineProofChecker(drupProof) : 0)
+
   , ok(true)
   , cla_inc(1)
   , var_inc(1)
@@ -286,6 +287,9 @@ Solver::Solver()
   , original_length_record(0)
   , s_propagations(0)
 
+  , buf_len(0)
+  , buf_ptr(drup_buf)
+
   // simplifyAll adjust occasion
   , curSimplify(1)
   , nbconfbeforesimplify(1000)
@@ -314,6 +318,10 @@ Solver::Solver()
     Y = 1;
     inprocessing_C = 0;
     inprocessing_L = 0;
+
+    if (opt_checkProofOnline && onlineDratChecker) {
+        onlineDratChecker->setVerbosity(opt_checkProofOnline);
+    }
 }
 
 
@@ -835,6 +843,15 @@ void Solver::removeClause(CRef cr)
     Clause &c = ca[cr];
     statistics.solveSteps++;
 
+    detachClause(cr);
+    // Don't leave pointers to free'd memory!
+    if (locked(c)) {
+        Lit implied = c.size() != 2 ? c[0] : (value(c[0]) == l_True ? c[0] : c[1]);
+        vardata[var(implied)].reason = CRef_Undef;
+        if (drup_file && onlineDratChecker && level(var(implied)) == 0) { /* before we drop the reason, store a unit */
+            if (!onlineDratChecker->addClause(mkLit(var(implied), value(var(implied)) == l_False))) exit(134);
+        }
+    }
     if (drup_file) {
         if (c.mark() != 1) {
 #ifdef BIN_DRUP
@@ -849,12 +866,6 @@ void Solver::removeClause(CRef cr)
         }
     }
 
-    detachClause(cr);
-    // Don't leave pointers to free'd memory!
-    if (locked(c)) {
-        Lit implied = c.size() != 2 ? c[0] : (value(c[0]) == l_True ? c[0] : c[1]);
-        vardata[var(implied)].reason = CRef_Undef;
-    }
     c.mark(1);
     ca.free(cr);
 }

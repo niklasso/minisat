@@ -221,8 +221,7 @@ int main(int argc, char **argv)
             printf("s UNSATISFIABLE\n");
             if (S.drup_file) {
 #ifdef BIN_DRUP
-                fputc('a', S.drup_file);
-                fputc(0, S.drup_file);
+                S.binDRUP('a', vec<Lit>(), S.drup_file);
 #else
                 fprintf(S.drup_file, "0\n");
 #endif

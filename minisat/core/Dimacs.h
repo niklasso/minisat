@@ -70,6 +70,7 @@ template <class B, class Solver> static void parse_DIMACS_main(B &in, Solver &S)
         else {
             cnt++;
             readClause(in, S, lits);
+            S.addInputClause_(lits); // initialize online proof checker
             S.addClause_(lits);
         }
     }
