@@ -92,6 +92,7 @@ static IntOption opt_restart_select(_cat,
                                     2,
                                     IntRange(0, 4));
 static BoolOption opt_almost_pure(_cat, "almost-pure", "Try to optimize polarity by ignoring units", false);
+static BoolOption opt_lcm(_cat, "lcm", "Use LCM", true);
 static BoolOption opt_reverse_lcm(_cat, "lcm-reverse", "Try to continue LCM with reversed clause in case of success", true);
 static BoolOption opt_lcm_core(_cat, "lcm-core", "Shrink the final conflict with LCM", true);
 static Int64Option
@@ -281,6 +282,7 @@ Solver::Solver()
   , curSimplify(1)
   , nbconfbeforesimplify(1000)
   , incSimplify(1000)
+  , lcm(opt_lcm)
   , reverse_LCM(opt_reverse_lcm)
   , lcm_core(opt_lcm_core)
   , lcm_core_success(true) // start in the first round
@@ -1638,6 +1640,7 @@ void Solver::removeSatisfied(vec<CRef> &cs)
     int i, j;
     for (i = j = 0; i < cs.size(); i++) {
         Clause &c = ca[cs[i]];
+        if (c.mark() == 1) continue;
         if (satisfied(c))
             removeSatisfiedClause(cs[i]);
         else
@@ -1922,7 +1925,7 @@ lbool Solver::search(int &nof_conflicts)
 
     // simplify
     //
-    if (conflicts >= curSimplify * nbconfbeforesimplify) {
+    if (lcm && conflicts >= curSimplify * nbconfbeforesimplify) {
         //        printf("c ### simplifyAll on conflict : %lld\n", conflicts);
         if (verbosity >= 1)
             printf("c schedule LCM with: nbClauses: %d, nbLearnts_core: %d, nbLearnts_tier2: %d, nbLearnts_local: %d, "
@@ -1998,7 +2001,7 @@ lbool Solver::search(int &nof_conflicts)
             }
 
             if (learnt_clause.size() == 1) {
-                uncheckedEnqueue(learnt_clause[0], decisionLevel());
+                uncheckedEnqueue(learnt_clause[0], 0);
             } else {
                 CRef cr = ca.alloc(learnt_clause, true);
                 ca[cr].set_lbd(lbd);
@@ -2362,7 +2365,7 @@ void Solver::toDimacs(FILE *f, const vec<Lit> &assumps)
 }
 
 
-void Solver::inprocessing()
+bool Solver::inprocessing()
 {
     if (solves && X++ > Y && inprocess_inc != (double)0) {
         L = 60; // clauses with lbd higher than 60 are not considered (and rather large anyways)
@@ -2373,17 +2376,19 @@ void Solver::inprocessing()
         // fill occurrence data structure
         O.resize(2 * nVars());
 
+        add_tmp.clear();
+
         for (i = 0; i < 4; ++i) {
             vec<CRef> &V = i == 0 ? clauses : (i == 1 ? learnts_core : (i == 2 ? learnts_tier2 : learnts_local));
             for (j = 0; j < V.size(); ++j) {
                 CRef R = V[j];
                 Clause &c = ca[R];
-                if (c.mark()) continue;
-                if (c.mark() || R == reason(var(c[0])) || R == reason(var(c[1]))) continue;
+                if (c.mark() == 1 || R == reason(var(c[0])) || R == reason(var(c[1]))) continue;
                 for (k = 0; k < c.size(); ++k) O[toInt(c[k])].push_back(R);
             }
         }
 
+        M.shrink_(M.size());
         M.growTo(2 * nVars());
         T = 0;
 
@@ -2394,7 +2399,7 @@ void Solver::inprocessing()
                 T++;
                 CRef s = learnts[i];
                 Clause &c = ca[s];
-                if (c.mark() || c.S() || c.lbd() > 12) continue; // run this check for each clause exactly once!
+                if (c.mark() == 1 || c.S() || c.lbd() > 12) continue; // run this check for each clause exactly once!
                 Lit m = c[0];
 
                 // get least frequent literal from clause, and mark all lits of clause in array
@@ -2410,7 +2415,7 @@ void Solver::inprocessing()
                     CRef r = V[j];
                     if (r == s) continue; // do not subsume the same clause
                     Clause &d = ca[r];    // get the actual clause
-                    if (d.size() < c.size() || d.mark() || (d.learnt() && d.lbd() > L))
+                    if (d.size() < c.size() || d.mark() == 1 || (d.learnt() && d.lbd() > L))
                         continue; // smaller clauses cannot be (self-)subsumed
 
                     l = -1;
@@ -2438,13 +2443,24 @@ void Solver::inprocessing()
                             Z++;
                             ++inprocessing_C;
                         } else if (l >= 0 && l < d.size()) {
+
+                            // drop proof file
+                            if (drup_file) {
+                                binDRUP_strengthen(d, d[l], drup_file);
+                                binDRUP('d', d, drup_file);
+                            }
+
                             // drop the one literal, whose complement is in clause 'c'
+                            if (l < 2) detachClause(r);
                             d[l] = d.last();
                             d.pop();
                             d.S(0); // differently to the glucose hack, allow this clause for simplification again!
-                            // printf("c remove literal\n");
-                            // drop proof file
-                            if (drup_file) binDRUP('a', d, drup_file);
+                            if (l < 2) {
+                                if (d.size() == 1)
+                                    add_tmp.push(d[0]);
+                                else
+                                    attachClause(r);
+                            }
                             Z++;
                             ++inprocessing_L;
                         }
@@ -2457,7 +2473,21 @@ void Solver::inprocessing()
                 Y += inprocess_penalty; // in case we did not modify anything, skip a few more relocs before trying again
             for (i = 0; i < O.size(); ++i) O[i].clear(); // do not free, just drop elements
         }
+
+        /* in case we found unit clauses, make sure we find them fast */
+        if (add_tmp.size()) {
+            cancelUntil(0);
+            for (int i = 0; i < add_tmp.size(); ++i) {
+                if (value(add_tmp[i]) == l_False) { /* we found a contradicting unit clause */
+                    ok = false;
+                    return false;
+                }
+                uncheckedEnqueue(add_tmp[l], decisionLevel());
+            }
+        }
     }
+
+    return true;
 }
 
 //=================================================================================================

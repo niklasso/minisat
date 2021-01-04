@@ -420,7 +420,7 @@ class Solver
     uint64_t T, X, Y, L;
     double inprocess_inc; // control how frequent inprocessing is triggered
     uint64_t inprocess_penalty;
-    void inprocessing();
+    bool inprocessing();
 
     double max_learnts;
     double learntsize_adjust_confl;
@@ -605,6 +605,7 @@ class Solver
     uint64_t curSimplify;
     uint64_t nbconfbeforesimplify;
     int incSimplify;
+    bool lcm;
     bool reverse_LCM;
     bool lcm_core;         // apply LCM to generated conflict clause?
     bool lcm_core_success; // apply core simplification next time again?
