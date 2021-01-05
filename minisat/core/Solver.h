@@ -422,6 +422,8 @@ class Solver
     uint64_t inprocess_penalty;
     bool inprocessing();
 
+    bool check_invariants(); // check consistency of solver state
+
     double max_learnts;
     double learntsize_adjust_confl;
     int learntsize_adjust_cnt;
