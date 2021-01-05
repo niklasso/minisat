@@ -1949,16 +1949,17 @@ bool Solver::check_invariants()
                     for (int j = 0; j < 2; ++j) {
                         const Lit l = ~c[j];
                         vec<Watcher> &ws = watches[l];
-                        bool didFind = false;
+                        int didFind = 0;
                         for (int j = 0; j < ws.size(); ++j) {
                             CRef wcr = ws[j].cref;
                             if (wcr == cr) {
-                                didFind = true;
+                                didFind++;
                                 break;
                             }
                         }
-                        if (!didFind) {
-                            std::cout << "c could not find clause[" << cr << "] " << c << " in watcher for lit " << l << std::endl;
+                        if (didFind != 1) {
+                            std::cout << "c could not find clause[" << cr << "] " << c << " in watcher for lit [" << j
+                                      << "]" << l << " 1 time, but " << didFind << " times" << std::endl;
                             pass = false;
                         }
                     }
@@ -1966,16 +1967,17 @@ bool Solver::check_invariants()
                     for (int j = 0; j < 2; ++j) {
                         const Lit l = ~c[j];
                         vec<Watcher> &ws = watches_bin[l];
-                        bool didFind = false;
+                        int didFind = 0;
                         for (int j = 0; j < ws.size(); ++j) {
                             CRef wcr = ws[j].cref;
                             if (wcr == cr) {
-                                didFind = true;
+                                didFind++;
                                 break;
                             }
                         }
-                        if (!didFind) {
-                            std::cout << "c could not find clause[" << cr << "] " << c << " in watcher for lit " << l << std::endl;
+                        if (didFind != 1) {
+                            std::cout << "c could not find clause[" << cr << "] " << c << " in watcher for lit [" << j
+                                      << "]" << l << " 1 time, but " << didFind << " times" << std::endl;
                             pass = false;
                         }
                     }
@@ -1991,6 +1993,16 @@ bool Solver::check_invariants()
             for (int j = 0; j < ws.size(); ++j) {
                 CRef wcr = ws[j].cref;
                 const Clause &c = ca[wcr];
+
+                for (int k = j + 1; k < ws.size(); ++k) {
+                    CRef inner_cr = ws[k].cref;
+                    if (inner_cr == wcr) {
+                        std::cout << "c found clause [" << wcr << "] " << c
+                                  << " multiple times in watch lists of literal " << l << std::endl;
+                        if (fatal_on_watch_removed) pass = false;
+                    }
+                }
+
                 if (c.mark() == 1) {
                     std::cout << "c found deleted clause [" << wcr << "]" << c << " in watch lists of literal " << l << std::endl;
                     if (fatal_on_watch_removed) pass = false;
@@ -2010,6 +2022,16 @@ bool Solver::check_invariants()
             for (int j = 0; j < ws_bin.size(); ++j) {
                 CRef wcr = ws_bin[j].cref;
                 const Clause &c = ca[wcr];
+
+                for (int k = j + 1; k < ws_bin.size(); ++k) {
+                    CRef inner_cr = ws_bin[k].cref;
+                    if (inner_cr == wcr) {
+                        std::cout << "c found clause [" << wcr << "] " << c
+                                  << " multiple times in watch lists of literal " << l << std::endl;
+                        if (fatal_on_watch_removed) pass = false;
+                    }
+                }
+
                 if (c.mark() == 1) {
                     std::cout << "c found deleted clause [" << wcr << "]" << c << " in watch lists of literal " << l << std::endl;
                     if (fatal_on_watch_removed) pass = false;
@@ -2345,7 +2367,8 @@ lbool Solver::solve_()
     if (!ok) return l_False;
 
     solves++;
-    TRACE(std::cout << "c start " << solves << " solve call with " << clauses.size() << " clauses and " << nVars() << " variables");
+    TRACE(std::cout << "c start " << solves << " solve call with " << clauses.size() << " clauses and " << nVars()
+                    << " variables" << std::endl);
 
     double solve_start = cpuTime();
     systematic_branching_state = 1;
@@ -2406,6 +2429,8 @@ lbool Solver::solve_()
             fflush(stdout);
         }
     }
+
+    TRACE(check_invariants();)
 
     if (verbosity >= 1) printf("c ===============================================================================\n");
 
