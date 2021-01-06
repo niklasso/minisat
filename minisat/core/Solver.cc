@@ -498,7 +498,7 @@ void Solver::simpleAnalyze(CRef confl, vec<Lit> &out_learnt, vec<CRef> &reason_c
             // if True_confl==true, then choose p begin with the 1th index of c;
             for (int j = (p == lit_Undef && True_confl == false) ? 0 : 1; j < c.size(); j++) {
                 Lit q = c[j];
-                if (!seen[var(q)]) {
+                if (!seen[var(q)] && level(var(q)) > 0) { /* we will not touch level 0 variables */
                     seen[var(q)] = 1;
                     pathC++;
                 }
