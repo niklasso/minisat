@@ -998,11 +998,13 @@ inline Solver::ConflictData Solver::FindConflictLevel(CRef cind)
 
     int highestId = 0;
     data.bOnlyOneLitFromHighest = true;
+    data.secondHighestLevel = 0;
     // find the largest decision level in the clause
     for (int nLitId = 1; nLitId < conflCls.size(); ++nLitId) {
         int nLevel = level(var(conflCls[nLitId]));
         if (nLevel > data.nHighestLevel) {
             highestId = nLitId;
+            data.secondHighestLevel = data.nHighestLevel;
             data.nHighestLevel = nLevel;
             data.bOnlyOneLitFromHighest = true;
         } else if (nLevel == data.nHighestLevel && data.bOnlyOneLitFromHighest == true) {
@@ -2102,6 +2104,7 @@ lbool Solver::search(int &nof_conflicts)
     }
 
     prefetchAssumptions();
+    CRef this_confl = CRef_Undef, prev_confl = CRef_Undef;
 
     for (;;) {
 
@@ -2111,6 +2114,8 @@ lbool Solver::search(int &nof_conflicts)
         CRef confl = propagate();
 
         if (confl != CRef_Undef) {
+            prev_confl = this_confl;
+            this_confl = confl;
             // CONFLICT
             if (VSIDS) {
                 if (--timer == 0 && var_decay < 0.95) timer = 5000, var_decay += 0.01;
@@ -2123,9 +2128,16 @@ lbool Solver::search(int &nof_conflicts)
             if (conflicts == 100000 && learnts_core.size() < 100) core_lbd_cut = 5;
             ConflictData data = FindConflictLevel(confl);
             if (data.nHighestLevel == 0) return l_False;
-            if (data.bOnlyOneLitFromHighest) {
-                TRACE(printf("c chronological backtracking, backtrack until level %d\n", data.nHighestLevel - 1);)
-                cancelUntil(data.nHighestLevel - 1);
+            // assert(prev_confl != this_confl && "we should not have duplicate conflicts in a row");
+            if (data.bOnlyOneLitFromHighest) { //  && prev_confl != this_confl) {
+                int btLevel = (prev_confl != this_confl) ? data.nHighestLevel - 1 : data.secondHighestLevel - 1;
+                btLevel = btLevel >= 0 ? btLevel : 0;
+                TRACE(std::cout << "c chronological backtracking, backtrack until level " << data.nHighestLevel - 1 << std::endl;
+                      for (int i = 0; i < ca[confl].size(); ++i) {
+                          Lit tl = ca[confl][i];
+                          std::cout << "c     " << tl << "@" << level(var(tl)) << " with reason " << reason(var(tl)) << std::endl;
+                      })
+                cancelUntil(btLevel);
                 continue;
             }
 
@@ -2155,6 +2167,8 @@ lbool Solver::search(int &nof_conflicts)
                 (decisionLevel() - backtrack_level) >= chrono) {
                 ++chrono_backtrack;
                 TRACE(std::cout << "c chronological backtracking until level " << data.nHighestLevel - 1 << std::endl);
+                assert((level(var(learnt_clause[0])) == 0 || level(var(learnt_clause[0])) > data.nHighestLevel - 1) &&
+                       "learnt clause is asserting");
                 cancelUntil(data.nHighestLevel - 1);
             } else // default behavior
             {

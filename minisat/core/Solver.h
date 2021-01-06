@@ -305,6 +305,7 @@ class Solver
         ConflictData() : nHighestLevel(-1), bOnlyOneLitFromHighest(false) {}
 
         int nHighestLevel;
+        int secondHighestLevel;
         bool bOnlyOneLitFromHighest;
     };
 
