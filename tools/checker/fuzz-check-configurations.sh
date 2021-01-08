@@ -10,7 +10,9 @@ declare -i FORMULA_PER_CONFIG=2500
 CONFIGURATIONS=("../../build/release/bin/mergesat"
                 "../../build/debug/bin/mergesat -check-sat"
                 "../../build/debug/bin/mergesat -check-sat -no-pre"
-                "../../build/debug/bin/mergesat -check-sat -rtype=4 -VSIDS-lim=50 -VSIDS-init-lim=50")
+                "../../build/debug/bin/mergesat -check-sat -rtype=4 -VSIDS-lim=50 -VSIDS-init-lim=50"
+                "../../build/debug/bin/mergesat -check-sat -verb=2"
+                "../../build/debug/bin/mergesat -check-sat -check-proof=1 -drup-file=proof.drat")
 
 # Current directory
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
