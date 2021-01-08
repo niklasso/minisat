@@ -4,7 +4,7 @@
 # formulas.
 
 # Formulas to test per iteration
-declare -i FORMULA_PER_CONFIG=1000
+declare -i FORMULA_PER_CONFIG=2500
 
 # List of configurations to consider
 CONFIGURATIONS=("../../build/release/bin/mergesat"
