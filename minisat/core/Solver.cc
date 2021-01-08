@@ -498,7 +498,7 @@ void Solver::simpleAnalyze(CRef confl, vec<Lit> &out_learnt, vec<CRef> &reason_c
             // if True_confl==true, then choose p begin with the 1th index of c;
             for (int j = (p == lit_Undef && True_confl == false) ? 0 : 1; j < c.size(); j++) {
                 Lit q = c[j];
-                if (!seen[var(q)]) {
+                if (!seen[var(q)] && level(var(q)) > 0) { /* we will not touch level 0 variables */
                     seen[var(q)] = 1;
                     pathC++;
                 }
@@ -998,11 +998,13 @@ inline Solver::ConflictData Solver::FindConflictLevel(CRef cind)
 
     int highestId = 0;
     data.bOnlyOneLitFromHighest = true;
+    data.secondHighestLevel = 0;
     // find the largest decision level in the clause
     for (int nLitId = 1; nLitId < conflCls.size(); ++nLitId) {
         int nLevel = level(var(conflCls[nLitId]));
         if (nLevel > data.nHighestLevel) {
             highestId = nLitId;
+            data.secondHighestLevel = data.nHighestLevel;
             data.nHighestLevel = nLevel;
             data.bOnlyOneLitFromHighest = true;
         } else if (nLevel == data.nHighestLevel && data.bOnlyOneLitFromHighest == true) {
@@ -1949,16 +1951,17 @@ bool Solver::check_invariants()
                     for (int j = 0; j < 2; ++j) {
                         const Lit l = ~c[j];
                         vec<Watcher> &ws = watches[l];
-                        bool didFind = false;
+                        int didFind = 0;
                         for (int j = 0; j < ws.size(); ++j) {
                             CRef wcr = ws[j].cref;
                             if (wcr == cr) {
-                                didFind = true;
+                                didFind++;
                                 break;
                             }
                         }
-                        if (!didFind) {
-                            std::cout << "c could not find clause[" << cr << "] " << c << " in watcher for lit " << l << std::endl;
+                        if (didFind != 1) {
+                            std::cout << "c could not find clause[" << cr << "] " << c << " in watcher for lit [" << j
+                                      << "]" << l << " 1 time, but " << didFind << " times" << std::endl;
                             pass = false;
                         }
                     }
@@ -1966,16 +1969,17 @@ bool Solver::check_invariants()
                     for (int j = 0; j < 2; ++j) {
                         const Lit l = ~c[j];
                         vec<Watcher> &ws = watches_bin[l];
-                        bool didFind = false;
+                        int didFind = 0;
                         for (int j = 0; j < ws.size(); ++j) {
                             CRef wcr = ws[j].cref;
                             if (wcr == cr) {
-                                didFind = true;
+                                didFind++;
                                 break;
                             }
                         }
-                        if (!didFind) {
-                            std::cout << "c could not find clause[" << cr << "] " << c << " in watcher for lit " << l << std::endl;
+                        if (didFind != 1) {
+                            std::cout << "c could not find clause[" << cr << "] " << c << " in watcher for lit [" << j
+                                      << "]" << l << " 1 time, but " << didFind << " times" << std::endl;
                             pass = false;
                         }
                     }
@@ -1991,6 +1995,16 @@ bool Solver::check_invariants()
             for (int j = 0; j < ws.size(); ++j) {
                 CRef wcr = ws[j].cref;
                 const Clause &c = ca[wcr];
+
+                for (int k = j + 1; k < ws.size(); ++k) {
+                    CRef inner_cr = ws[k].cref;
+                    if (inner_cr == wcr) {
+                        std::cout << "c found clause [" << wcr << "] " << c
+                                  << " multiple times in watch lists of literal " << l << std::endl;
+                        if (fatal_on_watch_removed) pass = false;
+                    }
+                }
+
                 if (c.mark() == 1) {
                     std::cout << "c found deleted clause [" << wcr << "]" << c << " in watch lists of literal " << l << std::endl;
                     if (fatal_on_watch_removed) pass = false;
@@ -2010,6 +2024,16 @@ bool Solver::check_invariants()
             for (int j = 0; j < ws_bin.size(); ++j) {
                 CRef wcr = ws_bin[j].cref;
                 const Clause &c = ca[wcr];
+
+                for (int k = j + 1; k < ws_bin.size(); ++k) {
+                    CRef inner_cr = ws_bin[k].cref;
+                    if (inner_cr == wcr) {
+                        std::cout << "c found clause [" << wcr << "] " << c
+                                  << " multiple times in watch lists of literal " << l << std::endl;
+                        if (fatal_on_watch_removed) pass = false;
+                    }
+                }
+
                 if (c.mark() == 1) {
                     std::cout << "c found deleted clause [" << wcr << "]" << c << " in watch lists of literal " << l << std::endl;
                     if (fatal_on_watch_removed) pass = false;
@@ -2080,6 +2104,7 @@ lbool Solver::search(int &nof_conflicts)
     }
 
     prefetchAssumptions();
+    CRef this_confl = CRef_Undef, prev_confl = CRef_Undef;
 
     for (;;) {
 
@@ -2089,6 +2114,8 @@ lbool Solver::search(int &nof_conflicts)
         CRef confl = propagate();
 
         if (confl != CRef_Undef) {
+            prev_confl = this_confl;
+            this_confl = confl;
             // CONFLICT
             if (VSIDS) {
                 if (--timer == 0 && var_decay < 0.95) timer = 5000, var_decay += 0.01;
@@ -2101,9 +2128,16 @@ lbool Solver::search(int &nof_conflicts)
             if (conflicts == 100000 && learnts_core.size() < 100) core_lbd_cut = 5;
             ConflictData data = FindConflictLevel(confl);
             if (data.nHighestLevel == 0) return l_False;
-            if (data.bOnlyOneLitFromHighest) {
-                TRACE(printf("c chronological backtracking, backtrack until level %d\n", data.nHighestLevel - 1);)
-                cancelUntil(data.nHighestLevel - 1);
+            // assert(prev_confl != this_confl && "we should not have duplicate conflicts in a row");
+            if (data.bOnlyOneLitFromHighest) { //  && prev_confl != this_confl) {
+                int btLevel = (prev_confl != this_confl) ? data.nHighestLevel - 1 : data.secondHighestLevel - 1;
+                btLevel = btLevel >= 0 ? btLevel : 0;
+                TRACE(std::cout << "c chronological backtracking, backtrack until level " << data.nHighestLevel - 1 << std::endl;
+                      for (int i = 0; i < ca[confl].size(); ++i) {
+                          Lit tl = ca[confl][i];
+                          std::cout << "c     " << tl << "@" << level(var(tl)) << " with reason " << reason(var(tl)) << std::endl;
+                      })
+                cancelUntil(btLevel);
                 continue;
             }
 
@@ -2133,6 +2167,8 @@ lbool Solver::search(int &nof_conflicts)
                 (decisionLevel() - backtrack_level) >= chrono) {
                 ++chrono_backtrack;
                 TRACE(std::cout << "c chronological backtracking until level " << data.nHighestLevel - 1 << std::endl);
+                assert((level(var(learnt_clause[0])) == 0 || level(var(learnt_clause[0])) > data.nHighestLevel - 1) &&
+                       "learnt clause is asserting");
                 cancelUntil(data.nHighestLevel - 1);
             } else // default behavior
             {
@@ -2345,7 +2381,8 @@ lbool Solver::solve_()
     if (!ok) return l_False;
 
     solves++;
-    TRACE(std::cout << "c start " << solves << " solve call with " << clauses.size() << " clauses and " << nVars() << " variables");
+    TRACE(std::cout << "c start " << solves << " solve call with " << clauses.size() << " clauses and " << nVars()
+                    << " variables" << std::endl);
 
     double solve_start = cpuTime();
     systematic_branching_state = 1;
@@ -2406,6 +2443,8 @@ lbool Solver::solve_()
             fflush(stdout);
         }
     }
+
+    TRACE(check_invariants();)
 
     if (verbosity >= 1) printf("c ===============================================================================\n");
 

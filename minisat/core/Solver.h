@@ -305,6 +305,7 @@ class Solver
         ConflictData() : nHighestLevel(-1), bOnlyOneLitFromHighest(false) {}
 
         int nHighestLevel;
+        int secondHighestLevel;
         bool bOnlyOneLitFromHighest;
     };
 
@@ -356,6 +357,8 @@ class Solver
         {
             bool valid = true;
             bool satisfied_current_clause = false;
+            int last_litUndef = 0;
+            vec<Lit> d;
             for (int i = 0; i < check_formula.size(); ++i) {
                 const Lit &l = check_formula[i];
 
@@ -363,10 +366,13 @@ class Solver
                 if (l == lit_Undef) {
                     if (!satisfied_current_clause) {
                         valid = false;
-                        assert(false && "the current clause should have been satisfied by the model");
+                        d.clear();
+                        for (int j = last_litUndef + 1; j < i; ++j) d.push(check_formula[j]);
+                        std::cout << "c clause " << d << " is not satisfied by the model" << std::endl;
                         break;
                     }
                     satisfied_current_clause = false; // start fresh for next clause
+                    last_litUndef = i;
                 } else {
                     Var v = var(l);
                     if (model.size() < v) continue; // this variable is not covered by the model
@@ -376,6 +382,7 @@ class Solver
                     satisfied_current_clause || (sign(l) && model[v] == l_False) || (!sign(l) && (model[v] != l_False));
                 }
             }
+            assert(valid && "the current clause should have been satisfied by the model");
             return valid;
         }
     };
