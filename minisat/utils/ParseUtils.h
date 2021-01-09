@@ -161,6 +161,7 @@ inline FILE *open_pipe(const char *fmt, const char *path, const char *mode)
     strncpy(name, fmt, name_len);
     name[name_len] = 0;
     bool found = find_executable(name);
+    if (!found) fprintf(stderr, "c WARNING: failed to find executable %s\n", name);
     free(name);
     if (!found) return 0;
     char *cmd = (char *)xrealloc(NULL, strlen(fmt) + strlen(path));
