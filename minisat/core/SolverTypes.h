@@ -33,6 +33,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define MergeSat_SolverTypes_h
 
 #include <assert.h>
+#include <string.h>
 
 #include "mtl/Alg.h"
 #include "mtl/Alloc.h"
@@ -40,6 +41,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Map.h"
 #include "mtl/Vec.h"
 #include <iostream>
+#include <vector>
 
 namespace MERGESAT_NSPACE
 {
@@ -310,6 +312,96 @@ class Clause
     bool simplified() { return header.simplified; }
 };
 
+//=================================================================================================
+
+/** class that is used as mark array */
+class MarkArray
+{
+    private:
+    std::vector<uint32_t> array;
+    uint32_t step;
+
+    public:
+    MarkArray() : step(0) {}
+
+    ~MarkArray() { destroy(); }
+
+    void destroy()
+    {
+        std::vector<uint32_t>().swap(array);
+        step = 0;
+    }
+
+    void create(const uint32_t newSize)
+    {
+        array.resize(newSize);
+        memset(&(array[0]), 0, sizeof(uint32_t) * newSize);
+    }
+
+    void capacity(const uint32_t newSize)
+    {
+        if (newSize > array.size()) {
+            array.resize(newSize, 0); // add 0 as element
+            // memset( &(array[0]), 0 , sizeof( uint32_t) * (newSize) );
+        }
+    }
+
+    void resize(const uint32_t newSize)
+    {
+        if (newSize > array.size()) {
+            array.resize(newSize, 0); // add 0 as element
+            // memset( &(array[0]), 0 , sizeof( uint32_t) * (newSize) );
+        }
+    }
+
+    /** reset the mark of a single item
+     */
+    void reset(const uint32_t index) { array[index] = 0; }
+
+    /** reset the marks of the whole array
+     */
+    void reset()
+    {
+        memset(&(array[0]), 0, sizeof(uint32_t) * array.size());
+        step = 0;
+    }
+
+    /** give number of next step. if value becomes critical, array will be reset
+     */
+    uint32_t nextStep()
+    {
+        if (step >= 1 << 30) {
+            reset();
+        }
+        return ++step;
+    }
+
+    /** returns whether an item has been marked at the current step
+     */
+    bool isCurrentStep(const uint32_t index) const
+    {
+        assert(index < array.size() && "write access should only be done to elements in the array");
+        return array[index] == step;
+    }
+
+    /** set an item to the current step value
+     */
+    void setCurrentStep(const uint32_t index)
+    {
+        assert(index < array.size() && "write access should only be done to elements in the array");
+        array[index] = step;
+    }
+
+    /** check whether a given index has the wanted index */
+    bool hasSameIndex(const uint32_t index, const uint32_t comparestep) const // TODO name is confusing hasSameStep ??
+    {
+        return array[index] == comparestep;
+    }
+
+    uint32_t size() const { return array.size(); }
+
+    uint32_t getIndex(uint32_t index) const { return array[index]; }
+};
 
 //=================================================================================================
 // ClauseAllocator -- a simple class for allocating memory for clauses:
@@ -516,6 +608,21 @@ template <class T> class CMap
     void debug() { printf("c --- size = %d, bucket_count = %d\n", size(), map.bucket_count()); }
 };
 
+
+/* Required for Solver, as well as proof checking */
+struct Watcher {
+    CRef cref;
+    Lit blocker;
+    Watcher(CRef cr, Lit p) : cref(cr), blocker(p) {}
+    bool operator==(const Watcher &w) const { return cref == w.cref; }
+    bool operator!=(const Watcher &w) const { return cref != w.cref; }
+};
+
+struct WatcherDeleted {
+    const ClauseAllocator &ca;
+    WatcherDeleted(const ClauseAllocator &_ca) : ca(_ca) {}
+    bool operator()(const Watcher &w) const { return ca[w.cref].mark() == 1; }
+};
 
 /*_________________________________________________________________________________________________
 |

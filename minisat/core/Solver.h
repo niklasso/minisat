@@ -55,6 +55,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define TIER2 2
 #define CORE 3
 
+// check generation of DRUP/DRAT proof on the fly
+#include "core/OnlineProofChecker.h"
+
 #include <vector>
 
 namespace MERGESAT_NSPACE
@@ -128,6 +131,7 @@ class Solver
     bool addClause(Lit p, Lit q, Lit r); // Add a ternary clause to the solver.
     bool addClause_(vec<Lit> &ps);       // Add a clause to the solver without making superflous internal copy. Will
     // change the passed vector 'ps'.
+    void addInputClause_(vec<Lit> &ps); // Add a clause to the online proof checker
 
     // Solving:
     //
@@ -269,6 +273,8 @@ class Solver
     } statistics;
 
     protected:
+    OnlineProofChecker *onlineDratChecker;
+
     // Helper structures:
     //
     struct VarData {
@@ -281,19 +287,7 @@ class Solver
         return d;
     }
 
-    struct Watcher {
-        CRef cref;
-        Lit blocker;
-        Watcher(CRef cr, Lit p) : cref(cr), blocker(p) {}
-        bool operator==(const Watcher &w) const { return cref == w.cref; }
-        bool operator!=(const Watcher &w) const { return cref != w.cref; }
-    };
-
-    struct WatcherDeleted {
-        const ClauseAllocator &ca;
-        WatcherDeleted(const ClauseAllocator &_ca) : ca(_ca) {}
-        bool operator()(const Watcher &w) const { return ca[w.cref].mark() == 1; }
-    };
+    // moved Watcher structure to solver types
 
     struct VarOrderLt {
         const vec<double> &activity;
@@ -521,11 +515,11 @@ class Solver
     }
 
 #ifdef BIN_DRUP
-    static int buf_len;
+    int buf_len;
     static unsigned char drup_buf[];
-    static unsigned char *buf_ptr;
+    unsigned char *buf_ptr;
 
-    static inline void byteDRUP(Lit l)
+    inline void byteDRUP(Lit l)
     {
         unsigned int u = 2 * (var(l) + 1) + sign(l);
         do {
@@ -536,29 +530,40 @@ class Solver
         *(buf_ptr - 1) &= 0x7f; // End marker of this unsigned number.
     }
 
-    template <class V> static inline void binDRUP(unsigned char op, const V &c, FILE *drup_file)
+    public:
+    template <class V> inline void binDRUP(unsigned char op, const V &c, FILE *drup_file)
     {
         assert(op == 'a' || op == 'd');
         *buf_ptr++ = op;
         buf_len++;
+        if (onlineDratChecker) {
+            if (op == 'a') {
+                if (!onlineDratChecker->addClause(c, lit_Undef)) exit(134);
+            } else {
+                if (!onlineDratChecker->removeClause(c)) exit(134);
+            }
+        }
         for (int i = 0; i < c.size(); i++) byteDRUP(c[i]);
         *buf_ptr++ = 0;
         buf_len++;
         if (buf_len > 1048576) binDRUP_flush(drup_file);
     }
 
-    static inline void binDRUP_strengthen(const Clause &c, Lit l, FILE *drup_file)
+    protected:
+    inline void binDRUP_strengthen(const Clause &c, Lit l, FILE *drup_file)
     {
         *buf_ptr++ = 'a';
         buf_len++;
         for (int i = 0; i < c.size(); i++)
             if (c[i] != l) byteDRUP(c[i]);
+        if (onlineDratChecker)
+            if (!onlineDratChecker->addStrengthenedClause(c, l)) exit(134);
         *buf_ptr++ = 0;
         buf_len++;
         if (buf_len > 1048576) binDRUP_flush(drup_file);
     }
 
-    static inline void binDRUP_flush(FILE *drup_file)
+    inline void binDRUP_flush(FILE *drup_file)
     {
 #if defined(__linux__)
         fwrite_unlocked(drup_buf, sizeof(unsigned char), buf_len, drup_file);
@@ -635,6 +640,13 @@ class Solver
 
 // Method to update cli options from the environment variable MINISAT_RUNTIME_ARGS
 bool updateOptions();
+
+inline void Solver::addInputClause_(vec<Lit> &ps)
+{
+    if (onlineDratChecker) {
+        onlineDratChecker->addParsedclause(ps);
+    }
+}
 
 //=================================================================================================
 // Implementation of inline methods:
