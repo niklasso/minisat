@@ -933,7 +933,7 @@ bool Solver::satisfied(const Clause &c) const
 
 // Revert to the state at given level (keeping all assignment at 'level' but not beyond).
 //
-void Solver::cancelUntil(int bLevel)
+void Solver::cancelUntil(int bLevel, bool allow_trail_saving)
 {
 
     if (decisionLevel() > bLevel) {
@@ -943,7 +943,7 @@ void Solver::cancelUntil(int bLevel)
 
         reset_old_trail();
 
-        bool savetrail = use_backuped_trail && (decisionLevel() - bLevel > 1);
+        bool savetrail = allow_trail_saving && use_backuped_trail && (decisionLevel() - bLevel > 1);
 
         add_tmp.clear();
         for (int c = trail.size() - 1; c >= trail_lim[bLevel]; c--) {
@@ -2252,7 +2252,7 @@ lbool Solver::search(int &nof_conflicts)
                           Lit tl = ca[confl][i];
                           std::cout << "c     " << tl << "@" << level(var(tl)) << " with reason " << reason(var(tl)) << std::endl;
                       })
-                cancelUntil(btLevel);
+                cancelUntil(btLevel, false);
                 continue;
             }
 
@@ -2284,7 +2284,7 @@ lbool Solver::search(int &nof_conflicts)
                 TRACE(std::cout << "c chronological backtracking until level " << data.nHighestLevel - 1 << std::endl);
                 assert((level(var(learnt_clause[0])) == 0 || level(var(learnt_clause[0])) > data.nHighestLevel - 1) &&
                        "learnt clause is asserting");
-                cancelUntil(data.nHighestLevel - 1);
+                cancelUntil(data.nHighestLevel - 1, false);
             } else // default behavior
             {
                 ++non_chrono_backtrack;
