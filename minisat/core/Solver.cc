@@ -1894,6 +1894,15 @@ void Solver::safeRemoveSatisfied(vec<CRef> &cs, unsigned valid_mark)
 
 void Solver::rebuildOrderHeap()
 {
+    /* all unassigned variables present, no need to rebuild */
+    if (decisionLevel() == 0 && (order_heap->size() + trail.size() >= nVars())) {
+        TRACE(for (Var v = 0; v < nVars(); v++) {
+            assert((!decision[v] || value(v) != l_Undef || order_heap->inHeap(v)) &&
+                   "unassigned variables have to be present in the heap");
+        });
+        return;
+    }
+
     decision_rebuild_vars.clear();
     for (Var v = 0; v < nVars(); v++)
         if (decision[v] && value(v) == l_Undef) decision_rebuild_vars.push(v);
