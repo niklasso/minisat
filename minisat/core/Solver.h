@@ -418,7 +418,8 @@ class Solver
     // self-subsuming resolution and subsumption during search
     vec<uint64_t> M;
     std::vector<std::vector<CRef>> O; // occurrence data structure
-    uint64_t T, X, Y, L;
+    uint64_t T, X, Y;
+    int L;
     double inprocess_inc; // control how frequent inprocessing is triggered
     uint64_t inprocess_penalty;
     bool inprocessing();
@@ -440,7 +441,7 @@ class Solver
     bool asynch_interrupt;
 
     bool prefetch_assumptions; // assign all assumptions at once on the first levels
-    uint64_t last_used_assumptions; // store how many assumptions have been assigned during last call to search before jumping back
+    int last_used_assumptions; // store how many assumptions have been assigned during last call to search before jumping back
 
     // Main internal methods:
     //

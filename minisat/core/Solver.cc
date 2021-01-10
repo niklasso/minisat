@@ -280,15 +280,15 @@ Solver::Solver()
   , prefetch_assumptions(opt_pref_assumpts)
   , last_used_assumptions(INT32_MAX)
 
+  , buf_len(0)
+  , buf_ptr(drup_buf)
+
   // simplfiy
   , trailRecord(0)
   , nbSimplifyAll(0)
   , simplified_length_record(0)
   , original_length_record(0)
   , s_propagations(0)
-
-  , buf_len(0)
-  , buf_ptr(drup_buf)
 
   // simplifyAll adjust occasion
   , curSimplify(1)
@@ -2100,7 +2100,7 @@ lbool Solver::search(int &nof_conflicts)
     // simplify
     //
     if (lcm && conflicts >= curSimplify * nbconfbeforesimplify) {
-        TRACE(printf("c ### simplifyAll on conflict : %lld\n", conflicts);)
+        TRACE(printf("c ### simplifyAll on conflict : %ld\n", conflicts);)
         if (verbosity >= 1)
             printf("c schedule LCM with: nbClauses: %d, nbLearnts_core: %d, nbLearnts_tier2: %d, nbLearnts_local: %d, "
                    "nbLearnts: %d\n",
@@ -2135,7 +2135,7 @@ lbool Solver::search(int &nof_conflicts)
 
             conflicts++;
             nof_conflicts--;
-            TRACE(printf("c hit conflict %d\n", conflicts);)
+            TRACE(printf("c hit conflict %ld\n", conflicts);)
             if (conflicts == 100000 && learnts_core.size() < 100) core_lbd_cut = 5;
             ConflictData data = FindConflictLevel(confl);
             if (data.nHighestLevel == 0) return l_False;
@@ -2576,7 +2576,7 @@ bool Solver::inprocessing()
     if (solves && X++ > Y && inprocess_inc != (double)0) {
         L = 60; // clauses with lbd higher than 60 are not considered (and rather large anyways)
         Y = (uint64_t)((double)Y * inprocess_inc);
-        int Z = 0, i, j, k, l, p;
+        int Z = 0, i, j, k, l = -1, p;
 
         if (verbosity > 0) printf("c inprocessing simplify at try %ld, next limit: %ld\n", X, Y);
         // fill occurrence data structure
@@ -2617,7 +2617,7 @@ bool Solver::inprocessing()
                 // printf ("c for clause %d, mark %d lits\n", s, c.size());
 
                 std::vector<CRef> &V = O[toInt(m)];
-                for (j = 0; j < V.size(); ++j) {
+                for (size_t j = 0; j < V.size(); ++j) {
                     CRef r = V[j];
                     if (r == s) continue; // do not subsume the same clause
                     Clause &d = ca[r];    // get the actual clause
@@ -2677,7 +2677,7 @@ bool Solver::inprocessing()
 
             if (!Z)
                 Y += inprocess_penalty; // in case we did not modify anything, skip a few more relocs before trying again
-            for (i = 0; i < O.size(); ++i) O[i].clear(); // do not free, just drop elements
+            for (size_t i = 0; i < O.size(); ++i) O[i].clear(); // do not free, just drop elements
         }
 
         /* in case we found unit clauses, make sure we find them fast */

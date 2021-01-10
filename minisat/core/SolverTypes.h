@@ -272,7 +272,7 @@ class Clause
     /// remove the literal at the given position
     void remove_lit(uint32_t pos)
     {
-        assert(pos < size());
+        assert(pos < (size_t)size());
         data[pos].lit = last();
         pop();
     }
