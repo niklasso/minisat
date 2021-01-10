@@ -102,7 +102,7 @@ for solver in "$@"; do
 done
 
 # run benchmarks
-for benchmark in $(ls $BENCHMARKDIR/* | head -n 2); do
+for benchmark in $(ls $BENCHMARKDIR/*); do
     for solver in "$@"; do
         echo "Run solver: $solver $benchmark"
         RUNLIM_STATUS=0
