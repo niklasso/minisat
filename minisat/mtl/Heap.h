@@ -120,6 +120,7 @@ template <class Comp> class Heap
         percolateUp(indices[n]);
     }
 
+    template <class T> void growTo(const Heap<T> &other) { indices.growTo(other.indices.size(), -1); }
 
     int removeMin()
     {
