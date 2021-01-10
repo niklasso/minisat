@@ -1425,6 +1425,8 @@ void Solver::analyzeFinal(const CRef cr, vec<Lit> &out_conflict)
 void Solver::uncheckedEnqueue(Lit p, int level, CRef from)
 {
     assert(value(p) == l_Undef);
+    assert(level <= decisionLevel() && "do not enqueue literals on non-existing levels");
+    assert((from == CRef_Undef || from < ca.size()) && "do not use reasons that are not located in the allocator");
     Var x = var(p);
     if (!VSIDS) {
         picked[x] = conflicts;
