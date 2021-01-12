@@ -205,8 +205,6 @@ bool SimpSolver::addClause_(vec<Lit> &ps)
 
     if (use_rcheck && implied(ps)) return true;
 
-    if (!Solver::addClause_(ps)) return false;
-
     if (!parsing && drup_file) {
 #ifdef BIN_DRUP
         binDRUP('a', ps, drup_file);
@@ -215,6 +213,8 @@ bool SimpSolver::addClause_(vec<Lit> &ps)
         fprintf(drup_file, "0\n");
 #endif
     }
+
+    if (!Solver::addClause_(ps)) return false;
 
     // Only simplify before actually solving
     if (use_simplification && clauses.size() == nclauses + 1 && solves == 0) {
