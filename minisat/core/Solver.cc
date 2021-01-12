@@ -569,6 +569,7 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                         }
                     }
                     c.shrink(li - lj);
+                    TRACE(std::cout << "c dropped" << li - lj << " literals from clause " << c << std::endl);
                     c.S(0); // this clause might subsume others now
                 }
 
@@ -734,6 +735,8 @@ bool Solver::addClause_(vec<Lit> &ps)
 
     bool somePositive = false;
     bool someNegative = false;
+
+    TRACE(if (verbosity > 2) std::cout << "c adding clause " << ps << std::endl);
 
     if (drup_file) {
         add_oc.clear();

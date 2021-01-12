@@ -937,6 +937,8 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
 
     LCM_total_tries++;
 
+    TRACE(std::cout << "c start simplifying clause " << c << std::endl);
+
     // try to simplify in reverse order, in case original succeeds
     for (size_t iteration = 0; iteration < (reverse_LCM ? 2 : 1); ++iteration) {
         True_confl = false;
@@ -971,6 +973,9 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
                 }
             }
         }
+        if (c.size() - j > 0)
+            TRACE(std::cout << "c shrink clause after propagation to " << c << " (dropping last " << c.size() - j
+                            << " literals, reverse=" << reversed << ")" << std::endl);
         c.shrink(c.size() - j);
 
         if (confl != CRef_Undef || True_confl == true) {
@@ -985,6 +990,9 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
                 for (i = 0; i < simp_learnt_clause.size(); i++) {
                     c[i] = simp_learnt_clause[i];
                 }
+                if (c.size() - i > 0)
+                    TRACE(std::cout << "c shrink clause after analysis to " << c << " (dropping last " << c.size() - i
+                                    << " literals, reverse=" << reversed << ")" << std::endl);
                 c.shrink(c.size() - i);
             }
         }
@@ -996,7 +1004,7 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
 
         // printf("\nbefore : %d, after : %d ", beforeSize, afterSize);
         if (beforeSize == c.size()) break;
-
+        TRACE(std::cout << "c simplified clause to " << c << " (before size: " << beforeSize << ")" << std::endl);
         LCM_dropped_lits += (beforeSize - c.size());
         LCM_dropped_reverse = iteration == 0 ? LCM_dropped_reverse : LCM_dropped_reverse + (preReserve - c.size());
     }
