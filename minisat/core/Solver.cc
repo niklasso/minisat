@@ -44,15 +44,6 @@ using namespace MERGESAT_NSPACE;
 
 //#define PRINT_OUT
 
-#ifdef DEBUG
-#define TRACE(x)                                                                                                       \
-    if (verbosity > 1) {                                                                                               \
-        x;                                                                                                             \
-    }
-#else
-#define TRACE(x)
-#endif
-
 #ifdef BIN_DRUP
 unsigned char Solver::drup_buf[2 * 1024 * 1024];
 #endif

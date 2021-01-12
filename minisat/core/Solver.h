@@ -55,6 +55,16 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define TIER2 2
 #define CORE 3
 
+#ifdef DEBUG
+#define TRACE(x)                                                                                                       \
+    if (verbosity > 1) {                                                                                               \
+        x;                                                                                                             \
+    }
+#else
+#define TRACE(x)
+#endif
+
+
 // check generation of DRUP/DRAT proof on the fly
 #include "core/OnlineProofChecker.h"
 
@@ -531,7 +541,55 @@ class Solver
         *(buf_ptr - 1) &= 0x7f; // End marker of this unsigned number.
     }
 
+    vec<char> check_hit_vec;
+
     public:
+    template <class V> bool checkOnlineCheckerState(const V &d)
+    {
+        if (decisionLevel() != 0) return true; // lets not check other levels than 0!
+        bool okay = true;
+        for (int i = 0; i < trail.size(); ++i) {
+            if (!onlineDratChecker->hasClause(trail[i]) && (d.size() != 1 || trail[i] != d[0])) {
+                if (verbosity > 3) std::cout << "c online checker does not have clause " << trail[i] << std::endl;
+                // okay = false;
+            }
+        }
+
+        check_hit_vec.clear();
+        check_hit_vec.growTo(2 * nVars() + 1, 0);
+        for (int i = 0; i < d.size(); ++i) check_hit_vec[toInt(d[i])] = 1;
+
+        for (int i = 0; i < 4; ++i) {
+            const vec<CRef> &clause_set = i == 0 ? clauses : (i == 1 ? learnts_core : (i == 2 ? learnts_tier2 : learnts_local));
+
+            for (int j = 0; j < clause_set.size(); ++j) {
+                const Clause &c = ca[clause_set[j]];
+                if (c.mark() == 1) continue;
+
+                bool is_input = c.size() == d.size();
+                if (is_input) {
+                    for (int k = 0; k < c.size(); ++k) {
+                        if (!check_hit_vec[toInt(c[k])]) {
+                            is_input = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (!onlineDratChecker->hasClause(c) && !is_input) {
+                    if (verbosity > 3) {
+                        std::cout << "c online checker does not have non-unit clause [" << clause_set[j] << "] " << c << std::endl;
+                    }
+                    okay = false;
+                }
+            }
+            assert(okay && "all present clauses should be present in the online checker as well");
+        }
+
+        if (verbosity > 3) std::cout << "c validated online checker state: " << okay << std::endl;
+        return okay;
+    }
+
     template <class V> inline void binDRUP(unsigned char op, const V &c, FILE *drup_file)
     {
         assert(op == 'a' || op == 'd');
@@ -539,7 +597,13 @@ class Solver
         buf_len++;
         if (onlineDratChecker) {
             if (op == 'a') {
-                if (!onlineDratChecker->addClause(c, lit_Undef)) exit(134);
+                TRACE(if (!checkOnlineCheckerState(c)) {
+                    std::cout << "c failed to validate online checker state" << std::endl;
+                });
+
+                if (!onlineDratChecker->addClause(c, lit_Undef)) {
+                    exit(134);
+                }
             } else {
                 if (!onlineDratChecker->removeClause(c)) exit(134);
             }
