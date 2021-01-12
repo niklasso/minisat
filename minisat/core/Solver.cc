@@ -92,6 +92,12 @@ static BoolOption opt_almost_pure(_cat, "almost-pure", "Try to optimize polarity
 static BoolOption opt_lcm(_cat, "lcm", "Use LCM", true);
 static BoolOption opt_reverse_lcm(_cat, "lcm-reverse", "Try to continue LCM with reversed clause in case of success", true);
 static BoolOption opt_lcm_core(_cat, "lcm-core", "Shrink the final conflict with LCM", true);
+static IntOption opt_lcm_delay(_cat, "lcm-delay", "First number of conflicts before starting LCM", 1000, IntRange(0, INT32_MAX));
+static IntOption opt_lcm_delay_inc(_cat,
+                                   "lcm-delay-inc",
+                                   "After first LCM, how many conflicts to see before running the next LCM",
+                                   1000,
+                                   IntRange(0, INT32_MAX));
 static Int64Option
 opt_vsids_c(_cat, "vsids-c", "conflicts after which we want to switch back to VSIDS (0=off)", 12000000, Int64Range(0, INT64_MAX));
 static Int64Option
@@ -283,8 +289,8 @@ Solver::Solver()
 
   // simplifyAll adjust occasion
   , curSimplify(1)
-  , nbconfbeforesimplify(1000)
-  , incSimplify(1000)
+  , nbconfbeforesimplify(opt_lcm_delay)
+  , incSimplify(opt_lcm_delay_inc)
   , lcm(opt_lcm)
   , reverse_LCM(opt_reverse_lcm)
   , lcm_core(opt_lcm_core)
