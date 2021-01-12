@@ -93,6 +93,7 @@ class OnlineProofChecker
 
     /** check whether the given clause exists in the current proof (useful for debugging) */
     template <class T> bool hasClause(const T &cls);
+    bool hasClause(const Lit &cls);
 
     /// plot the current unit clauses and the current formula
     void printState();
@@ -294,6 +295,13 @@ template <class T> inline bool OnlineProofChecker::removeClause(const T &cls, co
     }
     // remove this clause in the usual way
     return removeClause(tmpLits);
+}
+
+inline bool OnlineProofChecker::hasClause(const Lit &cls)
+{
+    vec<Lit> l;
+    l.push(cls);
+    return hasClause(l);
 }
 
 template <class T> inline bool OnlineProofChecker::hasClause(const T &cls)
