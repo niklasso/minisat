@@ -5,10 +5,11 @@
 
 # Formulas to test per iteration
 declare -i FORMULA_PER_CONFIG_RELEASE=3000
-declare -i FORMULA_PER_CONFIG_DEBUG=500
+declare -i FORMULA_PER_CONFIG_DEBUG=400
 
 # List of configurations to consider
 CONFIGURATIONS=("../../build/release/bin/mergesat"
+    "../../build/debug/bin/mergesat -check-sat -check-proof=1 -cpu-lim=4 -drup-file=proof.drat -verb=2 -VSIDS-init-lim=100 -lcm-delay=10 -lcm-delay-inc=10 -rfirst=2"
     "../../build/debug/bin/mergesat -check-sat"
     "../../build/debug/bin/mergesat -check-sat -no-pre"
     "../../build/debug/bin/mergesat -check-sat -rtype=4 -VSIDS-lim=50 -VSIDS-init-lim=50"
