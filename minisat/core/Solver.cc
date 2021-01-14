@@ -537,11 +537,13 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
     int nbSimplified = 0;
     int nbSimplifing = 0;
 
+    bool ret = true;
+
     for (ci = 0, cj = 0; ci < target_learnts.size(); ci++) {
         CRef cr = target_learnts[ci];
         Clause &c = ca[cr];
 
-        if (removed(cr))
+        if (removed(cr) || c.size() == 1)
             continue;
         else if (c.simplified()) {
             target_learnts[cj++] = target_learnts[ci];
@@ -605,15 +607,24 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                     }
                 }
 
-                if (c.size() == 1) {
+                if (c.size() == 0) {
+                    ok = false;
+                    ret = false;
+                    ci++;
+                    while (ci < target_learnts.size()) target_learnts[cj++] = target_learnts[ci++];
+                    goto simplifyLearnt_out;
+                } else if (c.size() == 1) {
                     // when unit clause occur, enqueue and propagate
                     uncheckedEnqueue(c[0], 0);
+                    c.mark(1);
                     if (propagate() != CRef_Undef) {
                         ok = false;
-                        return false;
+                        ret = false;
+                        ci++;
+                        while (ci < target_learnts.size()) target_learnts[cj++] = target_learnts[ci++];
+                        goto simplifyLearnt_out;
                     }
                     // delete the clause memory in logic
-                    c.mark(1);
                     ca.free(cr);
                     //#ifdef BIN_DRUP
                     //                    binDRUP('d', c, drup_file);
@@ -644,9 +655,10 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
             }
         }
     }
+simplifyLearnt_out:;
     target_learnts.shrink(ci - cj);
 
-    return true;
+    return ret;
 }
 
 bool Solver::simplifyAll()
