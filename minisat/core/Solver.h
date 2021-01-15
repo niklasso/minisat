@@ -678,6 +678,7 @@ class Solver
     public:
     bool simplifyAll();
     template <class C> void simplifyLearnt(C &c);
+    bool isSimplifyDuplicate(CRef cr);
     /** simplify the learnt clauses in the given vector, move to learnt_core if is_tier2 is true*/
     bool simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2 = false);
     int trailRecord;
@@ -687,11 +688,12 @@ class Solver
     CRef simplePropagate();
     uint64_t nbSimplifyAll;
     uint64_t simplified_length_record, original_length_record;
-    uint64_t s_propagations;
+    uint64_t s_propagations, nr_lcm_duplicates;
 
     vec<Lit> simp_learnt_clause;
     vec<CRef> simp_reason_clause;
     void simpleAnalyze(CRef confl, vec<Lit> &out_learnt, vec<CRef> &reason_clause, bool True_confl);
+    ClauseRingBuffer simplifyBuffer;
 
     // in redundant
     bool removed(CRef cr);

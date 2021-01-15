@@ -66,8 +66,10 @@ void printStats(Solver &solver)
            solver.starts, solver.restart.partialRestarts, solver.restart.savedDecisions, solver.restart.savedPropagations,
            ((double)solver.restart.savedPropagations * 100.0) / (double)solver.propagations);
     printf("c polarity              : %d pos, %d neg\n", solver.posMissingInSome, solver.negMissingInSome);
-    printf("c LCM                   : %lu runs, %lu Ctried, %lu Cshrinked, %lu Ldeleted, %lu Lrev-deleted\n", solver.nbSimplifyAll,
-           solver.LCM_total_tries, solver.LCM_successful_tries, solver.LCM_dropped_lits, solver.LCM_dropped_reverse);
+    printf("c LCM                   : %lu runs, %lu Ctried, %lu Cshrinked (%lu known duplicates), %lu Ldeleted, %lu "
+           "Lrev-deleted\n",
+           solver.nbSimplifyAll, solver.LCM_total_tries, solver.LCM_successful_tries, solver.nr_lcm_duplicates,
+           solver.LCM_dropped_lits, solver.LCM_dropped_reverse);
     printf("c Inprocessing          : %lu subsumed, %lu dropped lits\n", solver.inprocessing_C, solver.inprocessing_L);
     printf("c Stats:                : %lf solve, %lu steps, %lf simp, %lu steps, %d var, budget: %d\n",
            solver.statistics.solveSeconds, solver.statistics.solveSteps, solver.statistics.simpSeconds,
