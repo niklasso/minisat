@@ -1010,7 +1010,7 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
         simplified_length_record += c.size();
 
         // printf("\nbefore : %d, after : %d ", beforeSize, afterSize);
-        if (beforeSize == c.size() || c.size() == 1) break;
+        if (beforeSize == c.size() || c.size() <= 1) break;
         TRACE(std::cout << "c simplified clause to " << c << " (before size: " << beforeSize << ")" << std::endl);
         LCM_dropped_lits += (beforeSize - c.size());
         LCM_dropped_reverse = iteration == 0 ? LCM_dropped_reverse : LCM_dropped_reverse + (preReserve - c.size());

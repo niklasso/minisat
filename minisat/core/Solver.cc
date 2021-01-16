@@ -585,7 +585,6 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                 assert(c.size() > 1);
                 // simplify a learnt clause c
                 simplifyLearnt(c);
-                assert(c.size() > 0);
 
                 if (saved_size != c.size()) {
                     shareViaCallback(c); // share via IPASIR?
