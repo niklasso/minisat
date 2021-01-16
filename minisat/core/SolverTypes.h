@@ -107,7 +107,7 @@ const Lit lit_Error = { -1 }; // }
 
 inline std::ostream &operator<<(std::ostream &out, const Lit &val)
 {
-    out << (sign(val) ? -var(val) - 1 : var(val)) + 1 << std::flush;
+    out << (sign(val) ? -var(val) - 1 : var(val) + 1) << std::flush;
     return out;
 }
 
