@@ -460,6 +460,7 @@ void Solver::simpleUncheckEnqueue(Lit p, CRef from)
     assert(value(p) == l_Undef);
     assigns[var(p)] = lbool(!sign(p)); // this makes a lbool object whose value is sign(p)
     vardata[var(p)].reason = from;
+    vardata[var(p)].level = decisionLevel();
     trail.push_(p);
 }
 

@@ -952,6 +952,10 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
             preReserve = c.size();
         }
 
+        assert(decisionLevel() == 0 && "only run simplification on level 0");
+        newDecisionLevel();
+        assert(decisionLevel() == 1 && "only run simplification on level 0");
+
         for (i = 0, j = 0; i < c.size(); i++) {
             if (value(c[i]) == l_Undef) {
                 // printf("///@@@ uncheckedEnqueue:index = %d. l_Undef\n", i);
@@ -997,7 +1001,10 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
             }
         }
 
+        assert(decisionLevel() == 1);
+        cancelUntil(0);
         cancelUntilTrailRecord();
+        assert(decisionLevel() == 0);
 
         ////
         simplified_length_record += c.size();
