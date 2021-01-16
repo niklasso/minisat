@@ -942,6 +942,7 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
     // try to simplify in reverse order, in case original succeeds
     for (size_t iteration = 0; iteration < (reverse_LCM ? 2 : 1); ++iteration) {
         True_confl = false;
+        confl = CRef_Undef;
         statistics.solveSteps++;
         // reorder the current clause for next iteration?
         // (only useful if size changed in first iteration)
