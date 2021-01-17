@@ -7,6 +7,10 @@
 declare -i FORMULA_PER_CONFIG_RELEASE=3000
 declare -i FORMULA_PER_CONFIG_DEBUG=400
 
+FUZZ_MULTIPLY=${FUZZ_MULTIPLY:-1}
+FORMULA_PER_CONFIG_RELEASE=$((FORMULA_PER_CONFIG_RELEASE * FUZZ_MULTIPLY))
+FORMULA_PER_CONFIG_DEBUG=$((FORMULA_PER_CONFIG_DEBUG * FUZZ_MULTIPLY))
+
 # List of configurations to consider
 CONFIGURATIONS=("../../build/release/bin/mergesat"
     "../../build/debug/bin/mergesat -check-sat -check-proof=1 -cpu-lim=4 -drup-file=proof.drat -verb=2 -VSIDS-init-lim=100 -lcm-delay=10 -lcm-delay-inc=10 -rfirst=2"
