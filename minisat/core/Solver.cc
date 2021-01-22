@@ -44,15 +44,6 @@ using namespace MERGESAT_NSPACE;
 
 //#define PRINT_OUT
 
-#ifdef DEBUG
-#define TRACE(x)                                                                                                       \
-    if (verbosity > 1) {                                                                                               \
-        x;                                                                                                             \
-    }
-#else
-#define TRACE(x)
-#endif
-
 #ifdef BIN_DRUP
 unsigned char Solver::drup_buf[2 * 1024 * 1024];
 #endif
@@ -101,6 +92,12 @@ static BoolOption opt_almost_pure(_cat, "almost-pure", "Try to optimize polarity
 static BoolOption opt_lcm(_cat, "lcm", "Use LCM", true);
 static BoolOption opt_reverse_lcm(_cat, "lcm-reverse", "Try to continue LCM with reversed clause in case of success", true);
 static BoolOption opt_lcm_core(_cat, "lcm-core", "Shrink the final conflict with LCM", true);
+static IntOption opt_lcm_delay(_cat, "lcm-delay", "First number of conflicts before starting LCM", 1000, IntRange(0, INT32_MAX));
+static IntOption opt_lcm_delay_inc(_cat,
+                                   "lcm-delay-inc",
+                                   "After first LCM, how many conflicts to see before running the next LCM",
+                                   1000,
+                                   IntRange(0, INT32_MAX));
 static Int64Option
 opt_vsids_c(_cat, "vsids-c", "conflicts after which we want to switch back to VSIDS (0=off)", 12000000, Int64Range(0, INT64_MAX));
 static Int64Option
@@ -280,6 +277,9 @@ Solver::Solver()
   , prefetch_assumptions(opt_pref_assumpts)
   , last_used_assumptions(INT32_MAX)
 
+  , buf_len(0)
+  , buf_ptr(drup_buf)
+
   // simplfiy
   , trailRecord(0)
   , nbSimplifyAll(0)
@@ -287,13 +287,10 @@ Solver::Solver()
   , original_length_record(0)
   , s_propagations(0)
 
-  , buf_len(0)
-  , buf_ptr(drup_buf)
-
   // simplifyAll adjust occasion
   , curSimplify(1)
-  , nbconfbeforesimplify(1000)
-  , incSimplify(1000)
+  , nbconfbeforesimplify(opt_lcm_delay)
+  , incSimplify(opt_lcm_delay_inc)
   , lcm(opt_lcm)
   , reverse_LCM(opt_reverse_lcm)
   , lcm_core(opt_lcm_core)
@@ -463,6 +460,7 @@ void Solver::simpleUncheckEnqueue(Lit p, CRef from)
     assert(value(p) == l_Undef);
     assigns[var(p)] = lbool(!sign(p)); // this makes a lbool object whose value is sign(p)
     vardata[var(p)].reason = from;
+    vardata[var(p)].level = decisionLevel();
     trail.push_(p);
 }
 
@@ -540,11 +538,13 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
     int nbSimplified = 0;
     int nbSimplifing = 0;
 
+    bool ret = true;
+
     for (ci = 0, cj = 0; ci < target_learnts.size(); ci++) {
         CRef cr = target_learnts[ci];
         Clause &c = ca[cr];
 
-        if (removed(cr))
+        if (removed(cr) || c.size() == 1)
             continue;
         else if (c.simplified()) {
             target_learnts[cj++] = target_learnts[ci];
@@ -578,13 +578,13 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                         }
                     }
                     c.shrink(li - lj);
+                    TRACE(std::cout << "c dropped" << li - lj << " literals from clause " << c << std::endl);
                     c.S(0); // this clause might subsume others now
                 }
 
                 assert(c.size() > 1);
                 // simplify a learnt clause c
                 simplifyLearnt(c);
-                assert(c.size() > 0);
 
                 if (saved_size != c.size()) {
                     shareViaCallback(c); // share via IPASIR?
@@ -607,15 +607,24 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                     }
                 }
 
-                if (c.size() == 1) {
+                if (c.size() == 0) {
+                    ok = false;
+                    ret = false;
+                    ci++;
+                    while (ci < target_learnts.size()) target_learnts[cj++] = target_learnts[ci++];
+                    goto simplifyLearnt_out;
+                } else if (c.size() == 1) {
                     // when unit clause occur, enqueue and propagate
                     uncheckedEnqueue(c[0], 0);
+                    c.mark(1);
                     if (propagate() != CRef_Undef) {
                         ok = false;
-                        return false;
+                        ret = false;
+                        ci++;
+                        while (ci < target_learnts.size()) target_learnts[cj++] = target_learnts[ci++];
+                        goto simplifyLearnt_out;
                     }
                     // delete the clause memory in logic
-                    c.mark(1);
                     ca.free(cr);
                     //#ifdef BIN_DRUP
                     //                    binDRUP('d', c, drup_file);
@@ -646,9 +655,10 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
             }
         }
     }
+simplifyLearnt_out:;
     target_learnts.shrink(ci - cj);
 
-    return true;
+    return ret;
 }
 
 bool Solver::simplifyAll()
@@ -743,6 +753,8 @@ bool Solver::addClause_(vec<Lit> &ps)
 
     bool somePositive = false;
     bool someNegative = false;
+
+    TRACE(if (verbosity > 2) std::cout << "c adding clause " << ps << std::endl);
 
     if (drup_file) {
         add_oc.clear();
@@ -2100,7 +2112,7 @@ lbool Solver::search(int &nof_conflicts)
     // simplify
     //
     if (lcm && conflicts >= curSimplify * nbconfbeforesimplify) {
-        TRACE(printf("c ### simplifyAll on conflict : %lld\n", conflicts);)
+        TRACE(printf("c ### simplifyAll on conflict : %ld\n", conflicts);)
         if (verbosity >= 1)
             printf("c schedule LCM with: nbClauses: %d, nbLearnts_core: %d, nbLearnts_tier2: %d, nbLearnts_local: %d, "
                    "nbLearnts: %d\n",
@@ -2135,7 +2147,7 @@ lbool Solver::search(int &nof_conflicts)
 
             conflicts++;
             nof_conflicts--;
-            TRACE(printf("c hit conflict %d\n", conflicts);)
+            TRACE(printf("c hit conflict %ld\n", conflicts);)
             if (conflicts == 100000 && learnts_core.size() < 100) core_lbd_cut = 5;
             ConflictData data = FindConflictLevel(confl);
             if (data.nHighestLevel == 0) return l_False;
@@ -2576,7 +2588,7 @@ bool Solver::inprocessing()
     if (solves && X++ > Y && inprocess_inc != (double)0) {
         L = 60; // clauses with lbd higher than 60 are not considered (and rather large anyways)
         Y = (uint64_t)((double)Y * inprocess_inc);
-        int Z = 0, i, j, k, l, p;
+        int Z = 0, i, j, k, l = -1, p;
 
         if (verbosity > 0) printf("c inprocessing simplify at try %ld, next limit: %ld\n", X, Y);
         // fill occurrence data structure
@@ -2617,7 +2629,7 @@ bool Solver::inprocessing()
                 // printf ("c for clause %d, mark %d lits\n", s, c.size());
 
                 std::vector<CRef> &V = O[toInt(m)];
-                for (j = 0; j < V.size(); ++j) {
+                for (size_t j = 0; j < V.size(); ++j) {
                     CRef r = V[j];
                     if (r == s) continue; // do not subsume the same clause
                     Clause &d = ca[r];    // get the actual clause
@@ -2677,7 +2689,7 @@ bool Solver::inprocessing()
 
             if (!Z)
                 Y += inprocess_penalty; // in case we did not modify anything, skip a few more relocs before trying again
-            for (i = 0; i < O.size(); ++i) O[i].clear(); // do not free, just drop elements
+            for (size_t i = 0; i < O.size(); ++i) O[i].clear(); // do not free, just drop elements
         }
 
         /* in case we found unit clauses, make sure we find them fast */

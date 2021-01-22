@@ -102,7 +102,9 @@ for solver in "$@"; do
 done
 
 # run benchmarks
-for benchmark in $(ls $BENCHMARKDIR/* | head -n 2); do
+declare -i TRIED_BENCHMARK=0
+for benchmark in $(ls $BENCHMARKDIR/*); do
+    TRIED_BENCHMARK=$((TRIED_BENCHMARK+1))
     for solver in "$@"; do
         echo "Run solver: $solver $benchmark"
         RUNLIM_STATUS=0
@@ -159,7 +161,7 @@ done
 
 echo "Summary"
 for solver in "$@"; do
-    echo "$solver: par2: ${PAR2["$solver"]} maxtime: ${MAXTIME["$solver"]} solved: ${SOLVED["$solver"]} (sat: ${SAT["$solver"]} unsat: ${UNSAT["$solver"]} ) errors: ${ERRORS["$solver"]}"
+    echo "$solver: par2: ${PAR2["$solver"]} maxtime: ${MAXTIME["$solver"]} solved: ${SOLVED["$solver"]} (sat: ${SAT["$solver"]} unsat: ${UNSAT["$solver"]} ) errors: ${ERRORS["$solver"]} (full benchmark: $TRIED_BENCHMARK)"
 done
 
 if [ "$ERROR" -ne 0 ]; then

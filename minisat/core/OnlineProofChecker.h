@@ -93,6 +93,7 @@ class OnlineProofChecker
 
     /** check whether the given clause exists in the current proof (useful for debugging) */
     template <class T> bool hasClause(const T &cls);
+    bool hasClause(const Lit &cls);
 
     /// plot the current unit clauses and the current formula
     void printState();
@@ -265,7 +266,7 @@ inline bool OnlineProofChecker::propagate()
 inline bool OnlineProofChecker::removeClause(const std::vector<int> &clause)
 {
     tmpLits.clear();
-    for (int i = 0; i < clause.size(); ++i) {
+    for (size_t i = 0; i < clause.size(); ++i) {
         tmpLits.push(clause[i] < 0 ? mkLit(-clause[i] - 1, true) : mkLit(clause[i] - 1, false));
     }
     // remove this clause in the usual way
@@ -294,6 +295,13 @@ template <class T> inline bool OnlineProofChecker::removeClause(const T &cls, co
     }
     // remove this clause in the usual way
     return removeClause(tmpLits);
+}
+
+inline bool OnlineProofChecker::hasClause(const Lit &cls)
+{
+    vec<Lit> l;
+    l.push(cls);
+    return hasClause(l);
 }
 
 template <class T> inline bool OnlineProofChecker::hasClause(const T &cls)
@@ -337,7 +345,7 @@ template <class T> inline bool OnlineProofChecker::hasClause(const T &cls)
     const Lit smallest = cls[smallestIndex];
 
     CRef ref = CRef_Undef;
-    int i = 0;
+    size_t i = 0;
     for (; i < occ[toInt(smallest)].size(); ++i) {
         const Clause &c = ca[occ[toInt(smallest)][i]];
         if (c.size() != cls.size()) {
@@ -355,7 +363,7 @@ template <class T> inline bool OnlineProofChecker::hasClause(const T &cls)
         } // not the right clause -> check next!
 
         ref = occ[toInt(smallest)][i];
-        i = -1; // set to indicate that we found the clause
+        i = ~0UL; // set to indicate that we found the clause
         break;
     }
     if (i == occ[toInt(smallest)].size() || ref == CRef_Undef) {
@@ -365,7 +373,7 @@ template <class T> inline bool OnlineProofChecker::hasClause(const T &cls)
         printState();
         return false;
     }
-    assert(i == -1 && "found the clause");
+    assert(i == ~0UL && "found the clause");
     return true; // found clause
 }
 
@@ -528,7 +536,7 @@ inline bool OnlineProofChecker::addClause(const std::vector<int> &clause)
 {
     // create a clause where remLit is the first literal
     tmpLits.clear();
-    for (int i = 0; i < clause.size(); ++i) {
+    for (size_t i = 0; i < clause.size(); ++i) {
         tmpLits.push(clause[i] < 0 ? mkLit(-clause[i] - 1, true) : mkLit(clause[i] - 1, false));
     }
     // add this clause in the usual way
@@ -648,7 +656,7 @@ inline bool OnlineProofChecker::addClause(const vec<Lit> &cls, bool checkOnly)
                         if (verbose > 4) {
                             std::cerr << "c [DRAT-OTFC] resolve against " << list.size() << " clauses" << std::endl;
                         }
-                        for (int i = 0; i < list.size(); ++i) {
+                        for (size_t i = 0; i < list.size(); ++i) {
                             // build resolvent
                             lits.shrink_(lits.size() - initialSize); // remove literals from previous addClause call
                             const Clause &d = ca[list[i]];
@@ -788,7 +796,6 @@ inline void OnlineProofChecker::fullCheck()
             continue;
         }
 
-        void *end = 0;
         if (c.size() == 1) {
             std::cerr << "there should not be unit clauses! [" << cr << "]" << c << std::endl;
         } else {
