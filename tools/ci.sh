@@ -216,7 +216,7 @@ test_ipasir() {
                 fi
 
                 if [ $I_STATUS -ne 0 ]; then
-                    echo "failed $APP call with $I"
+                    echo "failed $APP call with $I_STATUS on input $I"
                     STATUS=1
                     echo "last lines of log:"
                     tail -n 30 "$APP"-mergesat.log || true
