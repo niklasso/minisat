@@ -5,8 +5,8 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
-declare -r TIMEOUT=600
-declare -r SPACE_MB=4096
+declare -i TIMEOUT=600
+declare -i SPACE_MB=4096
 
 get_drattrim() {
     pushd "$SCRIPT_DIR"
@@ -64,12 +64,25 @@ get_benchmark() {
     popd
 }
 
-get_drattrim
-get_verify
-get_benchmark
+usage() {
+    cat <<EOF
+  Mini Competition Tool
 
-VERIFY="$SCRIPT_DIR"/verify
-DRATTRIM="$SCRIPT_DIR"/drat-trim/drat-trim
+  Run the given solver configurations on a given benchmark. If no benchmark is
+  specified, download a few selected files from the 2020 competition.
+
+  Usage:
+
+    $0 [OPTIONS] "solver call" ["solver call"]*
+
+    OPTIONS
+
+      -b BenchmarkDir ...... use files from this directory for the benchmark.
+      -m MB ................ limit memory usage (in MB, default: $SPACE_MB)
+      -t timout ............ limit tool runtime (in s, default: $TIMEOUT)
+EOF
+}
+
 BENCHMARKDIR="$SCRIPT_DIR"/benchmarks
 
 for tool in runlim bc awk; do
@@ -77,6 +90,43 @@ for tool in runlim bc awk; do
         echo "error: failed to find tool $tool"
     fi
 done
+
+# do we want to package Riss(for Coprocessor) or Sparrow as well?
+while getopts "b:hm:t:" OPTION; do
+    case $OPTION in
+    b)
+        BENCHMARKDIR="$OPTARG"
+        ;;
+    h)
+        usage
+        exit 0
+        ;;
+    m)
+        SPACE_MB="$OPTARG"
+        ;;
+    t)
+        TIMEOUT="$OPTARG"
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+    esac
+done
+shift "$((OPTIND-1))"
+declare -r TIMEOUT
+declare -r SPACE_MB
+
+# in case no benchmark directory is specified, get a small benchmark
+if [ "$BENCHMARKDIR" = "$SCRIPT_DIR"/benchmarks ]; then
+    get_benchmark
+fi
+
+get_drattrim
+get_verify
+
+VERIFY="$SCRIPT_DIR"/verify
+DRATTRIM="$SCRIPT_DIR"/drat-trim/drat-trim
 
 trap '[ -r "$LOG_FILE" ] && rm -f "$LOG_FILE"' EXIT
 LOG_FILE=$(mktemp)
@@ -103,8 +153,9 @@ done
 
 # run benchmarks
 declare -i TRIED_BENCHMARK=0
-for benchmark in $(ls $BENCHMARKDIR/*); do
-    TRIED_BENCHMARK=$((TRIED_BENCHMARK+1))
+for benchmark in $(find "${BENCHMARKDIR}" -type f); do
+    TRIED_BENCHMARK=$((TRIED_BENCHMARK + 1))
+    benchmark="$(readlink -e "$benchmark")"
     for solver in "$@"; do
         echo "Run solver: $solver $benchmark"
         RUNLIM_STATUS=0
