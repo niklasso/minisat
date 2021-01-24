@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 #endif
         // Extra options:
         //
-        IntOption verb("MAIN", "verb", "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 3));
+        IntOption verb("MAIN", "verb", "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 4));
         BoolOption pre("MAIN", "pre", "Completely turn on/off any preprocessing.", true);
         BoolOption s_model("MAIN", "model", "Do report a model if the formula is satisfiable.", true);
         StringOption dimacs("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
