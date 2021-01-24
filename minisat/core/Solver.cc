@@ -872,31 +872,33 @@ void Solver::detachClause(CRef cr, bool strict)
 }
 
 
-void Solver::removeClause(CRef cr)
+void Solver::removeClause(CRef cr, bool remove_from_proof)
 {
     Clause &c = ca[cr];
     statistics.solveSteps++;
 
     detachClause(cr);
     // Don't leave pointers to free'd memory!
-    if (locked(c)) {
-        Lit implied = c.size() != 2 ? c[0] : (value(c[0]) == l_True ? c[0] : c[1]);
-        vardata[var(implied)].reason = CRef_Undef;
-        if (drup_file && onlineDratChecker && level(var(implied)) == 0) { /* before we drop the reason, store a unit */
-            if (!onlineDratChecker->addClause(mkLit(var(implied), value(var(implied)) == l_False))) exit(134);
+    if (remove_from_proof) {
+        if (locked(c)) {
+            Lit implied = c.size() != 2 ? c[0] : (value(c[0]) == l_True ? c[0] : c[1]);
+            vardata[var(implied)].reason = CRef_Undef;
+            if (drup_file && onlineDratChecker && level(var(implied)) == 0) { /* before we drop the reason, store a unit */
+                if (!onlineDratChecker->addClause(mkLit(var(implied), value(var(implied)) == l_False))) exit(134);
+            }
         }
-    }
-    if (drup_file) {
-        if (c.mark() != 1) {
+        if (drup_file) {
+            if (c.mark() != 1) {
 #ifdef BIN_DRUP
-            binDRUP('d', c, drup_file);
+                binDRUP('d', c, drup_file);
 #else
-            fprintf(drup_file, "d ");
-            for (int i = 0; i < c.size(); i++) fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
-            fprintf(drup_file, "0\n");
+                fprintf(drup_file, "d ");
+                for (int i = 0; i < c.size(); i++) fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
+                fprintf(drup_file, "0\n");
 #endif
-        } else if (verbosity >= 1) {
-            printf("c Bug. I don't expect this to happen.\n");
+            } else if (verbosity >= 1) {
+                printf("c Bug. I don't expect this to happen.\n");
+            }
         }
     }
 
@@ -904,7 +906,7 @@ void Solver::removeClause(CRef cr)
     ca.free(cr);
 }
 
-void Solver::removeSatisfiedClause(CRef cr)
+void Solver::removeSatisfiedClause(CRef cr, bool remove_from_proof)
 {
     Clause &c = ca[cr];
 
@@ -921,7 +923,7 @@ void Solver::removeSatisfiedClause(CRef cr)
 #endif
     }
 
-    removeClause(cr);
+    removeClause(cr, remove_from_proof);
 }
 
 
