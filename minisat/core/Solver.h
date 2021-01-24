@@ -978,9 +978,10 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
                 }
             }
         }
-        if (c.size() - j > 0)
-            TRACE(std::cout << "c shrink clause after propagation to " << c << " (dropping last " << c.size() - j
-                            << " literals, reverse=" << reversed << ")" << std::endl);
+        TRACE(if (c.size() - j > 0) {
+            std::cout << "c shrink clause after propagation to " << c << " (dropping last " << c.size() - j
+                      << " literals, reverse=" << reversed << ")" << std::endl;
+        });
         c.shrink(c.size() - j);
 
         if (confl != CRef_Undef || True_confl == true) {
@@ -995,9 +996,10 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
                 for (i = 0; i < simp_learnt_clause.size(); i++) {
                     c[i] = simp_learnt_clause[i];
                 }
-                if (c.size() - i > 0)
-                    TRACE(std::cout << "c shrink clause after analysis to " << c << " (dropping last " << c.size() - i
-                                    << " literals, reverse=" << reversed << ")" << std::endl);
+                TRACE(if (c.size() - i > 0) {
+                    std::cout << "c shrink clause after analysis to " << c << " (dropping last " << c.size() - i
+                              << " literals, reverse=" << reversed << ")" << std::endl;
+                });
                 c.shrink(c.size() - i);
             }
         }
