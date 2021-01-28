@@ -149,7 +149,7 @@ ls_solver::ls_solver()
 bool ls_solver::make_space()
 {
     if (0 == _num_vars || 0 == _num_clauses) {
-        cout << "The formula size is zero. You may forgot to read the formula." << endl;
+        cout << "c the formula size is zero. You may forgot to read the formula." << endl;
         return false;
     }
     // _vars.reserve(_num_vars+_additional_len);
