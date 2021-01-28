@@ -3255,6 +3255,9 @@ bool Solver::call_ls(bool use_up_build)
         ls_cls_nums += trail_lim[0];
     else
         ls_cls_nums += trail.size();
+
+    ls_cls_nums += assumptions.size();
+
     ccnr._num_vars = ls_var_nums;
     ccnr._num_clauses = ls_cls_nums;
     ccnr._max_mems = ls_mems_num;
@@ -3292,6 +3295,11 @@ bool Solver::call_ls(bool use_up_build)
             ccnr._clauses[ct].literals.push_back(CCNR::lit(toFormal(trail[i]), ct));
             ct++;
         }
+    }
+
+    for (int i = 0; i < assumptions.size(); i++) {
+        ccnr._clauses[ct].literals.push_back(CCNR::lit(toFormal(assumptions[i]), ct));
+        ct++;
     }
 
     for (int c = 0; c < ccnr._num_clauses; c++) {
