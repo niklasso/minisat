@@ -359,6 +359,17 @@ Solver::Solver()
 
   , var_iLevel_inc(1)
   , my_var_decay(0.6)
+
+  // for ccnr integration
+  , restarts_gap(300)
+  , conflict_ratio(0.4)
+  , percent_ratio(0.9)
+  , up_time_ratio(0.2)
+  , ls_mems_num(50 * 1000 * 1000)
+  , state_change_time(2000)
+  , mediation_used(false)
+  , switch_heristic_mod(500)
+  , last_switch_conflicts (0)
 {
     if (opt_checkProofOnline && onlineDratChecker) {
         onlineDratChecker->setVerbosity(opt_checkProofOnline);

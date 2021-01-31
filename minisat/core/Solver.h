@@ -757,24 +757,19 @@ class Solver
 
     protected:
     //  to avoid the init_soln of two LS too near.
-    int restarts_gap = 300;
+    int restarts_gap;
     //  if trail.size() over c*nVars or p*max_trail, call ls.
-    float conflict_ratio = 0.4;
-    float percent_ratio = 0.9;
+    float conflict_ratio;
+    float percent_ratio;
     //  control ls time total use.
-    float up_time_ratio = 0.2;
+    float up_time_ratio;
     //  control ls memory use per call.
-    long long ls_mems_num = 50 * 1000 * 1000;
-    //  control the rephase rate based on restarts;
-    // int     rephase_mod         = 10000;
-    //  the LS used in the first # seconds is to initialize a good ls_best_soln,
-    //  after # seconds, the
-    // int     state_change_time   = 100;//seconds
-    int state_change_time = 2000; // starts
+    long long ls_mems_num;
+    int state_change_time; // starts
     //  whether the mediation_soln is used as rephase, if not
-    bool mediation_used = false;
+    bool mediation_used;
 
-    int switch_heristic_mod = 500; // starts
+    int switch_heristic_mod; // starts
     int last_switch_conflicts;
 
     // informations
