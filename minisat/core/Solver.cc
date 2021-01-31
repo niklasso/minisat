@@ -3302,6 +3302,18 @@ bool Solver::call_ls(bool use_up_build)
         ct++;
     }
 
+    // set top level literals in SLS engine
+    int topLevel = trail_lim.size() > 0 ? trail_lim[0] : trail.size();
+    for (int i = 0; i < topLevel; ++i) {
+        Var v = var(trail[i]);
+        ls_mediation_soln[v] = (value(v) == l_True) ? 1 : 0;
+    }
+    // set assignment variables
+    for (int i = 0; i < assumptions.size(); i++) {
+        Var v = var(assumptions[i]);
+        ls_mediation_soln[v] = (value(v) == l_True) ? 1 : 0;
+    }
+
     for (int c = 0; c < ccnr._num_clauses; c++) {
         for (CCNR::lit item : ccnr._clauses[c].literals) {
             int v = item.var_num;
@@ -3431,10 +3443,9 @@ bool Solver::call_ls(bool use_up_build)
         res = ccnr.local_search(&ls_mediation_soln);
 
     } else {
-        // use total rand mod
+        // use total rand mod, however, respect top level literals and assumptions!
         // call ccanr use rand assign
-        vector<char> *rand_signal = 0;
-        res = ccnr.local_search(rand_signal);
+        res = ccnr.local_search(&ls_mediation_soln);
     }
 
 
