@@ -164,6 +164,14 @@ static DoubleOption opt_core_size_lim_inc(_cat,
                                           DoubleRange(1, true, HUGE_VAL, false));
 
 static BoolOption opt_use_ccnr("SLS", "use-ccnr", "Use SLS engine CCNR", true);
+static IntOption opt_ccnr_restarts_gap("SLS", "ccnr-restart-gap", "TBD", 300, IntRange(0, INT32_MAX));
+static DoubleOption opt_ccnr_conflict_ratio("SLS", "ccnr-conflict-ratio", "TBD", 0.4, DoubleRange(0, true, 1, true));
+static DoubleOption opt_ccnr_percent_ratio("SLS", "ccnr-percent-ratio", "TBD", 0.9, DoubleRange(0, true, 1, true));
+static DoubleOption opt_ccnr_up_time_ratio("SLS", "ccnr-up-time-ratio", "TBD", 0.2, DoubleRange(0, true, 1, true));
+static IntOption opt_ccnr_ls_mems_num("SLS", "ccnr-ls-mems", "TBD", 50 * 1000 * 1000, IntRange(0, INT32_MAX));
+static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 2000, IntRange(0, INT32_MAX));
+static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
+static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -364,14 +372,14 @@ Solver::Solver()
 
   // for ccnr integration
   , use_ccnr(opt_use_ccnr)
-  , restarts_gap(300)
-  , conflict_ratio(0.4)
-  , percent_ratio(0.9)
-  , up_time_ratio(0.2)
-  , ls_mems_num(50 * 1000 * 1000)
-  , state_change_time(2000)
-  , mediation_used(false)
-  , switch_heristic_mod(500)
+  , restarts_gap(opt_ccnr_restarts_gap)
+  , conflict_ratio(opt_ccnr_conflict_ratio)
+  , percent_ratio(opt_ccnr_percent_ratio)
+  , up_time_ratio(opt_ccnr_up_time_ratio)
+  , ls_mems_num(opt_ccnr_ls_mems_num)
+  , state_change_time(opt_ccnr_state_change_time)
+  , mediation_used(opt_ccnr_mediation_used)
+  , switch_heristic_mod(opt_ccnr_mediation_used)
   , last_switch_conflicts (0)
 {
     if (opt_checkProofOnline && onlineDratChecker) {
