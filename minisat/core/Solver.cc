@@ -2865,12 +2865,13 @@ lbool Solver::solve_()
 
     add_tmp.clear();
 
-
-    int fls_res = call_ls(false);
-    if (fls_res) {
-        status = l_True;
+    /* do not start with SLS, in case we have assumptions, or solve incrementally */
+    if (assumptions.size() == 0 && solves == 1) {
+        int fls_res = call_ls(false);
+        if (fls_res) {
+            status = l_True;
+        }
     }
-
 
     // toggle back to VSIDS
     if (!usesVSIDS()) toggle_decision_heuristic(true);
