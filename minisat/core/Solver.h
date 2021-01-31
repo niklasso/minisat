@@ -408,7 +408,7 @@ class Solver
         {
             bool valid = true;
             bool satisfied_current_clause = false;
-            int last_litUndef = 0;
+            int last_litUndef = -1;
             vec<Lit> d;
             for (int i = 0; i < check_formula.size(); ++i) {
                 const Lit &l = check_formula[i];
