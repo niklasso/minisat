@@ -756,6 +756,7 @@ class Solver
     void reset_old_trail();
 
     protected:
+    bool use_ccnr;
     //  to avoid the init_soln of two LS too near.
     int restarts_gap;
     //  if trail.size() over c*nVars or p*max_trail, call ls.

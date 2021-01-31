@@ -163,6 +163,8 @@ static DoubleOption opt_core_size_lim_inc(_cat,
                                           1.1,
                                           DoubleRange(1, true, HUGE_VAL, false));
 
+static BoolOption opt_use_ccnr("SLS", "use-ccnr", "Use SLS engine CCNR", true);
+
 //=================================================================================================
 // Constructor/Destructor:
 
@@ -361,6 +363,7 @@ Solver::Solver()
   , my_var_decay(0.6)
 
   // for ccnr integration
+  , use_ccnr(opt_use_ccnr)
   , restarts_gap(300)
   , conflict_ratio(0.4)
   , percent_ratio(0.9)
@@ -3260,6 +3263,8 @@ void Solver::reset_old_trail()
 
 bool Solver::call_ls(bool use_up_build)
 {
+    if(!use_ccnr) return false;
+
     ccnr = CCNR::ls_solver();
     int ls_var_nums = nVars();
     int ls_cls_nums = nClauses() + learnts_core.size() + learnts_tier2.size();
