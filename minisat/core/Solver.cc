@@ -380,7 +380,7 @@ Solver::Solver()
   , state_change_time(opt_ccnr_state_change_time)
   , mediation_used(opt_ccnr_mediation_used)
   , switch_heristic_mod(opt_ccnr_mediation_used)
-  , last_switch_conflicts (0)
+  , last_switch_conflicts(0)
 {
     if (opt_checkProofOnline && onlineDratChecker) {
         onlineDratChecker->setVerbosity(opt_checkProofOnline);
@@ -3271,7 +3271,7 @@ void Solver::reset_old_trail()
 
 bool Solver::call_ls(bool use_up_build)
 {
-    if(!use_ccnr) return false;
+    if (!use_ccnr) return false;
 
     ccnr = CCNR::ls_solver();
     int ls_var_nums = nVars();
