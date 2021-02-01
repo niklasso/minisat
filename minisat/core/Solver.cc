@@ -2385,7 +2385,7 @@ void Solver::info_based_rephase()
 {
     int var_nums = nVars();
     for (int i = 0; i < var_nums; ++i) polarity[i] = !ls_mediation_soln[i];
-    if (!DISTANCE) {
+    if (!DISTANCE && ccnr.conflict_ct.size() > 0 && ccnr._step > 0) {
         for (int i = 0; i < var_nums; ++i) {
             if (ccnr.conflict_ct[i + 1] > 0) {
                 if (VSIDS) {
