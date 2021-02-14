@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 declare -i TIMEOUT=600
 declare -i SPACE_MB=4096
+declare LOG_DUMP=""
+declare -i VERBOSE=0
 
 get_drattrim() {
     pushd "$SCRIPT_DIR"
@@ -78,8 +80,10 @@ usage() {
     OPTIONS
 
       -b BenchmarkDir ...... use files from this directory for the benchmark.
+      -l log ............... log file with summary of analysis
       -m MB ................ limit memory usage (in MB, default: $SPACE_MB)
       -t timout ............ limit tool runtime (in s, default: $TIMEOUT)
+      -v ................... increase verbosity of output and dumped log
 EOF
 }
 
@@ -92,7 +96,7 @@ for tool in runlim bc awk; do
 done
 
 # do we want to package Riss(for Coprocessor) or Sparrow as well?
-while getopts "b:hm:t:" OPTION; do
+while getopts "b:hl:m:t:v" OPTION; do
     case $OPTION in
     b)
         BENCHMARKDIR="$OPTARG"
@@ -101,11 +105,17 @@ while getopts "b:hm:t:" OPTION; do
         usage
         exit 0
         ;;
+    l)
+        LOG_DUMP="$OPTARG"
+        ;;
     m)
         SPACE_MB="$OPTARG"
         ;;
     t)
         TIMEOUT="$OPTARG"
+        ;;
+    v)
+        VERBOSE=$((VERBOSE + 1))
         ;;
     *)
         usage
@@ -113,7 +123,7 @@ while getopts "b:hm:t:" OPTION; do
         ;;
     esac
 done
-shift "$((OPTIND-1))"
+shift "$((OPTIND - 1))"
 declare -r TIMEOUT
 declare -r SPACE_MB
 
@@ -163,7 +173,26 @@ for benchmark in $(find "${BENCHMARKDIR}" -type f); do
 
         RESULT="$(awk -F':' '/\[runlim\] result:/ {print $2}' "$LOG_FILE" | xargs)"
         RUNTIME="$(awk -F':' '/\[runlim\] real:/ {print $2}' "$LOG_FILE" | sed 's:seconds::g' | xargs)"
+        SPACE="$(awk -F':' '/\[runlim\] real:/ {print $2}' "$LOG_FILE" | sed 's:seconds::g' | xargs)"
         STATUS="$(awk -F':' '/\[runlim\] status:/ {print $2}' "$LOG_FILE" | xargs)"
+
+        S_LINE="$(grep "^s " "$TMP_OUTFILE")"
+
+        # if sat, verify model
+        if [ "$S_LINE" == "s SATISFIABLE" ]; then
+            echo "verify sat"
+        fi
+
+        # if unsat, verify proof
+        if [ "$S_LINE" == "s UNSATISFIABLE" ]; then
+            echo "verify unsat"
+        fi
+
+        if [ -n "$LOG_DUMP" ] && [ -r "$LOG_DUMP" ]; then
+            echo "benchmark;solver;sat-status;status;time;memory;runlim-status" >>"$LOG_DUMP"
+        fi
+        [ -n "$LOG_DUMP" ] && echo "$benchmark;$solver;$STATUS;$RUNTIME;$SPACE;$RUNLIM_STATUS" >>"$LOG_DUMP"
+        [ "$VERBOSE" -gt 0 ] && echo "[stats] $benchmark;$solver;$STATUS;$RUNTIME;$SPACE;$RUNLIM_STATUS"
 
         if [ "$STATUS" != "out of time" ] && [ "$STATUS" != "out of memory" ] && [ "$STATUS" != "ok" ]; then
             echo "error: failed to run $solver $benchmark (results $RESULTS, time $RUNTIME, status $STATUS)"
@@ -176,18 +205,6 @@ for benchmark in $(find "${BENCHMARKDIR}" -type f); do
 
             # skip further evaluation
             continue
-        fi
-
-        S_LINE="$(grep "^s " "$TMP_OUTFILE")"
-
-        # if sat, verify model
-        if [ "$S_LINE" == "s SATISFIABLE" ]; then
-            echo "verify sat"
-        fi
-
-        # if unsat, verify proof
-        if [ "$S_LINE" == "s UNSATISFIABLE" ]; then
-            echo "verify unsat"
         fi
 
         # calculate par2, and track stats
