@@ -107,6 +107,7 @@ while getopts "b:hl:m:t:v" OPTION; do
         ;;
     l)
         LOG_DUMP="$OPTARG"
+        rm -rf "$LOG_DUMP"
         ;;
     m)
         SPACE_MB="$OPTARG"
@@ -173,26 +174,29 @@ for benchmark in $(find "${BENCHMARKDIR}" -type f); do
 
         RESULT="$(awk -F':' '/\[runlim\] result:/ {print $2}' "$LOG_FILE" | xargs)"
         RUNTIME="$(awk -F':' '/\[runlim\] real:/ {print $2}' "$LOG_FILE" | sed 's:seconds::g' | xargs)"
-        SPACE="$(awk -F':' '/\[runlim\] real:/ {print $2}' "$LOG_FILE" | sed 's:seconds::g' | xargs)"
+        SPACE="$(awk -F':' '/\[runlim\] space:/ {print $2}' "$LOG_FILE" | sed 's:MB::g' | xargs)"
         STATUS="$(awk -F':' '/\[runlim\] status:/ {print $2}' "$LOG_FILE" | xargs)"
 
         S_LINE="$(grep "^s " "$TMP_OUTFILE")"
+        SAT_RESULT=0
 
         # if sat, verify model
         if [ "$S_LINE" == "s SATISFIABLE" ]; then
+            SAT_RESULT=10
             echo "verify sat"
         fi
 
         # if unsat, verify proof
         if [ "$S_LINE" == "s UNSATISFIABLE" ]; then
+            SAT_RESULT=20
             echo "verify unsat"
         fi
 
-        if [ -n "$LOG_DUMP" ] && [ -r "$LOG_DUMP" ]; then
-            echo "benchmark;solver;sat-status;status;time;memory;runlim-status" >>"$LOG_DUMP"
+        if [ -n "$LOG_DUMP" ] && [ ! -r "$LOG_DUMP" ]; then
+            echo "benchmark;solver;sat-status;sat-status;time;memory;status,runlim-status" >>"$LOG_DUMP"
         fi
-        [ -n "$LOG_DUMP" ] && echo "$benchmark;$solver;$STATUS;$RUNTIME;$SPACE;$RUNLIM_STATUS" >>"$LOG_DUMP"
-        [ "$VERBOSE" -gt 0 ] && echo "[stats] $benchmark;$solver;$STATUS;$RUNTIME;$SPACE;$RUNLIM_STATUS"
+        [ -n "$LOG_DUMP" ] && echo "$benchmark;$solver;$SAT_RESULT;$RUNTIME;$SPACE;$STATUS;$RUNLIM_STATUS" >>"$LOG_DUMP"
+        [ "$VERBOSE" -gt 0 ] && echo "[stats] $benchmark;$solver;$SAT_RESULT;$RUNTIME;$SPACE;$STATUS;$RUNLIM_STATUS"
 
         if [ "$STATUS" != "out of time" ] && [ "$STATUS" != "out of memory" ] && [ "$STATUS" != "ok" ]; then
             echo "error: failed to run $solver $benchmark (results $RESULTS, time $RUNTIME, status $STATUS)"
