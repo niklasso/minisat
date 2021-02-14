@@ -17,4 +17,4 @@ jobs:
       run: make cd cp cr csh d r p sh lr ld lp lsh
 
     - name: run copmetition script
-      run: bash -x ./tools/ci/mini-competition.sh "build/release/bin/mergesat"
+      run: bash -x ./tools/ci/mini-competition.sh -v "build/release/bin/mergesat"
