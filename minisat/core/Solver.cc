@@ -172,6 +172,7 @@ static IntOption opt_ccnr_ls_mems_num("SLS", "ccnr-ls-mems", "TBD", 50 * 1000 * 
 static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 2000, IntRange(0, INT32_MAX));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
+static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -381,6 +382,8 @@ Solver::Solver()
   , mediation_used(opt_ccnr_mediation_used)
   , switch_heristic_mod(opt_ccnr_mediation_used)
   , last_switch_conflicts(0)
+
+  , initial_sls(opt_sls_initial)
 {
     if (opt_checkProofOnline && onlineDratChecker) {
         onlineDratChecker->setVerbosity(opt_checkProofOnline);
@@ -2466,10 +2469,11 @@ lbool Solver::search(int &nof_conflicts)
     bool can_call_ls = true;
 
     if (starts > state_change_time) {
-        if (rand() % 100 < 50)
+        if (!use_sls_phase)
             info_based_rephase();
         else
             rand_based_rephase();
+        use_sls_phase = !use_sls_phase;
     }
 
 
@@ -2888,7 +2892,7 @@ lbool Solver::solve_()
     add_tmp.clear();
 
     /* do not start with SLS, in case we have assumptions, or solve incrementally */
-    if (assumptions.size() == 0 && solves == 1) {
+    if (assumptions.size() == 0 && solves == 1 && initial_sls) {
         int fls_res = call_ls(false);
         if (fls_res) {
             status = l_True;

@@ -779,7 +779,7 @@ class Solver
     double ls_used_time = 0;
     int ls_call_num = 0;
     int ls_best_unsat_num = INT_MAX;
-    bool solved_by_ls = false;
+    bool solved_by_ls = false, initial_sls, use_sls_phase = true;
     int max_trail = 0;
 
 
