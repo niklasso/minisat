@@ -115,6 +115,11 @@ static Int64Option opt_VSIDS_props_init_limit(_cat,
                                               "specifies the number of propagations before we start with LRB.",
                                               10000,
                                               Int64Range(1, INT64_MAX));
+static IntOption opt_inprocessing_init_delay(_cat,
+                                             "inprocess-init-delay",
+                                             "Use this amount of iterations before using inprocessing (-1 == off)",
+                                             2,
+                                             IntRange(-1, INT32_MAX));
 static DoubleOption opt_inprocessing_inc(_cat,
                                          "inprocess-delay",
                                          "Use this factor to wait for next inprocessing (0=off)",
@@ -222,6 +227,9 @@ Solver::Solver()
   , VSIDS_propagations(opt_vsids_p)
   , reactivate_VSIDS(false)
 
+  , inprocessing_C(0)
+  , inprocessing_L(0)
+
   , onlineDratChecker(opt_checkProofOnline != 0 ? new OnlineProofChecker(drupProof) : 0)
 
   , ok(true)
@@ -256,6 +264,9 @@ Solver::Solver()
   , learnCallback(0)
 
   , counter(0)
+
+  , inprocess_attempts(0)
+  , inprocess_next_lim(opt_inprocessing_init_delay)
 
   , inprocess_inc(opt_inprocessing_inc)
   , inprocess_penalty(opt_inprocessing_penalty)
@@ -311,11 +322,6 @@ Solver::Solver()
   , my_var_decay(0.6)
   , DISTANCE(true)
 {
-    X = 0;
-    Y = 1;
-    inprocessing_C = 0;
-    inprocessing_L = 0;
-
     if (opt_checkProofOnline && onlineDratChecker) {
         onlineDratChecker->setVerbosity(opt_checkProofOnline);
     }
@@ -2585,12 +2591,13 @@ void Solver::toDimacs(FILE *f, const vec<Lit> &assumps)
 
 bool Solver::inprocessing()
 {
-    if (solves && X++ > Y && inprocess_inc != (double)0) {
+    if (inprocess_next_lim != 0 && solves && inprocess_attempts++ >= inprocess_next_lim && inprocess_inc != (double)0) {
         L = 60; // clauses with lbd higher than 60 are not considered (and rather large anyways)
-        Y = (uint64_t)((double)Y * inprocess_inc);
+        inprocess_next_lim = (uint64_t)((double)inprocess_next_lim * inprocess_inc);
         int Z = 0, i, j, k, l = -1, p;
 
-        if (verbosity > 0) printf("c inprocessing simplify at try %ld, next limit: %ld\n", X, Y);
+        if (verbosity > 0)
+            printf("c inprocessing simplify at try %ld, next limit: %ld\n", inprocess_attempts, inprocess_next_lim);
         // fill occurrence data structure
         O.resize(2 * nVars());
 
@@ -2606,6 +2613,7 @@ bool Solver::inprocessing()
             }
         }
 
+        // clean marker structure
         M.shrink_(M.size());
         M.growTo(2 * nVars());
         T = 0;
@@ -2633,7 +2641,8 @@ bool Solver::inprocessing()
                     CRef r = V[j];
                     if (r == s) continue; // do not subsume the same clause
                     Clause &d = ca[r];    // get the actual clause
-                    if (d.size() < c.size() || d.mark() == 1 || (d.learnt() && d.lbd() > L))
+                    if (d.size() < c.size() || d.mark() == 1 || (d.learnt() && d.lbd() > L) || d.size() == 2 ||
+                        r == reason(var(d[0])))
                         continue; // smaller clauses cannot be (self-)subsumed
 
                     l = -1;
@@ -2669,11 +2678,11 @@ bool Solver::inprocessing()
                             }
 
                             // drop the one literal, whose complement is in clause 'c'
-                            if (l < 2) detachClause(r);
+                            if (l < 2 || d.size() == 3) detachClause(r, true);
                             d[l] = d.last();
                             d.pop();
                             d.S(0); // differently to the glucose hack, allow this clause for simplification again!
-                            if (l < 2) {
+                            if (l < 2 || d.size() == 2) {
                                 if (d.size() == 1)
                                     add_tmp.push(d[0]);
                                 else
@@ -2688,7 +2697,7 @@ bool Solver::inprocessing()
             }
 
             if (!Z)
-                Y += inprocess_penalty; // in case we did not modify anything, skip a few more relocs before trying again
+                inprocess_next_lim += inprocess_penalty; // in case we did not modify anything, skip a few more relocs before trying again
             for (size_t i = 0; i < O.size(); ++i) O[i].clear(); // do not free, just drop elements
         }
 
