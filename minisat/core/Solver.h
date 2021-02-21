@@ -428,7 +428,7 @@ class Solver
     // self-subsuming resolution and subsumption during search
     vec<uint64_t> M;
     std::vector<std::vector<CRef>> O; // occurrence data structure
-    uint64_t T, X, Y;
+    uint64_t T, inprocess_attempts, inprocess_next_lim;
     int L;
     double inprocess_inc; // control how frequent inprocessing is triggered
     uint64_t inprocess_penalty;
