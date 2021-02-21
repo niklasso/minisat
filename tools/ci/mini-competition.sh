@@ -147,6 +147,8 @@ TMP_OUTFILE=$(mktemp)
 
 # initialize arrays
 declare -A PAR2
+declare -A TIME_SAT
+declare -A TIME_UNSAT
 declare -A MAXTIME
 declare -A ERRORS
 declare -A SOLVED
@@ -155,6 +157,8 @@ declare -A UNSAT
 declare -i ERROR=0
 for solver in "$@"; do
     PAR2["$solver"]=0
+    TIME_SAT["$solver"]=0
+    TIME_UNSAT["$solver"]=0
     MAXTIME["$solver"]=0
     ERRORS["$solver"]=0
     SOLVED["$solver"]=0
@@ -219,8 +223,10 @@ for benchmark in $(find "${BENCHMARKDIR}" -type f); do
             SOLVED["$solver"]=$((${SOLVED["$solver"]} + 1))
             if [ "$S_LINE" == "s SATISFIABLE" ]; then
                 SAT["$solver"]=$((${SAT["$solver"]} + 1))
+                TIME_SAT["$solver"]=$(echo "${TIME_SAT["$solver"]} + $RUNTIME" | bc)
             elif [ "$S_LINE" == "s UNSATISFIABLE" ]; then
                 UNSAT["$solver"]=$((${UNSAT["$solver"]} + 1))
+                TIME_UNSAT["$solver"]=$(echo "${TIME_UNSAT["$solver"]} + $RUNTIME" | bc)
             fi
 
             if (($(echo "$RUNTIME > ${MAXTIME["$solver"]}" | bc -l))); then
@@ -233,7 +239,7 @@ done
 
 echo "Summary"
 for solver in "$@"; do
-    echo "$solver: par2: ${PAR2["$solver"]} maxtime: ${MAXTIME["$solver"]} solved: ${SOLVED["$solver"]} (sat: ${SAT["$solver"]} unsat: ${UNSAT["$solver"]} ) errors: ${ERRORS["$solver"]} (full benchmark: $TRIED_BENCHMARK)"
+    echo "$solver: par2: ${PAR2["$solver"]} maxtime: ${MAXTIME["$solver"]} solved: ${SOLVED["$solver"]} (sat: ${SAT["$solver"]} (${TIME_SAT["$solver"]} s) unsat: ${UNSAT["$solver"]} (${TIME_UNSAT["$solver"]} s)) errors: ${ERRORS["$solver"]} (full benchmark: $TRIED_BENCHMARK)"
 done
 
 if [ "$ERROR" -ne 0 ]; then
