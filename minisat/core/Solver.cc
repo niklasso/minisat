@@ -2792,7 +2792,7 @@ bool Solver::inprocessing()
 
         /* in case we found unit clauses, make sure we find them fast */
         if (add_tmp.size()) {
-            cancelUntil(0);
+            cancelUntil(0, false);
             for (int i = 0; i < add_tmp.size(); ++i) {
                 if (value(add_tmp[i]) == l_False) { /* we found a contradicting unit clause */
                     ok = false;
