@@ -2633,7 +2633,8 @@ bool Solver::inprocessing()
                     CRef r = V[j];
                     if (r == s) continue; // do not subsume the same clause
                     Clause &d = ca[r];    // get the actual clause
-                    if (d.size() < c.size() || d.mark() == 1 || (d.learnt() && d.lbd() > L))
+                    if (d.size() < c.size() || d.mark() == 1 || (d.learnt() && d.lbd() > L) || d.size() == 2 ||
+                        r == reason(var(d[0])))
                         continue; // smaller clauses cannot be (self-)subsumed
 
                     l = -1;
@@ -2669,11 +2670,11 @@ bool Solver::inprocessing()
                             }
 
                             // drop the one literal, whose complement is in clause 'c'
-                            if (l < 2) detachClause(r);
+                            if (l < 2 || d.size() == 3) detachClause(r, true);
                             d[l] = d.last();
                             d.pop();
                             d.S(0); // differently to the glucose hack, allow this clause for simplification again!
-                            if (l < 2) {
+                            if (l < 2 || d.size() == 2) {
                                 if (d.size() == 1)
                                     add_tmp.push(d[0]);
                                 else
