@@ -172,18 +172,18 @@ test_ipasir() {
         IPASIR_CHECK_STATUS=0
         pushd "$IPASIR_DIR"
         # run check conflict examples
-        bin/ipasir-check-conflict-mergesat 1 1 || IPASIR_CHECK_STATUS=$?
-        bin/ipasir-check-conflict-mergesat 2 2 || IPASIR_CHECK_STATUS=$?
-        bin/ipasir-check-conflict-mergesat 2 1 || IPASIR_CHECK_STATUS=$?
         bin/ipasir-check-conflict-mergesat 1 2 || IPASIR_CHECK_STATUS=$?
         bin/ipasir-check-conflict-mergesat 10000 10002 || IPASIR_CHECK_STATUS=$?
-        bin/ipasir-check-conflict-mergesat 10002 10000 || IPASIR_CHECK_STATUS=$?
 
         # stop here, in case we use debug mode
         if [ "$round" = "DEBUG" ]; then
             continue
         fi
 
+        bin/ipasir-check-conflict-mergesat 1 1 || IPASIR_CHECK_STATUS=$?
+        bin/ipasir-check-conflict-mergesat 2 2 || IPASIR_CHECK_STATUS=$?
+        bin/ipasir-check-conflict-mergesat 2 1 || IPASIR_CHECK_STATUS=$?
+        bin/ipasir-check-conflict-mergesat 10002 10000 || IPASIR_CHECK_STATUS=$?
         bin/ipasir-check-conflict-mergesat 9999 10002 || IPASIR_CHECK_STATUS=$?
         bin/ipasir-check-conflict-mergesat 10002 9999 || IPASIR_CHECK_STATUS=$?
 
@@ -216,7 +216,7 @@ test_ipasir() {
                 fi
 
                 if [ $I_STATUS -ne 0 ]; then
-                    echo "failed $APP call with $I"
+                    echo "failed $APP call with $I_STATUS on input $I"
                     STATUS=1
                     echo "last lines of log:"
                     tail -n 30 "$APP"-mergesat.log || true
