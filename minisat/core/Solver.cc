@@ -136,7 +136,7 @@ static Int64Option opt_VSIDS_props_init_limit(_cat,
 static IntOption opt_inprocessing_init_delay(_cat,
                                              "inprocess-init-delay",
                                              "Use this amount of iterations before using inprocessing (-1 == off)",
-                                             2,
+                                             -1,
                                              IntRange(-1, INT32_MAX));
 static DoubleOption opt_inprocessing_inc(_cat,
                                          "inprocess-delay",
