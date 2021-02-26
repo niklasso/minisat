@@ -440,6 +440,7 @@ class Solver
 
     int core_lbd_cut;
     int core_size_lim;
+    float core_size_lim_inc;
     float global_lbd_sum;
     MyQueue<int> lbd_queue; // For computing moving averages of recent LBD values.
 
