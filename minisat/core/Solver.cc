@@ -160,7 +160,7 @@ static IntOption opt_core_size_lim(_cat,
 static DoubleOption opt_core_size_lim_inc(_cat,
                                           "core-size-lim-inc",
                                           "Percent to increase cycles between core clause reductions",
-                                          1.1,
+                                          0.1,
                                           DoubleRange(1, true, HUGE_VAL, false));
 
 static BoolOption opt_use_ccnr("SLS", "use-ccnr", "Use SLS engine CCNR", true);
