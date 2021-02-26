@@ -2790,7 +2790,6 @@ lbool Solver::solve_()
                     printf("c Switched to LRB/DISTANCE.\n");
                 }
             }
-            fflush(stdout);
         }
     }
 
