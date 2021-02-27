@@ -80,6 +80,8 @@ usage() {
     OPTIONS
 
       -b BenchmarkDir ...... use files from this directory for the benchmark.
+      -d ................... only print commands to be executed, do not execute them
+      -D ................... print single line commands for cluster execution
       -l log ............... log file with summary of analysis
       -m MB ................ limit memory usage (in MB, default: $SPACE_MB)
       -t timout ............ limit tool runtime (in s, default: $TIMEOUT)
@@ -88,6 +90,7 @@ EOF
 }
 
 BENCHMARKDIR="$SCRIPT_DIR"/benchmarks
+DRYRUN=no
 
 for tool in runlim bc awk; do
     if ! command -v "$tool" &>/dev/null; then
@@ -96,10 +99,16 @@ for tool in runlim bc awk; do
 done
 
 # do we want to package Riss(for Coprocessor) or Sparrow as well?
-while getopts "b:hl:m:t:v" OPTION; do
+while getopts "b:dDhl:m:t:v" OPTION; do
     case $OPTION in
     b)
         BENCHMARKDIR="$OPTARG"
+        ;;
+    d)
+        DRYRUN=plain
+        ;;
+    D)
+        DRYRUN=oneline
         ;;
     h)
         usage
@@ -166,15 +175,36 @@ for solver in "$@"; do
     UNSAT["$solver"]=0
 done
 
+declare -a SOLVER_CMD=()
+
 # run benchmarks
 declare -i TRIED_BENCHMARK=0
 for benchmark in $(find "${BENCHMARKDIR}" -type f); do
     TRIED_BENCHMARK=$((TRIED_BENCHMARK + 1))
     benchmark="$(readlink -e "$benchmark")"
     for solver in "$@"; do
-        echo "Run solver: $solver $benchmark"
+        [ "$VERBOSE" -gt 0 ] && echo "Run solver: $solver $benchmark"
         RUNLIM_STATUS=0
-        runlim -o "$LOG_FILE" -k -r "$TIMEOUT" -s "$SPACE_MB" $solver "$benchmark" &>"$TMP_OUTFILE" || RUNLIM_STATUS=1
+        SOLVER_CMD=(runlim -o "$LOG_FILE" -k -r "$TIMEOUT" -s "$SPACE_MB" $solver "$benchmark")
+        if [ "$DRYRUN" = "no" ]; then
+            "${SOLVER_CMD[@]}" &>"$TMP_OUTFILE" || RUNLIM_STATUS=1
+        elif [ "$DRYRUN" = "plain" ]; then
+            echo "${SOLVER_CMD[@]}"
+            continue
+        elif [ "$DRYRUN" = "oneline" ]; then
+            # print commands to be executed in 1 line
+            B="${benchmark////_}"
+            B="${B// /-}"
+            S="solver-data-${solver////_}"
+            S="${S// /-}"
+            S="${S//=/-}"
+            OUTPUT_FILE_BASE="$S/$B"
+            echo "cd $PWD; md5sum \"$benchmark\" &> /dev/null || true; ls $solver &> /dev/null || true; mkdir -p \"$S\"; echo \"c host: $(hostname)\" > \"$OUTPUT_FILE_BASE\".out; echo \"c date: $(date --iso-8601)\" >> \"$OUTPUT_FILE_BASE\".out; runlim -o \"$OUTPUT_FILE_BASE.runlim\" -k -r \"$TIMEOUT\" -s \"$SPACE_MB\" $solver \"$benchmark\" &>> \"$OUTPUT_FILE_BASE\".out"
+            continue
+        else
+            echo "error: unknown DRYRUN command $DRYRUN, abort"
+            exit 1
+        fi
 
         RESULT="$(awk -F':' '/\[runlim\] result:/ {print $2}' "$LOG_FILE" | xargs)"
         RUNTIME="$(awk -F':' '/\[runlim\] real:/ {print $2}' "$LOG_FILE" | sed 's:seconds::g' | xargs)"
@@ -236,6 +266,11 @@ for benchmark in $(find "${BENCHMARKDIR}" -type f); do
 
     done
 done
+
+# stop early, in case we only print commands
+if [ "$DRYRUN" != "no" ]; then
+    exit "$ERROR"
+fi
 
 echo "Summary"
 for solver in "$@"; do
