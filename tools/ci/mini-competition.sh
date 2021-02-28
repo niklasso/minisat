@@ -9,6 +9,7 @@ declare -i TIMEOUT=600
 declare -i SPACE_MB=4096
 declare LOG_DUMP=""
 declare RESULTS_DIRS=""
+declare OUTPUT_FILE=""
 declare -i VERBOSE=0
 
 get_drattrim() {
@@ -85,6 +86,7 @@ usage() {
       -D ................... print single line commands for cluster execution
       -l log ............... log file with summary of analysis
       -m MB ................ limit memory usage (in MB, default: $SPACE_MB)
+      -o outfile ........... log evaluation into this file
       -R ................... interpret CLI as directories to be evaluated
                              will respect the presented time and memory limit for eva
       -t timout ............ limit tool runtime (in s, default: $TIMEOUT)
@@ -167,7 +169,7 @@ for tool in runlim bc awk; do
 done
 
 # do we want to package Riss(for Coprocessor) or Sparrow as well?
-while getopts "b:dDhl:m:Rt:v" OPTION; do
+while getopts "b:dDhl:m:o:Rt:v" OPTION; do
     case $OPTION in
     b)
         BENCHMARKDIR="$OPTARG"
@@ -188,6 +190,9 @@ while getopts "b:dDhl:m:Rt:v" OPTION; do
         ;;
     m)
         SPACE_MB="$OPTARG"
+        ;;
+    o)
+        OUTPUT_FILE="$OPTARG"
         ;;
     R)
         RESULTS_DIRS="true"
@@ -303,10 +308,11 @@ if [ "$DRYRUN" != "no" ]; then
     exit "$ERROR"
 fi
 
-echo "Summary"
+# Print, and log, evaluation
+echo "Summary" | tee "$OUTPUT_FILE"
 for solver in "$@"; do
     echo "$solver: par2: ${PAR2["$solver"]} maxtime: ${MAXTIME["$solver"]} solved: ${SOLVED["$solver"]} (sat: ${SAT["$solver"]} (${TIME_SAT["$solver"]} s) unsat: ${UNSAT["$solver"]} (${TIME_UNSAT["$solver"]} s)) errors: ${ERRORS["$solver"]} (full benchmark: $TRIED_BENCHMARK)"
-done
+done |& tee -a "$OUTPUT_FILE"
 
 if [ "$ERROR" -ne 0 ]; then
     exit "$ERROR"
