@@ -12,14 +12,14 @@ declare RESULTS_DIRS=""
 declare -i VERBOSE=0
 
 get_drattrim() {
-    pushd "$SCRIPT_DIR" &> /dev/null
+    pushd "$SCRIPT_DIR" &>/dev/null
     if [ ! -x drat-trim/drat-trim ]; then
         git clone https://github.com/marijnheule/drat-trim.git
-        pushd drat-trim &> /dev/null
+        pushd drat-trim &>/dev/null
         make
-        popd &> /dev/null
+        popd &>/dev/null
     fi
-    popd &> /dev/null
+    popd &>/dev/null
 }
 
 get_verify() {
@@ -29,7 +29,7 @@ get_verify() {
 }
 
 get_benchmark() {
-    pushd "$SCRIPT_DIR" &> /dev/null
+    pushd "$SCRIPT_DIR" &>/dev/null
     mkdir -p benchmarks
     cd benchmarks
 
@@ -64,7 +64,7 @@ get_benchmark() {
     [ -r "jkkk-one-one-10-30-unsat.cnf.xz" ] || wget --content-disposition https://gbd.iti.kit.edu/file/f3bda5fcae82cfa27460df877965eeca
     [ -r "prime2209-84.cnf.xz" ] || wget --content-disposition https://gbd.iti.kit.edu/file/af66c2b2ff8a9cd900d9f2f79e53f6a7
 
-    popd &> /dev/null
+    popd &>/dev/null
 }
 
 usage() {
