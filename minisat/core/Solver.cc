@@ -2469,11 +2469,10 @@ lbool Solver::search(int &nof_conflicts)
     bool can_call_ls = true;
 
     if (starts > state_change_time) {
-        if (!use_sls_phase)
+        if (rand() % 100 < 50)
             info_based_rephase();
         else
             rand_based_rephase();
-        use_sls_phase = !use_sls_phase;
     }
 
 
