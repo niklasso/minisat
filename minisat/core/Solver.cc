@@ -169,10 +169,10 @@ static DoubleOption opt_ccnr_conflict_ratio("SLS", "ccnr-conflict-ratio", "TBD",
 static DoubleOption opt_ccnr_percent_ratio("SLS", "ccnr-percent-ratio", "TBD", 0.9, DoubleRange(0, true, 1, true));
 static DoubleOption opt_ccnr_up_time_ratio("SLS", "ccnr-up-time-ratio", "TBD", 0.2, DoubleRange(0, true, 1, true));
 static IntOption opt_ccnr_ls_mems_num("SLS", "ccnr-ls-mems", "TBD", 50 * 1000 * 1000, IntRange(0, INT32_MAX));
-static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 4000, IntRange(0, INT32_MAX));
+static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 2000, IntRange(0, INT32_MAX));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
-static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", false);
+static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
 
 //=================================================================================================
 // Constructor/Destructor:
