@@ -134,6 +134,9 @@ process_solver_output() {
         ERRORS["$solver"]=$((ERRORS["$solver"] + 1))
         ERROR=$((ERROR + 1))
 
+        # account par2 for errors
+        PAR2["$solver"]=$(echo "${PAR2["$solver"]} + $TIMEOUT + $TIMEOUT" | bc)
+
         # skip further evaluation
         return
     fi
