@@ -173,9 +173,6 @@ static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 40
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", false);
-static IntOption opt_next_rephase_conflict_count("SLS", "rephase-start-conflicts", "TBD", 10000, IntRange(0, INT32_MAX));
-static DoubleOption
-opt_next_rephase_conflict_count_inc("SLS", "rephase-inc (lim += lim * X)", "TBD", 0.1, DoubleRange(0, true, 1, true));
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -382,8 +379,6 @@ Solver::Solver()
   , up_time_ratio(opt_ccnr_up_time_ratio)
   , ls_mems_num(opt_ccnr_ls_mems_num)
   , state_change_time(opt_ccnr_state_change_time)
-  , next_rephase_conflict_count(opt_next_rephase_conflict_count)
-  , next_rephase_conflict_count_inc(opt_next_rephase_conflict_count_inc)
   , mediation_used(opt_ccnr_mediation_used)
   , switch_heristic_mod(opt_ccnr_mediation_used)
   , last_switch_conflicts(0)
@@ -2445,25 +2440,6 @@ void Solver::rand_based_rephase()
     }
 }
 
-
-/* rephase components of phase-saving */
-void Solver::rephase()
-{
-    /* do not rephase, if we did not solve for a while already */
-    if (starts <= state_change_time) return;
-
-    /* only rephase every */
-    if (conflicts > next_rephase_conflict_count) {
-        if (!use_sls_phase)
-            info_based_rephase();
-        else
-            rand_based_rephase();
-        use_sls_phase = !use_sls_phase;
-
-        next_rephase_conflict_count += next_rephase_conflict_count * next_rephase_conflict_count_inc;
-    }
-}
-
 /*_________________________________________________________________________________________________
 |
 |  search : (nof_conflicts : int) (params : const SearchParams&)  ->  [lbool]
@@ -2491,6 +2467,15 @@ lbool Solver::search(int &nof_conflicts)
 
     freeze_ls_restart_num--;
     bool can_call_ls = true;
+
+    if (starts > state_change_time) {
+        if (!use_sls_phase)
+            info_based_rephase();
+        else
+            rand_based_rephase();
+        use_sls_phase = !use_sls_phase;
+    }
+
 
     // simplify
     //
@@ -2703,8 +2688,6 @@ lbool Solver::search(int &nof_conflicts)
 
             // Simplify the set of problem clauses:
             if (decisionLevel() == 0 && !simplify()) return l_False;
-
-            rephase();
 
             if (core_size_lim != -1 && learnts_core.size() > core_size_lim) {
                 TRACE(std::cout << "c reduce core learnt clauses" << std::endl);
