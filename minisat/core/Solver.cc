@@ -1069,9 +1069,7 @@ void Solver::cancelUntil(int bLevel, bool allow_trail_saving)
 {
 
     if (decisionLevel() > bLevel) {
-#ifdef PRINT_OUT
-        std::cout << "bt " << bLevel << "\n";
-#endif
+        TRACE(std::cout << "c backtrack to " << bLevel << std::endl);
 
         reset_old_trail();
 
@@ -3215,6 +3213,8 @@ void Solver::relocAll(ClauseAllocator &to)
     // check whether we want to do inprocessing
     inprocessing();
 
+    TRACE(std::cout << "c relocing ..." << std::endl);
+
     // All watchers:
     //
     // for (int i = 0; i < watches.size(); i++)
@@ -3284,6 +3284,7 @@ void Solver::garbageCollect()
 
 void Solver::reset_old_trail()
 {
+    TRACE(std::cout << "c reset old trail" << std::endl);
     for (int i = 0; i < old_trail.size(); i++) {
         oldreasons[var(old_trail[i])] = CRef_Undef;
     }
