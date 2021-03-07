@@ -2384,6 +2384,15 @@ bool Solver::check_invariants()
         }
     }
 
+    for(int i = 0 ; i < old_trail.size(); ++ i ) {
+        const Lit old_trail_top = old_trail[old_trail_qhead];
+        const CRef old_reason = oldreasons[var(old_trail_top)];
+        if (old_reason == CRef_Undef) continue;
+        const Clause& c = ca[old_reason];
+        assert((c.size() == 2 || c[0] == old_trail_top) && "assert literal has to be at first position");
+    }
+
+
     assert(pass && "some solver invariant check failed");
     return pass;
 }
@@ -2468,6 +2477,7 @@ lbool Solver::search(int &nof_conflicts)
 
     // make sure that all unassigned variables are in the heap
     assert(trail.size() + order_heap->size() >= full_heap_size);
+    assert(old_trail.size() == 0 && "When starting a search, we should not have stored literals ready");
 
     freeze_ls_restart_num--;
     bool can_call_ls = true;
