@@ -1491,16 +1491,25 @@ CRef Solver::propagate()
                     if (old_reason == CRef_Undef) {
                         break;
                     } else if (value(old_trail_top) == l_False) {
+                        const Clause &new_conflict = ca[old_reason];
+                        if(new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
+                            /* We will hit a conflict here, the clause is just not structured correctly yet,
+                               nor watched correctly. */
+                            break;
+                        }
                         confl = old_reason;
                         used_backup_lits++;
                         TRACE(std::cout
                               << "c prop: hit conflict during trail restoring, when trying to propagate literal "
-                              << old_trail_top << " with reason[" << old_reason << "] " << ca[old_reason] << std::endl;);
+                              << old_trail_top << " with reason[" << old_reason << "] " << new_conflict << std::endl;);
+                        assert((new_conflict.size() == 2 || new_conflict[0] == old_trail_top) && "asserting literal is at position 1");
+                        /* No need to touch watch lists, we will backtrack this level anyways! */
                         return confl;
                     } else if (value(old_trail_top) == l_Undef) {
                         used_backup_lits++;
                         TRACE(std::cout << "c prop: enqueue literal " << old_trail_top << " with reason[" << old_reason
                                         << "] " << ca[old_reason] << std::endl;);
+                        assert((ca[old_reason].size() == 2 || ca[old_reason][0] == old_trail_top) && "asserting literal is at position 1");
                         uncheckedEnqueue(old_trail_top, decisionLevel(), old_reason);
                     }
                 }
