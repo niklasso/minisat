@@ -2291,7 +2291,7 @@ lbool Solver::search(int &nof_conflicts)
             {
                 ++non_chrono_backtrack;
                 TRACE(std::cout << "c non-chrono backtracking until level " << backtrack_level << std::endl);
-                cancelUntil(backtrack_level);
+                cancelUntil(backtrack_level, true);
             }
 
             lbd--;
