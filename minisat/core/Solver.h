@@ -383,6 +383,8 @@ class Solver
     vec<int> distance_level_incs;
     Heap<VarOrderLt> order_heap_VSIDS, order_heap_CHB, order_heap_DISTANCE;
     Heap<VarOrderLt> *order_heap; // A priority queue of variables ordered with respect to the variable activity.
+    int max_activity_bump_size;   // How many literals of the collected variables will be bumped
+    int max_lbd_calc_size;        // How many literals a clause should have before estimating its LBD
 
     int full_heap_size; // Store size of heap in case it is completely filled, to be able to compare it to current size
     double progress_estimate; // Set by 'search()'.
@@ -561,6 +563,8 @@ class Solver
 
     template <class V> int computeLBD(const V &c)
     {
+        if(c.size() > max_lbd_calc_size) return c.size();
+
         int lbd = 0;
         const int assumption_level = assumptions.size(); // ignore anything below
         counter++;

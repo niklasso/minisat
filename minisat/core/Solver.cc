@@ -176,6 +176,9 @@ static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false)
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
 
+static IntOption opt_max_activity_bump_size(_cat, "max-act-bump", "Do not bump more than X vars per analysis", 100, IntRange(0, INT32_MAX));
+static IntOption opt_max_lbd_calc_size(_cat, "max-lbd-calc", "Do not calculate LBD for clauses larger than X", 100, IntRange(0, INT32_MAX));
+
 //=================================================================================================
 // Constructor/Destructor:
 
@@ -291,6 +294,8 @@ Solver::Solver()
   , order_heap_CHB(VarOrderLt(activity_CHB))
   , order_heap_DISTANCE(VarOrderLt(activity_distance))
   , order_heap(&order_heap_DISTANCE)
+  , max_activity_bump_size(opt_max_activity_bump_size)
+  , max_lbd_calc_size(opt_max_lbd_calc_size)
   , full_heap_size(-1)
   , progress_estimate(0)
   , remove_satisfied(true)
@@ -1366,6 +1371,8 @@ void Solver::analyze(CRef confl, vec<Lit> &out_learnt, int &out_btlevel, int &ou
     else {
         int max_i = 1;
         // Find the first literal assigned at the next-highest level:
+        int max_bump_size = max_activity_bump_size;
+        max_bump_size = out_learnt.size() <= max_bump_size ? out_learnt.size() : max_bump_size;
         for (int i = 2; i < out_learnt.size(); i++)
             if (level(var(out_learnt[i])) > level(var(out_learnt[max_i]))) max_i = i;
         // Swap-in this literal at index 1:
