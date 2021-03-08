@@ -126,6 +126,15 @@ define make-test-target
   $(BUILD_DIR)/release/tests/$1: $(BUILD_DIR)/release/minisat/tests/$1.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
   tests-d-all:: $(BUILD_DIR)/debug/tests/$1
   tests-r-all:: $(BUILD_DIR)/release/tests/$1
+
+  $(BUILD_DIR)/release/tests/run-$1: $(BUILD_DIR)/release/tests/$1
+	$(ECHO) Running: $@
+	$(BUILD_DIR)/release/tests/$1
+  $(BUILD_DIR)/debug/tests/run-$1: $(BUILD_DIR)/debug/tests/$1
+	$(ECHO) Running: $@
+	$(BUILD_DIR)/debug/tests/$1
+  run-tests-d-all:: $(BUILD_DIR)/debug/tests/run-$1
+  run-tests-r-all:: $(BUILD_DIR)/release/tests/run-$1
 endef
 $(foreach element,$(TESTS),$(eval $(call make-test-target,$(element))))
 
