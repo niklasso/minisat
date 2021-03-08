@@ -281,6 +281,8 @@ Solver::Solver()
 
   , inprocessing_C(0)
   , inprocessing_L(0)
+  , inprocess_mems(0)
+  , inprocessings(0)
 
   , onlineDratChecker(opt_checkProofOnline != 0 ? new OnlineProofChecker(drupProof) : 0)
 
@@ -3104,6 +3106,7 @@ bool Solver::inprocessing()
     if (inprocess_next_lim != 0 && solves && inprocess_attempts++ >= inprocess_next_lim && inprocess_inc != (double)0) {
         L = 60; // clauses with lbd higher than 60 are not considered (and rather large anyways)
         inprocess_next_lim = (uint64_t)((double)inprocess_next_lim * inprocess_inc);
+        inprocessings ++;
         int Z = 0, i, j, k, l = -1, p;
 
         if (verbosity > 0)
@@ -3120,6 +3123,7 @@ bool Solver::inprocessing()
                 Clause &c = ca[R];
                 if (c.mark() == 1 || R == reason(var(c[0])) || R == reason(var(c[1]))) continue;
                 for (k = 0; k < c.size(); ++k) O[toInt(c[k])].push_back(R);
+                inprocess_mems ++;
             }
         }
 
@@ -3135,6 +3139,7 @@ bool Solver::inprocessing()
                 T++;
                 CRef s = learnts[i];
                 Clause &c = ca[s];
+                inprocess_mems ++;
                 if (c.mark() == 1 || c.S() || c.lbd() > 12) continue; // run this check for each clause exactly once!
                 Lit m = c[0];
 
@@ -3155,6 +3160,7 @@ bool Solver::inprocessing()
                         r == reason(var(d[0])))
                         continue; // smaller clauses cannot be (self-)subsumed
 
+                    inprocess_mems ++;
                     l = -1;
                     p = 0;
                     for (k = 0; k < d.size(); ++k) {
