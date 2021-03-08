@@ -45,7 +45,7 @@ void test_assert(bool condition, const char* description)
 
     if(!condition) {
         printf("c condition %s fails, abort\n", (description == NULL ? "<unknown>" : description));
-        exit(1);
+        _exit(1);
     }
 }
 
@@ -62,7 +62,7 @@ class TestSolver : public SimpSolver
     bool test_entrypoint();
 };
 
-inline TestSolver::TestSolver() {}
+inline TestSolver::TestSolver() : SimpSolver() {}
 inline TestSolver::~TestSolver() {}
 
 //=================================================================================================

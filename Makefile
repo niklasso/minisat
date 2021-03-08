@@ -124,6 +124,8 @@ $(BUILD_DIR)/dynamic/bin/$(MINISAT):	 	$(BUILD_DIR)/dynamic/minisat/simp/Main.o 
 define make-test-target
   $(BUILD_DIR)/debug/tests/$1: $(BUILD_DIR)/debug/minisat/tests/$1.o $(BUILD_DIR)/debug/lib/$(MINISAT_SLIB)
   $(BUILD_DIR)/release/tests/$1: $(BUILD_DIR)/release/minisat/tests/$1.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
+  -include $(BUILD_DIR)/release/minisat/tests/$1.d
+
   tests-d-all:: $(BUILD_DIR)/debug/tests/$1
   tests-r-all:: $(BUILD_DIR)/release/tests/$1
 
