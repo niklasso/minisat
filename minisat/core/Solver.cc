@@ -2517,6 +2517,9 @@ lbool Solver::search(int &nof_conflicts)
         nbconfbeforesimplify += incSimplify;
     }
 
+    // check whether we want to do inprocessing
+    inprocessing();
+
     prefetchAssumptions();
     CRef this_confl = CRef_Undef, prev_confl = CRef_Undef;
 
@@ -3217,9 +3220,6 @@ bool Solver::inprocessing()
 
 void Solver::relocAll(ClauseAllocator &to)
 {
-    // check whether we want to do inprocessing
-    inprocessing();
-
     TRACE(std::cout << "c relocing ..." << std::endl);
 
     // All watchers:
