@@ -521,7 +521,7 @@ class Solver
     lbool solve_();                                           // Main solve method (assumptions given in 'assumptions').
     void reduceDB();                                          // Reduce the set of learnt clauses.
     void reduceDB_Tier2();
-    void reduceDB_Core();
+    bool reduceDB_Core();                                     // Return true, if more than 5% have been deleted
     void removeSatisfied(vec<CRef> &cs); // Shrink 'cs' to contain only non-satisfied clauses.
     void safeRemoveSatisfied(vec<CRef> &cs, unsigned valid_mark);
     void rebuildOrderHeap();

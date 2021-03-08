@@ -1816,10 +1816,11 @@ struct reduceDB_c {
     }
 };
 
-void Solver::reduceDB_Core()
+bool Solver::reduceDB_Core()
 {
     if (verbosity > 0) printf("c Core size before reduce: %i\n", learnts_core.size());
     int i, j;
+    bool ret = false;
     sort(learnts_core, reduceDB_c(ca));
     int limit = learnts_core.size() / 2;
 
@@ -1841,8 +1842,11 @@ void Solver::reduceDB_Core()
             }
         }
     }
+    ret = j < learnts_core.size() * 0.95;
     learnts_core.shrink(i - j);
-    if (verbosity > 0) printf("c Core size after reduce: %i\n", learnts_core.size());
+    if (verbosity > 0) printf("c Core size after reduce: %i, dropped more than 5\%: %d\n", learnts_core.size(), ret);
+
+    return ret;
 }
 
 void Solver::reduceDB()
@@ -2723,8 +2727,10 @@ lbool Solver::search(int &nof_conflicts)
 
             if (core_size_lim != -1 && learnts_core.size() > core_size_lim) {
                 TRACE(std::cout << "c reduce core learnt clauses" << std::endl);
-                reduceDB_Core();
+                bool successful_reduced = reduceDB_Core();
                 core_size_lim += core_size_lim * core_size_lim_inc;
+                /* add extra penalty, if no success */
+                if(!successful_reduced) core_size_lim += core_size_lim * core_size_lim_inc;
             }
 
             if (learnts_tier2.size() > 7000) {
