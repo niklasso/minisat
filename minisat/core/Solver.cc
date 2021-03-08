@@ -148,6 +148,11 @@ static Int64Option opt_inprocessing_penalty(_cat,
                                             "Add this amount, in case inprocessing did not simplify anything",
                                             2,
                                             Int64Range(0, INT64_MAX));
+static IntOption opt_inprocess_learnt_level(_cat,
+                                            "inprocess-learnt-level",
+                                            "Which clauses to consider for inprocessing (1=core only, 3=all learnts)",
+                                            2,
+                                            IntRange(1, INT32_MAX));
 static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false);
 static IntOption opt_checkProofOnline(_cat, "check-proof", "Check proof during run time", 0, IntRange(0, 10));
 static BoolOption
@@ -322,6 +327,7 @@ Solver::Solver()
 
   , inprocess_attempts(0)
   , inprocess_next_lim(opt_inprocessing_init_delay)
+  , inprocess_learnt_level(opt_inprocess_learnt_level)
 
   , inprocess_inc(opt_inprocessing_inc)
   , inprocess_penalty(opt_inprocessing_penalty)
@@ -3101,7 +3107,7 @@ bool Solver::inprocessing()
 
         add_tmp.clear();
 
-        for (i = 0; i < 4; ++i) {
+        for (i = 0; i < 1+inprocess_learnt_level; ++i) {
             vec<CRef> &V = i == 0 ? clauses : (i == 1 ? learnts_core : (i == 2 ? learnts_tier2 : learnts_local));
             for (j = 0; j < V.size(); ++j) {
                 CRef R = V[j];
@@ -3117,7 +3123,7 @@ bool Solver::inprocessing()
         T = 0;
 
         // there are multiple "learnt" vectors, hence, consider all of them
-        for (int select = 0; select < 3; select++) {
+        for (int select = 0; select < inprocess_learnt_level; select++) {
             vec<CRef> &learnts = (select == 0 ? learnts_core : (select == 1 ? learnts_tier2 : learnts_local));
             for (i = 0; i < learnts.size(); ++i) {
                 T++;
@@ -3179,7 +3185,7 @@ bool Solver::inprocessing()
                             if (l < 2 || d.size() == 3) detachClause(r, true);
                             d[l] = d.last();
                             d.pop();
-                            d.S(0); // differently to the glucose hack, allow this clause for simplification again!
+                            d.S(0); // allow this clause for simplification again!
                             if (l < 2 || d.size() == 2) {
                                 if (d.size() == 1)
                                     add_tmp.push(d[0]);
