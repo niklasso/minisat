@@ -91,6 +91,20 @@ static void SIGINT_exit(int)
 }
 
 
+// print pcs information into file
+void print_pcs_file(const char *output_file_name)
+{
+    if (0 != (const char *)output_file_name) {
+        FILE *pcsFile = fopen((const char *)output_file_name, "wb"); // open file
+        fprintf(pcsFile, "# PCS Information for MergeSat\n#\n#\n# Parameters\n#\n#\n");
+        ::printOptions(pcsFile);
+        fprintf(pcsFile, "\n\n#\n#\n# Dependencies \n#\n#\n");
+        ::printOptionsDependencies(pcsFile);
+        fclose(pcsFile);
+        exit(0);
+    }
+}
+
 //=================================================================================================
 // Main:
 
@@ -118,8 +132,11 @@ int main(int argc, char **argv)
         IntOption mem_lim("MAIN", "mem-lim", "Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX));
         BoolOption drup("MAIN", "drup", "Generate DRUP UNSAT proof.", false);
         StringOption drup_file("MAIN", "drup-file", "DRUP UNSAT proof ouput file.", "");
+        StringOption pcs_file("MAIN", "pcs-file", "Print solver parameter configuration to this file.", "");
 
         parseOptions(argc, argv, true);
+
+        if(!pcs_file.is_empty()) print_pcs_file(pcs_file);
 
         SimpSolver S;
         double initial_time = cpuTime();
