@@ -1426,6 +1426,7 @@ CRef Solver::propagate()
 {
     CRef confl = CRef_Undef;
     int num_props = 0;
+    lazySATwatch.clear();
     watches.cleanAll();
     watches_bin.cleanAll();
 
@@ -1441,11 +1442,7 @@ CRef Solver::propagate()
             Lit the_other = ws_bin[k].blocker;
             if (value(the_other) == l_False) {
                 confl = ws_bin[k].cref;
-#ifdef LOOSE_PROP_STAT
-                return confl;
-#else
-                goto ExitProp;
-#endif
+                goto propagation_out;
             } else if (value(the_other) == l_Undef) {
                 uncheckedEnqueue(the_other, currLevel, ws_bin[k].cref);
 #ifdef PRINT_OUT
@@ -1484,7 +1481,11 @@ CRef Solver::propagate()
                 if (value(c[k]) != l_False) {
                     c[1] = c[k];
                     c[k] = false_lit;
-                    watches[~c[1]].push(w);
+                    if (value(c[1]) == l_True) {
+                        lazySATwatch.push(watchItem(w, ~c[1]));
+                    } else {
+                        watches[~c[1]].push(w);
+                    }
                     goto NextClause;
                 }
 
@@ -1516,7 +1517,11 @@ CRef Solver::propagate()
                     if (nMaxInd != 1) {
                         std::swap(c[1], c[nMaxInd]);
                         j--; // undo last watch
-                        watches[~c[1]].push(w);
+                        if (value(c[1]) == l_True) {
+                            lazySATwatch.push(watchItem(w, ~c[1]));
+                        } else {
+                            watches[~c[1]].push(w);
+                        }
                     }
 
                     uncheckedEnqueue(first, nMaxLevel, cr);
@@ -1529,6 +1534,12 @@ CRef Solver::propagate()
         NextClause:;
         }
         ws.shrink(i - j);
+    }
+
+propagation_out:;
+    /* we still need to re-add the satisfied clauses to their respective watch lists - in order! */
+    for (int k = 0; k < lazySATwatch.size(); ++k) {
+        watches[lazySATwatch[k].l].push(lazySATwatch[k].w);
     }
 
     propagations += num_props;

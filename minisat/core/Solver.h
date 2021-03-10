@@ -313,6 +313,14 @@ class Solver
         bool bOnlyOneLitFromHighest;
     };
 
+    struct watchItem {
+        Watcher w;
+        Lit l;
+        watchItem(const Watcher &_w, const Lit _l) : w(_w), l(_l) {}
+    };
+    vec<watchItem> lazySATwatch;
+
+
     // Solver state:
     //
     bool ok;           // If FALSE, the constraints are already unsatisfiable. No part of the solver state may be used!
