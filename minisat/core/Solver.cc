@@ -169,13 +169,12 @@ static DoubleOption opt_ccnr_conflict_ratio("SLS", "ccnr-conflict-ratio", "TBD",
 static DoubleOption opt_ccnr_percent_ratio("SLS", "ccnr-percent-ratio", "TBD", 0.9, DoubleRange(0, true, 1, true));
 static DoubleOption opt_ccnr_up_time_ratio("SLS", "ccnr-up-time-ratio", "TBD", 0.2, DoubleRange(0, true, 1, true));
 static IntOption opt_ccnr_ls_mems_num("SLS", "ccnr-ls-mems", "TBD", 50 * 1000 * 1000, IntRange(0, INT32_MAX));
-static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 4000, IntRange(0, INT32_MAX));
+static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 2000, IntRange(0, INT32_MAX));
+static IntOption opt_ccnr_state_change_time_inc("SLS", "increment rephasing distance after rephasing by", "TBD", 1, IntRange(0, INT32_MAX));
+static DoubleOption opt_ccnr_state_change_time_inc_inc("SLS", "increment rephasing increment distance by", "TBD", 0.2, DoubleRange(0, true, 1, true));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
-static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", false);
-static IntOption opt_next_rephase_conflict_count("SLS", "rephase-start-conflicts", "TBD", 10000, IntRange(0, INT32_MAX));
-static DoubleOption
-opt_next_rephase_conflict_count_inc("SLS", "rephase-inc (lim += lim * X)", "TBD", 0.1, DoubleRange(0, true, 1, true));
+static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -382,8 +381,8 @@ Solver::Solver()
   , up_time_ratio(opt_ccnr_up_time_ratio)
   , ls_mems_num(opt_ccnr_ls_mems_num)
   , state_change_time(opt_ccnr_state_change_time)
-  , next_rephase_conflict_count(opt_next_rephase_conflict_count)
-  , next_rephase_conflict_count_inc(opt_next_rephase_conflict_count_inc)
+  , state_change_time_inc(opt_ccnr_state_change_time_inc)
+  , state_change_time_inc_inc(opt_ccnr_state_change_time_inc_inc)
   , mediation_used(opt_ccnr_mediation_used)
   , switch_heristic_mod(opt_ccnr_mediation_used)
   , last_switch_conflicts(0)
@@ -1070,9 +1069,7 @@ void Solver::cancelUntil(int bLevel, bool allow_trail_saving)
 {
 
     if (decisionLevel() > bLevel) {
-#ifdef PRINT_OUT
-        std::cout << "bt " << bLevel << "\n";
-#endif
+        TRACE(std::cout << "c backtrack to " << bLevel << std::endl);
 
         reset_old_trail();
 
@@ -2385,6 +2382,15 @@ bool Solver::check_invariants()
         }
     }
 
+    for(int i = 0 ; i < old_trail.size(); ++ i ) {
+        const Lit old_trail_top = old_trail[old_trail_qhead];
+        const CRef old_reason = oldreasons[var(old_trail_top)];
+        if (old_reason == CRef_Undef) continue;
+        const Clause& c = ca[old_reason];
+        assert((c.size() == 2 || c[0] == old_trail_top) && "assert literal has to be at first position");
+    }
+
+
     assert(pass && "some solver invariant check failed");
     return pass;
 }
@@ -2445,25 +2451,6 @@ void Solver::rand_based_rephase()
     }
 }
 
-
-/* rephase components of phase-saving */
-void Solver::rephase()
-{
-    /* do not rephase, if we did not solve for a while already */
-    if (starts <= state_change_time) return;
-
-    /* only rephase every */
-    if (conflicts > next_rephase_conflict_count) {
-        if (!use_sls_phase)
-            info_based_rephase();
-        else
-            rand_based_rephase();
-        use_sls_phase = !use_sls_phase;
-
-        next_rephase_conflict_count += next_rephase_conflict_count * next_rephase_conflict_count_inc;
-    }
-}
-
 /*_________________________________________________________________________________________________
 |
 |  search : (nof_conflicts : int) (params : const SearchParams&)  ->  [lbool]
@@ -2488,9 +2475,23 @@ lbool Solver::search(int &nof_conflicts)
 
     // make sure that all unassigned variables are in the heap
     assert(trail.size() + order_heap->size() >= full_heap_size);
+    assert(old_trail.size() == 0 && "When starting a search, we should not have stored literals ready");
 
     freeze_ls_restart_num--;
     bool can_call_ls = true;
+
+    if (starts > state_change_time) {
+        /* grow limit after each rephasing */
+        state_change_time = state_change_time + state_change_time_inc;
+        state_change_time_inc = state_change_time_inc *= state_change_time_inc_inc;
+
+        /* actually rephase */
+        if (rand() % 100 < 50)
+            info_based_rephase();
+        else
+            rand_based_rephase();
+    }
+
 
     // simplify
     //
@@ -2703,8 +2704,6 @@ lbool Solver::search(int &nof_conflicts)
 
             // Simplify the set of problem clauses:
             if (decisionLevel() == 0 && !simplify()) return l_False;
-
-            rephase();
 
             if (core_size_lim != -1 && learnts_core.size() > core_size_lim) {
                 TRACE(std::cout << "c reduce core learnt clauses" << std::endl);
@@ -3214,6 +3213,8 @@ void Solver::relocAll(ClauseAllocator &to)
     // check whether we want to do inprocessing
     inprocessing();
 
+    TRACE(std::cout << "c relocing ..." << std::endl);
+
     // All watchers:
     //
     // for (int i = 0; i < watches.size(); i++)
@@ -3283,6 +3284,7 @@ void Solver::garbageCollect()
 
 void Solver::reset_old_trail()
 {
+    TRACE(std::cout << "c reset old trail" << std::endl);
     for (int i = 0; i < old_trail.size(); i++) {
         oldreasons[var(old_trail[i])] = CRef_Undef;
     }
