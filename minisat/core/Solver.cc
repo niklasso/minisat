@@ -1655,8 +1655,13 @@ CRef Solver::propagate()
                         assert((new_conflict.size() == 2 || new_conflict[0] == old_trail_top) &&
                                "asserting literal is at position 1");
                         /* No need to touch watch lists, we will backtrack this level anyways! */
-                        return confl;
+                        goto propagation_out;
                     } else if (value(old_trail_top) == l_Undef) {
+                        Clause &new_conflict = ca[old_reason];
+                        if (new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
+                            /* We will use this unit clause, the clause is just not structured correctly yet */
+                            break;
+                        }
                         used_backup_lits++;
                         TRACE(std::cout << "c prop: enqueue literal " << old_trail_top << " with reason[" << old_reason
                                         << "] " << ca[old_reason] << std::endl;);
