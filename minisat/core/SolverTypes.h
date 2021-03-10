@@ -676,6 +676,37 @@ inline void Clause::strengthen(Lit p)
     calcAbstraction();
 }
 
+class ClauseRingBuffer
+{
+    vec<CRef> ring;
+    int write_next;
+
+    public:
+    ClauseRingBuffer(int capacity) : write_next(0) { ring.growTo(capacity, CRef_Undef); }
+
+    bool hasClause(CRef r)
+    {
+        for (int i = 0; i < ring.size(); ++i)
+            if (ring[i] == r) return true;
+        return false;
+    }
+
+    void addNext(CRef r)
+    {
+        if (ring.size() == 0) return;
+
+        ring[write_next] = r;
+        write_next = write_next + 1 >= ring.size() ? 0 : write_next + 1;
+    }
+
+    const CRef &operator[](int index) const { return ring[index]; }
+
+    CRef &operator[](int index) { return ring[index]; }
+
+    int size() { return ring.size(); }
+};
+
+
 //=================================================================================================
 } // namespace MERGESAT_NSPACE
 

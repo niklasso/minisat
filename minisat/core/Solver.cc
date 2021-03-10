@@ -103,6 +103,8 @@ static IntOption opt_lcm_delay_inc(_cat,
                                    "After first LCM, how many conflicts to see before running the next LCM",
                                    1000,
                                    IntRange(0, INT32_MAX));
+static IntOption
+opt_dup_buffer_size(_cat, "lcm-dup-buffer", "Number of clauses to keep for duplicate check", 16, IntRange(0, INT32_MAX));
 static Int64Option
 opt_vsids_c(_cat, "vsids-c", "conflicts after which we want to switch back to VSIDS (0=off)", 12000000, Int64Range(0, INT64_MAX));
 static Int64Option
@@ -309,6 +311,8 @@ Solver::Solver()
   , simplified_length_record(0)
   , original_length_record(0)
   , s_propagations(0)
+  , nr_lcm_duplicates(0)
+  , simplifyBuffer(opt_dup_buffer_size)
 
   // simplifyAll adjust occasion
   , curSimplify(1)
@@ -546,6 +550,53 @@ void Solver::simpleAnalyze(CRef confl, vec<Lit> &out_learnt, vec<CRef> &reason_c
     } while (pathC >= 0);
 }
 
+bool Solver::isSimplifyDuplicate(CRef cr)
+{
+    // if there is no buffer, we do not have duplicates
+    if (simplifyBuffer.size() == 0) {
+        return false;
+    }
+    const Clause &c = ca[cr];
+    int checkIndex = 0;
+    // first, check on clause size
+    for (; checkIndex < simplifyBuffer.size(); ++checkIndex) {
+        const CRef bufferCRef = simplifyBuffer[checkIndex];
+        if (bufferCRef == CRef_Undef) continue;
+        if (bufferCRef == cr) continue;
+        const Clause &d = ca[bufferCRef];
+        if (c.size() == d.size()) break;
+    }
+    // no clause in buffer with the same size
+    if (checkIndex == simplifyBuffer.size()) return false;
+
+    // fill seen vector with literals of candidate clause
+    counter++;
+    for (int i = 0; i < c.size(); i++) {
+        Lit l = c[i];
+        seen2[toInt(l)] = counter;
+    }
+    // check for all remaining clauses, whether they hit all literals of c, and no others
+    for (; checkIndex < simplifyBuffer.size(); ++checkIndex) {
+        const CRef bufferCRef = simplifyBuffer[checkIndex];
+        if (bufferCRef == CRef_Undef) continue;
+        if (bufferCRef == cr) continue;
+        const Clause &d = ca[bufferCRef];
+        if (c.size() != d.size()) continue;
+        int hits = 0;
+        for (int i = 0; i < d.size(); ++i) {
+            Lit l = d[i];
+            if (seen2[toInt(l)] == counter)
+                hits++;
+            else
+                break;
+        }
+        if (hits == d.size()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
 {
     int ci, cj, li, lj;
@@ -570,6 +621,9 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
             nbSimplified++;
         } else {
             int saved_size = c.size();
+            /* DRUP: in case we want a correct proof, i.e. track all simplifications,
+               we would need to keep track of the original clause here. Let's skip this
+               for efficiency. */
             //         if (drup_file){
             //                 add_oc.clear();
             //                 for (int i = 0; i < c.size(); i++) add_oc.push(c[i]); }
@@ -596,79 +650,99 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                         }
                     }
                     c.shrink(li - lj);
-                    TRACE(std::cout << "c dropped" << li - lj << " literals from clause " << c << std::endl);
+                    TRACE(std::cout << "c dropped" << li - lj << " literals from clause [" << cr << "]: " << c << std::endl);
                     c.S(0); // this clause might subsume others now
                 }
 
                 assert(c.size() > 1);
                 // simplify a learnt clause c
+                TRACE(std::cout << "c LCM simplify clause[" << cr << "]: " << c << std::endl);
                 simplifyLearnt(c);
 
-                if (saved_size != c.size()) {
-                    shareViaCallback(c); // share via IPASIR?
+                bool recentDuplicate = isSimplifyDuplicate(cr);
 
-                    // print to proof
-                    if (drup_file) {
+                if (!recentDuplicate) {
+
+                    TRACE(std::cout << "c LCM keep (simplified?) clause[" << cr << "]: " << c << std::endl);
+
+                    if (saved_size != c.size()) {
+                        shareViaCallback(c); // share via IPASIR?
+
+                        // print to proof
+                        if (drup_file) {
 #ifdef BIN_DRUP
-                        binDRUP('a', c, drup_file);
-                        //                    binDRUP('d', add_oc, drup_file);
+                            binDRUP('a', c, drup_file);
+                            //                    binDRUP('d', add_oc, drup_file);
 #else
-                        for (int i = 0; i < c.size(); i++)
-                            fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
-                        fprintf(drup_file, "0\n");
+                            for (int i = 0; i < c.size(); i++)
+                                fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
+                            fprintf(drup_file, "0\n");
 
-                        //                    fprintf(drup_file, "d ");
-                        //                    for (int i = 0; i < add_oc.size(); i++)
-                        //                        fprintf(drup_file, "%i ", (var(add_oc[i]) + 1) * (-2 * sign(add_oc[i]) + 1));
-                        //                    fprintf(drup_file, "0\n");
+                            //                    fprintf(drup_file, "d ");
+                            //                    for (int i = 0; i < add_oc.size(); i++)
+                            //                        fprintf(drup_file, "%i ", (var(add_oc[i]) + 1) * (-2 * sign(add_oc[i]) + 1));
+                            //                    fprintf(drup_file, "0\n");
 #endif
+                        }
                     }
-                }
 
-                if (c.size() == 0) {
-                    ok = false;
-                    ret = false;
-                    ci++;
-                    while (ci < target_learnts.size()) target_learnts[cj++] = target_learnts[ci++];
-                    goto simplifyLearnt_out;
-                } else if (c.size() == 1) {
-                    // when unit clause occur, enqueue and propagate
-                    uncheckedEnqueue(c[0], 0);
-                    c.mark(1);
-                    if (propagate() != CRef_Undef) {
+                    if (c.size() == 0) {
                         ok = false;
                         ret = false;
                         ci++;
                         while (ci < target_learnts.size()) target_learnts[cj++] = target_learnts[ci++];
                         goto simplifyLearnt_out;
+                    } else if (c.size() == 1) {
+                        // when unit clause occur, enqueue and propagate
+                        uncheckedEnqueue(c[0], 0);
+                        c.mark(1);
+                        if (propagate() != CRef_Undef) {
+                            ok = false;
+                            ret = false;
+                            ci++;
+                            while (ci < target_learnts.size()) target_learnts[cj++] = target_learnts[ci++];
+                            goto simplifyLearnt_out;
+                        }
+                        // delete the clause memory in logic
+                        ca.free(cr);
+                        /* DRUP: in case we want a correct proof, i.e. track all simplifications,
+                        we would need to keep track of the original clause here. Let's skip this
+                        for efficiency. */
+                        //#ifdef BIN_DRUP
+                        //                    binDRUP('d', c, drup_file);
+                        //#else
+                        //                    fprintf(drup_file, "d ");
+                        //                    for (int i = 0; i < c.size(); i++)
+                        //                        fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
+                        //                    fprintf(drup_file, "0\n");
+                        //#endif
+                    } else {
+                        attachClause(cr);
+                        target_learnts[cj++] = target_learnts[ci];
+                        simplifyBuffer.addNext(cr); /* store in duplicate buffer */
+
+                        nblevels = computeLBD(c);
+                        if (nblevels < c.lbd()) {
+                            c.set_lbd(nblevels);
+                        }
+
+                        // in case we work on the tier2 set, a clause might move to core learnt clauses
+                        if (is_tier2 && c.lbd() <= core_lbd_cut) {
+                            cj--;
+                            learnts_core.push(cr);
+                            c.mark(CORE);
+                        }
+
+                        c.setSimplified(true);
                     }
-                    // delete the clause memory in logic
-                    ca.free(cr);
-                    //#ifdef BIN_DRUP
-                    //                    binDRUP('d', c, drup_file);
-                    //#else
-                    //                    fprintf(drup_file, "d ");
-                    //                    for (int i = 0; i < c.size(); i++)
-                    //                        fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
-                    //                    fprintf(drup_file, "0\n");
-                    //#endif
+
                 } else {
-                    attachClause(cr);
-                    target_learnts[cj++] = target_learnts[ci];
-
-                    nblevels = computeLBD(c);
-                    if (nblevels < c.lbd()) {
-                        c.set_lbd(nblevels);
-                    }
-
-                    // in case we work on the tier2 set, a clause might move to core learnt clauses
-                    if (is_tier2 && c.lbd() <= core_lbd_cut) {
-                        cj--;
-                        learnts_core.push(cr);
-                        c.mark(CORE);
-                    }
-
-                    c.setSimplified(true);
+                    TRACE(std::cout << "c LCM: drop duplicate simplified clause[" << cr << "]: " << ca[cr] << std::endl);
+                    // this clause is a duplicate now, hence, mark it accordingly
+                    /* DRUP: do not delete this simplified clause from the proof, as we did not add it yet */
+                    removeSatisfiedClause(cr, false);
+                    c.mark(1);
+                    nr_lcm_duplicates++;
                 }
             }
         }
@@ -872,31 +946,33 @@ void Solver::detachClause(CRef cr, bool strict)
 }
 
 
-void Solver::removeClause(CRef cr)
+void Solver::removeClause(CRef cr, bool remove_from_proof)
 {
     Clause &c = ca[cr];
     statistics.solveSteps++;
 
     detachClause(cr);
     // Don't leave pointers to free'd memory!
-    if (locked(c)) {
-        Lit implied = c.size() != 2 ? c[0] : (value(c[0]) == l_True ? c[0] : c[1]);
-        vardata[var(implied)].reason = CRef_Undef;
-        if (drup_file && onlineDratChecker && level(var(implied)) == 0) { /* before we drop the reason, store a unit */
-            if (!onlineDratChecker->addClause(mkLit(var(implied), value(var(implied)) == l_False))) exit(134);
+    if (remove_from_proof) {
+        if (locked(c)) {
+            Lit implied = c.size() != 2 ? c[0] : (value(c[0]) == l_True ? c[0] : c[1]);
+            vardata[var(implied)].reason = CRef_Undef;
+            if (drup_file && onlineDratChecker && level(var(implied)) == 0) { /* before we drop the reason, store a unit */
+                if (!onlineDratChecker->addClause(mkLit(var(implied), value(var(implied)) == l_False))) exit(134);
+            }
         }
-    }
-    if (drup_file) {
-        if (c.mark() != 1) {
+        if (drup_file) {
+            if (c.mark() != 1) {
 #ifdef BIN_DRUP
-            binDRUP('d', c, drup_file);
+                binDRUP('d', c, drup_file);
 #else
-            fprintf(drup_file, "d ");
-            for (int i = 0; i < c.size(); i++) fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
-            fprintf(drup_file, "0\n");
+                fprintf(drup_file, "d ");
+                for (int i = 0; i < c.size(); i++) fprintf(drup_file, "%i ", (var(c[i]) + 1) * (-2 * sign(c[i]) + 1));
+                fprintf(drup_file, "0\n");
 #endif
-        } else if (verbosity >= 1) {
-            printf("c Bug. I don't expect this to happen.\n");
+            } else if (verbosity >= 1) {
+                printf("c Bug. I don't expect this to happen.\n");
+            }
         }
     }
 
@@ -904,7 +980,7 @@ void Solver::removeClause(CRef cr)
     ca.free(cr);
 }
 
-void Solver::removeSatisfiedClause(CRef cr)
+void Solver::removeSatisfiedClause(CRef cr, bool remove_from_proof)
 {
     Clause &c = ca[cr];
 
@@ -921,7 +997,7 @@ void Solver::removeSatisfiedClause(CRef cr)
 #endif
     }
 
-    removeClause(cr);
+    removeClause(cr, remove_from_proof);
 }
 
 
@@ -2885,6 +2961,10 @@ void Solver::relocAll(ClauseAllocator &to)
             clauses[j++] = clauses[i];
         }
     clauses.shrink(i - j);
+
+    for (int i = 0; i < simplifyBuffer.size(); i++) {
+        if (simplifyBuffer[i] != CRef_Undef) ca.reloc(simplifyBuffer[i], to);
+    }
 }
 
 

@@ -500,10 +500,10 @@ class Solver
 
     // Operations on clauses:
     //
-    void attachClause(CRef cr);                      // Attach a clause to watcher lists.
-    void detachClause(CRef cr, bool strict = false); // Detach a clause to watcher lists.
-    void removeClause(CRef cr);                      // Detach and free a clause.
-    void removeSatisfiedClause(CRef cr);
+    void attachClause(CRef cr);                                // Attach a clause to watcher lists.
+    void detachClause(CRef cr, bool strict = false);           // Detach a clause to watcher lists.
+    void removeClause(CRef cr, bool remove_from_proof = true); // Detach and free a clause.
+    void removeSatisfiedClause(CRef cr, bool remove_from_proof = true);
     bool locked(const Clause &c) const; // Returns TRUE if a clause is a reason for some implication in the current state.
     bool satisfied(const Clause &c) const; // Returns TRUE if a clause is satisfied in the current state.
 
@@ -678,6 +678,7 @@ class Solver
     public:
     bool simplifyAll();
     template <class C> void simplifyLearnt(C &c);
+    bool isSimplifyDuplicate(CRef cr);
     /** simplify the learnt clauses in the given vector, move to learnt_core if is_tier2 is true*/
     bool simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2 = false);
     int trailRecord;
@@ -687,11 +688,12 @@ class Solver
     CRef simplePropagate();
     uint64_t nbSimplifyAll;
     uint64_t simplified_length_record, original_length_record;
-    uint64_t s_propagations;
+    uint64_t s_propagations, nr_lcm_duplicates;
 
     vec<Lit> simp_learnt_clause;
     vec<CRef> simp_reason_clause;
     void simpleAnalyze(CRef confl, vec<Lit> &out_learnt, vec<CRef> &reason_clause, bool True_confl);
+    ClauseRingBuffer simplifyBuffer;
 
     // in redundant
     bool removed(CRef cr);
