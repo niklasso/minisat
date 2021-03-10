@@ -16,6 +16,8 @@ duplicate learnt clauses into the core/tier2 tiers depending on a number of para
 Maple_LCM_Dist-alluip-trail -- Copyright (c) 2020, Randy Hickey and Fahiem Bacchus,
 Based on Trail Saving on Backtrack SAT 2020 paper.
 
+UWrMaxSat based on KP-MiniSat+ -- Copyright (c) 2019-2020 Marek Piotrów: avoid watching assumption literals
+
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
 including without limitation the rights to use, copy, modify, merge, publish, distribute,
@@ -925,6 +927,9 @@ void Solver::removeSatisfiedClause(CRef cr)
 
 bool Solver::satisfied(const Clause &c) const
 {
+    if (assumptions.size()) // Check clauses with many selectors is too time consuming
+        return (value(c[0]) == l_True) || (value(c[1]) == l_True);
+
     for (int i = 0; i < c.size(); i++)
         if (value(c[i]) == l_True) return true;
     return false;
@@ -1561,17 +1566,25 @@ CRef Solver::propagate()
             }
 
             // Look for new watch:
-            for (int k = 2; k < c.size(); k++)
+            int watchPos = 0, avoidLevel = assumptions.size();
+            for (int k = 2; k < c.size(); k++) {
                 if (value(c[k]) != l_False) {
-                    c[1] = c[k];
-                    c[k] = false_lit;
-                    if (value(c[1]) == l_True) {
-                        lazySATwatch.push(watchItem(w, ~c[1]));
-                    } else {
-                        watches[~c[1]].push(w);
-                    }
-                    goto NextClause;
+                    watchPos = k; /* memorize that we found one literal we can watch */
+                    if (level(var(c[k])) > avoidLevel) break;
                 }
+            }
+
+            /* found a position to watch, watch the clause */
+            if (watchPos != 0) {
+                c[1] = c[watchPos];
+                c[watchPos] = false_lit;
+                if (value(c[1]) == l_True) {
+                    lazySATwatch.push(watchItem(w, ~c[1]));
+                } else {
+                    watches[~c[1]].push(w);
+                }
+                goto NextClause;
+            }
 
             // Did not find watch -- clause is unit under assignment:
             *j++ = w;
