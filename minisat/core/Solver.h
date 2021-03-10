@@ -25,6 +25,8 @@ MapleLCMDistChronoBT-DL-f2trc, based on MapleLCMDistChronoBT -- Copyright (c) 20
 The deterministic variant of the DL-version with modified procedures for handling Tier 2 clauses
 and with added procedures for purging Core learnts.
 
+RelaxedLCMDCBDLnewTech -- Copyright (c) 2020, Xindi Zhang and Shaowei Cai: rephasing
+
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
 including without limitation the rights to use, copy, modify, merge, publish, distribute,
@@ -61,6 +63,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Heap.h"
 #include "mtl/Vec.h"
 #include "utils/Options.h"
+#include "utils/ccnr.h"
 
 
 // Don't change the actual numbers.
@@ -405,7 +408,7 @@ class Solver
         {
             bool valid = true;
             bool satisfied_current_clause = false;
-            int last_litUndef = 0;
+            int last_litUndef = -1;
             vec<Lit> d;
             for (int i = 0; i < check_formula.size(); ++i) {
                 const Lit &l = check_formula[i];
@@ -514,7 +517,8 @@ class Solver
     bool litRedundant(Lit p, uint32_t abstract_levels);       // (helper method for 'analyze()')
     lbool search(int &nof_conflicts);                         // Search for a given number of conflicts.
     lbool solve_();                                           // Main solve method (assumptions given in 'assumptions').
-    void reduceDB();                                          // Reduce the set of learnt clauses.
+    void rephase();  // Modify the phase to be used when selecting the next variable
+    void reduceDB(); // Reduce the set of learnt clauses.
     void reduceDB_Tier2();
     void reduceDB_Core();
     void removeSatisfied(vec<CRef> &cs); // Shrink 'cs' to contain only non-satisfied clauses.
@@ -751,6 +755,50 @@ class Solver
     double my_var_decay;
 
     void reset_old_trail();
+
+    protected:
+    bool use_ccnr;
+    //  to avoid the init_soln of two LS too near.
+    int restarts_gap;
+    //  if trail.size() over c*nVars or p*max_trail, call ls.
+    float conflict_ratio;
+    float percent_ratio;
+    //  control ls time total use.
+    float up_time_ratio;
+    //  control ls memory use per call.
+    long long ls_mems_num;
+    int state_change_time;                // starts
+    uint64_t next_rephase_conflict_count; // limit of conflicts to be used
+    float next_rephase_conflict_count_inc;
+    //  whether the mediation_soln is used as rephase, if not
+    bool mediation_used;
+
+    int switch_heristic_mod; // starts
+    int last_switch_conflicts;
+
+    // informations
+    CCNR::ls_solver ccnr;
+    int freeze_ls_restart_num = 0;
+    double ls_used_time = 0;
+    int ls_call_num = 0;
+    int ls_best_unsat_num = INT_MAX;
+    bool solved_by_ls = false, initial_sls, use_sls_phase = true;
+    int rephase_mode = 0; // was: use_sls_phase = true;
+    int max_trail = 0;
+
+
+    // Phases
+    // save the recent ls soln and best ls soln, need to call ls once.
+    std::vector<char> ls_mediation_soln;
+    // with the minimum unsat clauses num in LS.
+    std::vector<char> ls_best_soln;
+    // hold the soln with the best trail size.
+    std::vector<char> top_trail_soln;
+
+    // functions
+    bool call_ls(bool use_up_build);
+    void rand_based_rephase();
+    void info_based_rephase();
 };
 
 // Method to update cli options from the environment variable MINISAT_RUNTIME_ARGS
