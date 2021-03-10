@@ -227,7 +227,7 @@ class Solver
     double clause_decay;
     double random_var_freq;
     double random_seed;
-    bool VSIDS;
+
     int ccmin_mode;      // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
     int phase_saving;    // Controls the level of phase saving (0=none, 1=limited, 2=full).
     bool rnd_pol;        // Use random polarities for branching heuristics.
@@ -350,8 +350,26 @@ class Solver
     int simpDB_assigns;      // Number of top-level assignments since last execution of 'simplify()'.
     int64_t simpDB_props; // Remaining number of propagations that must be made before next execution of 'simplify()'.
     vec<Lit> assumptions; // Current set of assumptions provided to solve by the user.
-    Heap<VarOrderLt> order_heap_CHB, // A priority queue of variables ordered with respect to the variable activity.
-    order_heap_VSIDS, order_heap_distance;
+
+    /* list the possible modes the decision heuristic could be in */
+    enum decision_heuristic {
+        VSIDS_CHB,      /* in VSIDS, switching back to CHB */
+        VSIDS_DISTANCE, /* in VSIDS, switching back to DISTANCE */
+        CHB,
+        DISTANCE
+    };
+    decision_heuristic current_heuristic;
+    bool usesVSIDS();
+    bool usesCHB();
+    bool usesDISTANCE();
+    bool considersDISTANCE();
+    void disableDISTANCEheuristic();
+    void enableDISTANCEheuristic();
+    vec<Var> decision_rebuild_vars; // Set of variables that need to be used as decisions
+    vec<int> distance_level_incs;
+    Heap<VarOrderLt> order_heap_VSIDS, order_heap_CHB, order_heap_DISTANCE;
+    Heap<VarOrderLt> *order_heap; // A priority queue of variables ordered with respect to the variable activity.
+
     int full_heap_size; // Store size of heap in case it is completely filled, to be able to compare it to current size
     double progress_estimate; // Set by 'search()'.
     bool remove_satisfied; // Indicates whether possibly inefficient linear scan for satisfied clauses should be performed in 'simplify'.
@@ -717,7 +735,6 @@ class Solver
     double var_iLevel_inc;
     vec<Lit> involved_lits;
     double my_var_decay;
-    bool DISTANCE;
 
     void reset_old_trail();
 };
@@ -740,8 +757,7 @@ inline int Solver::level(Var x) const { return vardata[x].level; }
 
 inline void Solver::insertVarOrder(Var x)
 {
-    Heap<VarOrderLt> &order_heap = VSIDS ? order_heap_VSIDS : (DISTANCE ? order_heap_distance : order_heap_CHB);
-    if (!order_heap.inHeap(x) && decision[x]) order_heap.insert(x);
+    if (!order_heap->inHeap(x) && decision[x]) order_heap->insert(x);
 }
 
 inline void Solver::varDecayActivity() { var_inc *= (1 / var_decay); }
@@ -755,7 +771,9 @@ inline void Solver::varBumpActivity(Var v, double mult)
     }
 
     // Update order_heap with respect to new activity:
-    if (order_heap_VSIDS.inHeap(v)) order_heap_VSIDS.decrease(v);
+    if (usesVSIDS()) {
+        if (order_heap->inHeap(v)) order_heap->decrease(v);
+    }
 }
 
 inline void Solver::claDecayActivity() { cla_inc *= (1 / clause_decay); }
@@ -837,10 +855,8 @@ inline void Solver::setDecisionVar(Var v, bool b)
         dec_vars--;
 
     decision[v] = b;
-    if (b && !order_heap_CHB.inHeap(v)) {
-        order_heap_CHB.insert(v);
-        order_heap_VSIDS.insert(v);
-        order_heap_distance.insert(v);
+    if (b && !order_heap->inHeap(v)) {
+        order_heap->insert(v);
     }
 }
 inline void Solver::setConfBudget(int64_t x) { conflict_budget = conflicts + x; }
@@ -927,6 +943,14 @@ inline void Solver::toDimacs(const char *file, Lit p, Lit q, Lit r)
     as.push(r);
     toDimacs(file, as);
 }
+
+inline bool Solver::usesVSIDS() { return current_heuristic == VSIDS_CHB || current_heuristic == VSIDS_DISTANCE; }
+
+inline bool Solver::usesDISTANCE() { return current_heuristic == DISTANCE; }
+
+inline bool Solver::considersDISTANCE() { return current_heuristic == DISTANCE || current_heuristic == VSIDS_DISTANCE; }
+
+inline bool Solver::usesCHB() { return current_heuristic == CHB; }
 
 inline void Solver::setTermCallback(void *state, int (*termCallback)(void *))
 {

@@ -191,7 +191,6 @@ Solver::Solver()
   , clause_decay(opt_clause_decay)
   , random_var_freq(opt_random_var_freq)
   , random_seed(opt_random_seed)
-  , VSIDS(false)
   , ccmin_mode(opt_ccmin_mode)
   , phase_saving(opt_phase_saving)
   , rnd_pol(false)
@@ -254,9 +253,11 @@ Solver::Solver()
   , old_trail_qhead(0)
   , simpDB_assigns(-1)
   , simpDB_props(0)
-  , order_heap_CHB(VarOrderLt(activity_CHB))
+  , current_heuristic(DISTANCE)
   , order_heap_VSIDS(VarOrderLt(activity_VSIDS))
-  , order_heap_distance(VarOrderLt(activity_distance))
+  , order_heap_CHB(VarOrderLt(activity_CHB))
+  , order_heap_DISTANCE(VarOrderLt(activity_distance))
+  , order_heap(&order_heap_DISTANCE)
   , full_heap_size(-1)
   , progress_estimate(0)
   , remove_satisfied(true)
@@ -336,7 +337,6 @@ Solver::Solver()
 
   , var_iLevel_inc(1)
   , my_var_decay(0.6)
-  , DISTANCE(true)
 {
     if (opt_checkProofOnline && onlineDratChecker) {
         onlineDratChecker->setVerbosity(opt_checkProofOnline);
@@ -809,6 +809,7 @@ Var Solver::newVar(bool sign, bool dvar)
     oldreasons.push(CRef_Undef);
     activity_CHB.push(0);
     activity_VSIDS.push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    activity_distance.push(0);
 
     picked.push(0);
     conflicted.push(0);
@@ -825,7 +826,6 @@ Var Solver::newVar(bool sign, bool dvar)
     trail.capacity(v + 1);
     old_trail.capacity(v + 1);
 
-    activity_distance.push(0);
     var_iLevel.push(0);
     var_iLevel_tmp.push(0);
     pathCs.push(0);
@@ -1032,25 +1032,25 @@ void Solver::cancelUntil(int bLevel, bool allow_trail_saving)
 
             if (level(x) <= bLevel) {
                 add_tmp.push(trail[c]);
-                continue;
-            }
+            } else {
 
-            if (savetrail) {
-                old_trail.push_(trail[c]); /* we traverse trail in reverse order */
-                oldreasons[x] = reason(x);
-            }
+                if (savetrail) {
+                    old_trail.push_(trail[c]); /* we traverse trail in reverse order */
+                    oldreasons[x] = reason(x);
+                }
 
-            if (!VSIDS) {
-                uint32_t age = conflicts - picked[x];
-                if (age > 0) {
-                    double adjusted_reward = ((double)(conflicted[x] + almost_conflicted[x])) / ((double)age);
-                    double old_activity = activity_CHB[x];
-                    activity_CHB[x] = step_size * adjusted_reward + ((1 - step_size) * old_activity);
-                    if (order_heap_CHB.inHeap(x)) {
-                        if (activity_CHB[x] > old_activity)
-                            order_heap_CHB.decrease(x);
-                        else
-                            order_heap_CHB.increase(x);
+                if (!usesVSIDS()) {
+                    uint32_t age = conflicts - picked[x];
+                    if (age > 0) {
+                        double adjusted_reward = ((double)(conflicted[x] + almost_conflicted[x])) / ((double)age);
+                        double old_activity = activity_CHB[x];
+                        activity_CHB[x] = step_size * adjusted_reward + ((1 - step_size) * old_activity);
+                        if (usesCHB() && order_heap->inHeap(x)) {
+                            if (activity_CHB[x] > old_activity)
+                                order_heap->decrease(x);
+                            else
+                                order_heap->increase(x);
+                        }
                     }
                 }
 #ifdef ANTI_EXPLORATION
@@ -1095,8 +1095,6 @@ void Solver::cancelUntil(int bLevel, bool allow_trail_saving)
 Lit Solver::pickBranchLit()
 {
     Var next = var_Undef;
-    //    Heap<VarOrderLt>& order_heap = VSIDS ? order_heap_VSIDS : order_heap_CHB;
-    Heap<VarOrderLt> &order_heap = VSIDS ? order_heap_VSIDS : (DISTANCE ? order_heap_distance : order_heap_CHB);
 
     // Random decision:
     /*if (drand(random_seed) < random_var_freq && !order_heap.empty()){
@@ -1106,24 +1104,24 @@ Lit Solver::pickBranchLit()
 
     // Activity based decision:
     while (next == var_Undef || value(next) != l_Undef || !decision[next])
-        if (order_heap.empty())
+        if (order_heap->empty())
             return lit_Undef;
         else {
 #ifdef ANTI_EXPLORATION
-            if (!VSIDS) {
-                Var v = order_heap_CHB[0];
+            if (usesCHB()) {
+                Var v = (*order_heap)[0];
                 uint32_t age = conflicts - canceled[v];
                 while (age > 0) {
                     double decay = pow(0.95, age);
                     activity_CHB[v] *= decay;
-                    if (order_heap_CHB.inHeap(v)) order_heap_CHB.increase(v);
+                    if (order_heap->inHeap(v)) order_heap->increase(v);
                     canceled[v] = conflicts;
-                    v = order_heap_CHB[0];
+                    v = (*order_heap)[0];
                     age = conflicts - canceled[v];
                 }
             }
 #endif
-            next = order_heap.removeMin();
+            next = order_heap->removeMin();
         }
 
     // in case we found (almost) pure literals, disable phase-saving
@@ -1240,7 +1238,7 @@ void Solver::analyze(CRef confl, vec<Lit> &out_learnt, int &out_btlevel, int &ou
             Lit q = c[j];
 
             if (!seen[var(q)] && level(var(q)) > 0) {
-                if (VSIDS) {
+                if (usesVSIDS()) {
                     varBumpActivity(var(q), .5);
                     add_tmp.push(q);
                 } else
@@ -1324,7 +1322,7 @@ void Solver::analyze(CRef confl, vec<Lit> &out_learnt, int &out_btlevel, int &ou
         out_btlevel = level(var(p));
     }
 
-    if (VSIDS) {
+    if (usesVSIDS()) {
         for (int i = 0; i < add_tmp.size(); i++) {
             Var v = var(add_tmp[i]);
             if (level(v) >= out_btlevel - 1) varBumpActivity(v, 1);
@@ -1509,7 +1507,7 @@ void Solver::uncheckedEnqueue(Lit p, int level, CRef from)
     assert(level <= decisionLevel() && "do not enqueue literals on non-existing levels");
     assert((from == CRef_Undef || from < ca.size()) && "do not use reasons that are not located in the allocator");
     Var x = var(p);
-    if (!VSIDS) {
+    if (!usesVSIDS()) {
         picked[x] = conflicts;
         conflicted[x] = 0;
         almost_conflicted[x] = 0;
@@ -1518,7 +1516,7 @@ void Solver::uncheckedEnqueue(Lit p, int level, CRef from)
         if (age > 0) {
             double decay = pow(0.95, age);
             activity_CHB[var(p)] *= decay;
-            if (order_heap_CHB.inHeap(var(p))) order_heap_CHB.increase(var(p));
+            if (usesCHB() && order_heap->inHeap(var(p))) order_heap->increase(var(p));
         }
 #endif
     }
@@ -1800,8 +1798,7 @@ int Solver::getRestartLevel()
         Var next = var_Undef;
         int restartLevel = 0;
 
-        Heap<VarOrderLt> &restart_heap = DISTANCE ? order_heap_distance : ((!VSIDS) ? order_heap_CHB : order_heap_VSIDS);
-        const vec<double> &restart_activity = DISTANCE ? activity_distance : ((!VSIDS) ? activity_CHB : activity_VSIDS);
+        const vec<double> &restart_activity = usesVSIDS() ? activity_VSIDS : (usesCHB() ? activity_CHB : activity_distance);
 
         do {
             repeatReusedTrail = false; // get it right this time?
@@ -1809,11 +1806,11 @@ int Solver::getRestartLevel()
             // Activity based selection
             while (next == var_Undef || value(next) != l_Undef ||
                    !decision[next]) // found a yet unassigned variable with the highest activity among the unassigned variables
-                if (restart_heap.empty()) {
+                if (order_heap->empty()) {
                     // we cannot compare to any other variable, hence, we have SAT already
                     return 0;
                 } else {
-                    next = restart_heap.removeMin(); // get next element
+                    next = order_heap->removeMin(); // get next element
                 }
 
             // based on variable next, either check for reusedTrail, or matching Trail!
@@ -1826,18 +1823,18 @@ int Solver::getRestartLevel()
                 }
             }
             // put the decision literal back, so that it can be used for the next decision
-            restart_heap.insert(next);
+            order_heap->insert(next);
 
             // reused trail
             if (restart.selection_type > 1 && restartLevel > 0) { // check whether jumping higher would be "more correct"
                 cancelUntil(restartLevel);
                 Var more = var_Undef;
                 while (more == var_Undef || value(more) != l_Undef || !decision[more])
-                    if (restart_heap.empty()) {
+                    if (order_heap->empty()) {
                         more = var_Undef;
                         break;
                     } else {
-                        more = restart_heap.removeMin();
+                        more = order_heap->removeMin();
                     }
 
                 // actually, would have to jump higher than the current level!
@@ -1845,7 +1842,7 @@ int Solver::getRestartLevel()
                     repeatReusedTrail = true;
                     next = more; // no need to insert, and get back afterwards again!
                 } else {
-                    restart_heap.insert(more);
+                    order_heap->insert(more);
                 }
             }
         } while (repeatReusedTrail);
@@ -1897,17 +1894,21 @@ void Solver::safeRemoveSatisfied(vec<CRef> &cs, unsigned valid_mark)
 
 void Solver::rebuildOrderHeap()
 {
-    vec<Var> vs;
+    /* all unassigned variables present, no need to rebuild */
+    if (decisionLevel() == 0 && (order_heap->size() + trail.size() >= nVars())) {
+        TRACE(for (Var v = 0; v < nVars(); v++) {
+            assert((!decision[v] || value(v) != l_Undef || order_heap->inHeap(v)) &&
+                   "unassigned variables have to be present in the heap");
+        });
+        return;
+    }
+
+    decision_rebuild_vars.clear();
     for (Var v = 0; v < nVars(); v++)
-        if (decision[v] && value(v) == l_Undef) vs.push(v);
+        if (decision[v] && value(v) == l_Undef) decision_rebuild_vars.push(v);
 
-    order_heap_CHB.build(vs);
-    order_heap_VSIDS.build(vs);
-    order_heap_distance.build(vs);
-
-    assert(order_heap_VSIDS.size() == order_heap_CHB.size());
-    assert(order_heap_VSIDS.size() == order_heap_distance.size());
-    full_heap_size = order_heap_VSIDS.size();
+    order_heap->build(decision_rebuild_vars);
+    full_heap_size = order_heap->size();
 }
 
 
@@ -2015,11 +2016,12 @@ bool Solver::collectFirstUIP(CRef confl)
             involved_lits.push(p);
         }
     }
+
+    /* TODO: check whether we can skip this once we do not use DISTANCE decision heuristic anymore */
     double inc = var_iLevel_inc;
-    vec<int> level_incs;
-    level_incs.clear();
+    distance_level_incs.clear();
     for (int i = 0; i < max_level; i++) {
-        level_incs.push(inc);
+        distance_level_incs.push(inc);
         inc = inc / my_var_decay;
     }
 
@@ -2027,18 +2029,18 @@ bool Solver::collectFirstUIP(CRef confl)
         Var v = var(involved_lits[i]);
         //        double old_act=activity_distance[v];
         //        activity_distance[v] +=var_iLevel_inc * var_iLevel_tmp[v];
-        activity_distance[v] += var_iLevel_tmp[v] * level_incs[var_iLevel_tmp[v] - 1];
+        activity_distance[v] += var_iLevel_tmp[v] * distance_level_incs[var_iLevel_tmp[v] - 1];
 
         if (activity_distance[v] > 1e100) {
             for (int vv = 0; vv < nVars(); vv++) activity_distance[vv] *= 1e-100;
             var_iLevel_inc *= 1e-100;
-            for (int j = 0; j < max_level; j++) level_incs[j] *= 1e-100;
+            for (int j = 0; j < max_level; j++) distance_level_incs[j] *= 1e-100;
         }
-        if (order_heap_distance.inHeap(v)) order_heap_distance.decrease(v);
-
-        //        var_iLevel_inc *= (1 / my_var_decay);
+        if (usesDISTANCE()) {
+            if (order_heap->inHeap(v)) order_heap->decrease(v); /* TODO: increase? */
+        }
     }
-    var_iLevel_inc = level_incs[level_incs.size() - 1];
+    var_iLevel_inc = distance_level_incs[distance_level_incs.size() - 1];
     return true;
 }
 
@@ -2300,8 +2302,7 @@ lbool Solver::search(int &nof_conflicts)
     starts++;
 
     // make sure that all unassigned variables are in the heap
-    assert(trail.size() + (VSIDS ? order_heap_VSIDS.size() : (DISTANCE ? order_heap_distance.size() : order_heap_CHB.size())) >=
-           full_heap_size);
+    assert(trail.size() + order_heap->size() >= full_heap_size);
 
     // simplify
     //
@@ -2334,7 +2335,7 @@ lbool Solver::search(int &nof_conflicts)
             prev_confl = this_confl;
             this_confl = confl;
             // CONFLICT
-            if (VSIDS) {
+            if (usesVSIDS()) {
                 if (--timer == 0 && var_decay < 0.95) timer = 5000, var_decay += 0.01;
             } else if (step_size > min_step_size)
                 step_size -= step_size_dec;
@@ -2360,17 +2361,17 @@ lbool Solver::search(int &nof_conflicts)
 
             learnt_clause.clear();
             if (conflicts > 50000) {
-                if (DISTANCE != 0) {
+                if (considersDISTANCE()) {
                     if (verbosity) printf("c set DISTANCE to 0\n");
-                    DISTANCE = 0;
+                    disableDISTANCEheuristic();
                 }
             } else {
-                if (DISTANCE != 1) {
+                if (!considersDISTANCE()) {
                     if (verbosity) printf("c set DISTANCE to 1\n");
-                    DISTANCE = 1;
+                    enableDISTANCEheuristic();
                 }
             }
-            if (VSIDS && DISTANCE) collectFirstUIP(confl);
+            if (current_heuristic == VSIDS_DISTANCE) collectFirstUIP(confl);
 
             TRACE(std::cout << "c run conflict analysis on conflict clause [" << confl << "]: " << ca[confl] << std::endl);
             analyze(confl, learnt_clause, backtrack_level, lbd);
@@ -2395,7 +2396,7 @@ lbool Solver::search(int &nof_conflicts)
             }
 
             lbd--;
-            if (VSIDS) {
+            if (usesVSIDS()) {
                 cached = false;
                 conflicts_VSIDS++;
                 lbd_queue.push(lbd);
@@ -2438,7 +2439,7 @@ lbool Solver::search(int &nof_conflicts)
 #endif
             }
 
-            if (VSIDS) varDecayActivity();
+            if (usesVSIDS()) varDecayActivity();
             claDecayActivity();
 
             /*if (--learntsize_adjust_cnt == 0){
@@ -2456,7 +2457,7 @@ lbool Solver::search(int &nof_conflicts)
         } else {
             // NO CONFLICT
             bool restart = false;
-            if (!VSIDS)
+            if (!usesVSIDS())
                 restart = nof_conflicts <= 0;
             else if (!cached) {
                 restart = lbd_queue.full() && (lbd_queue.avg() * 0.8 > global_lbd_sum / conflicts_VSIDS);
@@ -2580,15 +2581,69 @@ static double luby(double y, int x)
 void Solver::toggle_decision_heuristic(bool to_VSIDS)
 {
     if (to_VSIDS) { // initialize VSIDS heap again?
-        order_heap_VSIDS.build(DISTANCE ? order_heap_distance.elements() : order_heap_CHB.elements());
-        assert((trail.size() + order_heap_VSIDS.size()) >= full_heap_size);
+        assert(!usesVSIDS() && "should not from VSIDS to itself");
+        Heap<VarOrderLt> &currentHeap = usesDISTANCE() ? order_heap_DISTANCE : order_heap_CHB;
+        order_heap_VSIDS.growTo(currentHeap);
+        order_heap_VSIDS.build(currentHeap.elements());
+        order_heap = &order_heap_VSIDS;
+        current_heuristic = current_heuristic == CHB ? VSIDS_CHB : VSIDS_DISTANCE;
     } else {
-        order_heap_distance.build(order_heap_VSIDS.elements());
-        order_heap_CHB.build(order_heap_VSIDS.elements());
-        assert((trail.size() + order_heap_distance.size()) >= full_heap_size);
-        assert((trail.size() + order_heap_CHB.size()) >= full_heap_size);
+        assert(usesVSIDS() && "should come from VSIDS");
+        if (current_heuristic == VSIDS_CHB) {
+            order_heap_CHB.growTo(order_heap_VSIDS);
+            order_heap_CHB.build(order_heap_VSIDS.elements());
+            order_heap = &order_heap_CHB;
+            current_heuristic = CHB;
+        } else {
+            order_heap_CHB.growTo(order_heap_VSIDS);
+            order_heap_DISTANCE.build(order_heap_VSIDS.elements());
+            order_heap = &order_heap_DISTANCE;
+            current_heuristic = DISTANCE;
+        }
     }
+    assert((trail.size() + order_heap->size()) >= full_heap_size);
 }
+
+void Solver::disableDISTANCEheuristic()
+{
+    switch (current_heuristic) {
+    case VSIDS_DISTANCE:
+        /* currently VSIDS, just change swap partner */
+        current_heuristic = VSIDS_CHB;
+        break;
+    case DISTANCE:
+        current_heuristic = CHB;
+        order_heap_CHB.growTo(order_heap_DISTANCE);
+        order_heap_CHB.build(order_heap_DISTANCE.elements());
+        order_heap = &order_heap_CHB;
+        break;
+    default:
+        break;
+    }
+    assert(!considersDISTANCE() && "we should have disabled DISTANCE heuristic");
+    assert((trail.size() + order_heap->size()) >= full_heap_size);
+}
+
+void Solver::enableDISTANCEheuristic()
+{
+    switch (current_heuristic) {
+    case VSIDS_CHB:
+        /* currently VSIDS, just change swap partner */
+        current_heuristic = VSIDS_DISTANCE;
+        break;
+    case CHB:
+        current_heuristic = DISTANCE;
+        order_heap_DISTANCE.growTo(order_heap_CHB);
+        order_heap_DISTANCE.build(order_heap_CHB.elements());
+        order_heap = &order_heap_DISTANCE;
+        break;
+    default:
+        break;
+    }
+    assert(considersDISTANCE() && "we should have enabled DISTANCE heuristic");
+    assert((trail.size() + order_heap->size()) >= full_heap_size);
+}
+
 
 // NOTE: assumptions passed in member-variable 'assumptions'.
 lbool Solver::solve_()
@@ -2620,11 +2675,9 @@ lbool Solver::solve_()
     add_tmp.clear();
 
     // toggle back to VSIDS
-    if (!VSIDS) toggle_decision_heuristic(true);
-    VSIDS = true;
+    if (!usesVSIDS()) toggle_decision_heuristic(true);
     int init = VSIDS_props_init_limit;
     while (status == l_Undef && init > 0 && withinBudget()) status = search(init);
-    VSIDS = false;
     // do not use VSIDS now
     toggle_decision_heuristic(false);
 
@@ -2637,7 +2690,7 @@ lbool Solver::solve_()
             switch_mode = true;
             VSIDS_props_limit = VSIDS_props_limit + VSIDS_props_limit / 10;
         }
-        if (VSIDS) {
+        if (usesVSIDS()) {
             int weighted = INT32_MAX;
             status = search(weighted);
         } else {
@@ -2649,10 +2702,9 @@ lbool Solver::solve_()
         // toggle VSIDS?
         if (switch_mode) {
             switch_mode = false;
-            VSIDS = !VSIDS;
-            toggle_decision_heuristic(VSIDS); // switch to VSIDS
+            toggle_decision_heuristic(!usesVSIDS()); // switch to VSIDS
             if (verbosity >= 1) {
-                if (VSIDS) {
+                if (usesVSIDS()) {
                     printf("c Switched to VSIDS.\n");
                 } else {
                     printf("c Switched to LRB/DISTANCE.\n");
