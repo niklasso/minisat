@@ -11,6 +11,8 @@ minimization approach for cdcl sat solvers,” in IJCAI-2017, 2017, pp. to–app
 Maple_LCM_Dist, Based on Maple_LCM -- Copyright (c) 2017, Fan Xiao, Chu-Min LI, Mao Luo: using a new branching heuristic
 called Distance at the beginning of search
 
+Maple_LCM_Dist-alluip-trail -- Copyright (c) 2020, Randy Hickey and Fahiem Bacchus,
+Based on Trail Saving on Backtrack SAT 2020 paper.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -245,6 +247,7 @@ class Solver
     uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts, conflicts_VSIDS;
     uint64_t dec_vars, clauses_literals, learnts_literals, max_literals, tot_literals;
     uint64_t chrono_backtrack, non_chrono_backtrack;
+    uint64_t backuped_trail_lits, used_backup_lits;
 
     vec<uint32_t> picked;
     vec<uint32_t> conflicted;
@@ -340,7 +343,11 @@ class Solver
     vec<int> trail_lim;   // Separator indices for different decision levels in 'trail'.
     vec<VarData> vardata; // Stores reason and level for each variable.
     int qhead;            // Head of queue (as index into the trail -- no more explicit propagation queue in MiniSat).
-    int simpDB_assigns;   // Number of top-level assignments since last execution of 'simplify()'.
+    bool use_backuped_trail; // store the trail during backtracking, and use it during propagation
+    int old_trail_qhead;     // head of trail stored during backtracking
+    vec<Lit> old_trail;      // trail stored during backtracking
+    vec<CRef> oldreasons;    // reason clauses of trail stored during backtracking
+    int simpDB_assigns;      // Number of top-level assignments since last execution of 'simplify()'.
     int64_t simpDB_props; // Remaining number of propagations that must be made before next execution of 'simplify()'.
     vec<Lit> assumptions; // Current set of assumptions provided to solve by the user.
     Heap<VarOrderLt> order_heap_CHB, // A priority queue of variables ordered with respect to the variable activity.
@@ -469,7 +476,7 @@ class Solver
     void uncheckedEnqueue(Lit p, int level, CRef from = CRef_Undef); // Enqueue a literal. Assumes value of literal is undefined.
     bool enqueue(Lit p, CRef from = CRef_Undef); // Test if fact 'p' contradicts current state, enqueue otherwise.
     CRef propagate();                            // Perform unit propagation. Returns possibly conflicting clause.
-    void cancelUntil(int level);                 // Backtrack until a certain level.
+    void cancelUntil(int level, bool allow_trail_saving = false);                   // Backtrack until a certain level.
     void analyze(CRef confl, vec<Lit> &out_learnt, int &out_btlevel, int &out_lbd); // (bt = backtrack)
     void analyzeFinal(Lit p, vec<Lit> &out_conflict); // COULD THIS BE IMPLEMENTED BY THE ORDINARIY "analyze" BY SOME REASONABLE
     void analyzeFinal(const CRef cr, vec<Lit> &out_conflict); // Find all assumptions that lead to the given conflict clause
@@ -709,6 +716,8 @@ class Solver
     vec<Lit> involved_lits;
     double my_var_decay;
     bool DISTANCE;
+
+    void reset_old_trail();
 };
 
 // Method to update cli options from the environment variable MINISAT_RUNTIME_ARGS

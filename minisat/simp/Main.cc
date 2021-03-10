@@ -72,7 +72,7 @@ void printStats(Solver &solver)
     printf("c Stats:                : %lf solve, %lu steps, %lf simp, %lu steps, %d var, budget: %d\n",
            solver.statistics.solveSeconds, solver.statistics.solveSteps, solver.statistics.simpSeconds,
            solver.statistics.simpSteps, solver.nVars(), solver.withinBudget());
-
+    printf("c backup trail: stored: %lu used successfully: %lu\n", solver.backuped_trail_lits, solver.used_backup_lits);
     if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
     printf("c CPU time              : %g s\n", cpu_time);
 }
