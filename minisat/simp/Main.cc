@@ -124,13 +124,13 @@ int main(int argc, char **argv)
 #endif
         // Extra options:
         //
-        IntOption verb("MAIN", "verb", "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 4));
+        IntOption verb("MAIN", "verb", "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 4), false);
         BoolOption pre("MAIN", "pre", "Completely turn on/off any preprocessing.", true);
-        BoolOption s_model("MAIN", "model", "Do report a model if the formula is satisfiable.", true);
+        BoolOption s_model("MAIN", "model", "Do report a model if the formula is satisfiable.", true, false);
         StringOption dimacs("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
-        IntOption cpu_lim("MAIN", "cpu-lim", "Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
-        IntOption mem_lim("MAIN", "mem-lim", "Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX));
-        BoolOption drup("MAIN", "drup", "Generate DRUP UNSAT proof.", false);
+        IntOption cpu_lim("MAIN", "cpu-lim", "Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX), false);
+        IntOption mem_lim("MAIN", "mem-lim", "Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX), false);
+        BoolOption drup("MAIN", "drup", "Generate DRUP UNSAT proof.", false, false);
         StringOption drup_file("MAIN", "drup-file", "DRUP UNSAT proof ouput file.", "");
         StringOption pcs_file("MAIN", "pcs-file", "Print solver parameter configuration to this file.", "");
 
