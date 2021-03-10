@@ -148,6 +148,11 @@ static Int64Option opt_inprocessing_penalty(_cat,
                                             "Add this amount, in case inprocessing did not simplify anything",
                                             2,
                                             Int64Range(0, INT64_MAX));
+static IntOption opt_inprocess_learnt_level(_cat,
+                                            "inprocess-learnt-level",
+                                            "Which clauses to consider for inprocessing (1=core only, 3=all learnts)",
+                                            2,
+                                            IntRange(1, INT32_MAX));
 static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false);
 static IntOption opt_checkProofOnline(_cat, "check-proof", "Check proof during run time", 0, IntRange(0, 10));
 static BoolOption
@@ -175,6 +180,9 @@ static DoubleOption opt_ccnr_state_change_time_inc_inc("SLS", "increment rephasi
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
+
+static IntOption opt_max_activity_bump_size(_cat, "max-act-bump", "Do not bump more than X vars per analysis", 100, IntRange(0, INT32_MAX));
+static IntOption opt_max_lbd_calc_size(_cat, "max-lbd-calc", "Do not calculate LBD for clauses larger than X", 100, IntRange(0, INT32_MAX));
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -273,6 +281,8 @@ Solver::Solver()
 
   , inprocessing_C(0)
   , inprocessing_L(0)
+  , inprocess_mems(0)
+  , inprocessings(0)
 
   , onlineDratChecker(opt_checkProofOnline != 0 ? new OnlineProofChecker(drupProof) : 0)
 
@@ -291,6 +301,8 @@ Solver::Solver()
   , order_heap_CHB(VarOrderLt(activity_CHB))
   , order_heap_DISTANCE(VarOrderLt(activity_distance))
   , order_heap(&order_heap_DISTANCE)
+  , max_activity_bump_size(opt_max_activity_bump_size)
+  , max_lbd_calc_size(opt_max_lbd_calc_size)
   , full_heap_size(-1)
   , progress_estimate(0)
   , remove_satisfied(true)
@@ -317,6 +329,7 @@ Solver::Solver()
 
   , inprocess_attempts(0)
   , inprocess_next_lim(opt_inprocessing_init_delay)
+  , inprocess_learnt_level(opt_inprocess_learnt_level)
 
   , inprocess_inc(opt_inprocessing_inc)
   , inprocess_penalty(opt_inprocessing_penalty)
@@ -1366,6 +1379,8 @@ void Solver::analyze(CRef confl, vec<Lit> &out_learnt, int &out_btlevel, int &ou
     else {
         int max_i = 1;
         // Find the first literal assigned at the next-highest level:
+        int max_bump_size = max_activity_bump_size;
+        max_bump_size = out_learnt.size() <= max_bump_size ? out_learnt.size() : max_bump_size;
         for (int i = 2; i < out_learnt.size(); i++)
             if (level(var(out_learnt[i])) > level(var(out_learnt[max_i]))) max_i = i;
         // Swap-in this literal at index 1:
@@ -1803,10 +1818,11 @@ struct reduceDB_c {
     }
 };
 
-void Solver::reduceDB_Core()
+bool Solver::reduceDB_Core()
 {
     if (verbosity > 0) printf("c Core size before reduce: %i\n", learnts_core.size());
     int i, j;
+    bool ret = false;
     sort(learnts_core, reduceDB_c(ca));
     int limit = learnts_core.size() / 2;
 
@@ -1828,8 +1844,11 @@ void Solver::reduceDB_Core()
             }
         }
     }
+    ret = j < learnts_core.size() * 0.95;
     learnts_core.shrink(i - j);
-    if (verbosity > 0) printf("c Core size after reduce: %i\n", learnts_core.size());
+    if (verbosity > 0) printf("c Core size after reduce: %i, dropped more than 5\%: %d\n", learnts_core.size(), ret);
+
+    return ret;
 }
 
 void Solver::reduceDB()
@@ -2510,6 +2529,9 @@ lbool Solver::search(int &nof_conflicts)
         nbconfbeforesimplify += incSimplify;
     }
 
+    // check whether we want to do inprocessing
+    inprocessing();
+
     prefetchAssumptions();
     CRef this_confl = CRef_Undef, prev_confl = CRef_Undef;
 
@@ -2707,8 +2729,10 @@ lbool Solver::search(int &nof_conflicts)
 
             if (core_size_lim != -1 && learnts_core.size() > core_size_lim) {
                 TRACE(std::cout << "c reduce core learnt clauses" << std::endl);
-                reduceDB_Core();
+                bool successful_reduced = reduceDB_Core();
                 core_size_lim += core_size_lim * core_size_lim_inc;
+                /* add extra penalty, if no success */
+                if(!successful_reduced) core_size_lim += core_size_lim * core_size_lim_inc;
             }
 
             if (learnts_tier2.size() > 7000) {
@@ -3082,6 +3106,7 @@ bool Solver::inprocessing()
     if (inprocess_next_lim != 0 && solves && inprocess_attempts++ >= inprocess_next_lim && inprocess_inc != (double)0) {
         L = 60; // clauses with lbd higher than 60 are not considered (and rather large anyways)
         inprocess_next_lim = (uint64_t)((double)inprocess_next_lim * inprocess_inc);
+        inprocessings ++;
         int Z = 0, i, j, k, l = -1, p;
 
         if (verbosity > 0)
@@ -3091,13 +3116,14 @@ bool Solver::inprocessing()
 
         add_tmp.clear();
 
-        for (i = 0; i < 4; ++i) {
+        for (i = 0; i < 1+inprocess_learnt_level; ++i) {
             vec<CRef> &V = i == 0 ? clauses : (i == 1 ? learnts_core : (i == 2 ? learnts_tier2 : learnts_local));
             for (j = 0; j < V.size(); ++j) {
                 CRef R = V[j];
                 Clause &c = ca[R];
                 if (c.mark() == 1 || R == reason(var(c[0])) || R == reason(var(c[1]))) continue;
                 for (k = 0; k < c.size(); ++k) O[toInt(c[k])].push_back(R);
+                inprocess_mems ++;
             }
         }
 
@@ -3107,12 +3133,13 @@ bool Solver::inprocessing()
         T = 0;
 
         // there are multiple "learnt" vectors, hence, consider all of them
-        for (int select = 0; select < 3; select++) {
+        for (int select = 0; select < inprocess_learnt_level; select++) {
             vec<CRef> &learnts = (select == 0 ? learnts_core : (select == 1 ? learnts_tier2 : learnts_local));
             for (i = 0; i < learnts.size(); ++i) {
                 T++;
                 CRef s = learnts[i];
                 Clause &c = ca[s];
+                inprocess_mems ++;
                 if (c.mark() == 1 || c.S() || c.lbd() > 12) continue; // run this check for each clause exactly once!
                 Lit m = c[0];
 
@@ -3133,6 +3160,7 @@ bool Solver::inprocessing()
                         r == reason(var(d[0])))
                         continue; // smaller clauses cannot be (self-)subsumed
 
+                    inprocess_mems ++;
                     l = -1;
                     p = 0;
                     for (k = 0; k < d.size(); ++k) {
@@ -3169,7 +3197,7 @@ bool Solver::inprocessing()
                             if (l < 2 || d.size() == 3) detachClause(r, true);
                             d[l] = d.last();
                             d.pop();
-                            d.S(0); // differently to the glucose hack, allow this clause for simplification again!
+                            d.S(0); // allow this clause for simplification again!
                             if (l < 2 || d.size() == 2) {
                                 if (d.size() == 1)
                                     add_tmp.push(d[0]);
@@ -3210,9 +3238,6 @@ bool Solver::inprocessing()
 
 void Solver::relocAll(ClauseAllocator &to)
 {
-    // check whether we want to do inprocessing
-    inprocessing();
-
     TRACE(std::cout << "c relocing ..." << std::endl);
 
     // All watchers:

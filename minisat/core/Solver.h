@@ -288,7 +288,7 @@ class Solver
     uint64_t VSIDS_propagations; // propagated literals after which we want to switch back to VSIDS
     bool reactivate_VSIDS;       // indicate whether we change the decision heuristic back to VSIDS
 
-    uint64_t inprocessing_C, inprocessing_L; // stats wrt improcessing simplification
+    uint64_t inprocessing_C, inprocessing_L, inprocess_mems, inprocessings; // stats wrt improcessing simplification
 
     /// Single object to hold most statistics
     struct SolverStats {
@@ -383,6 +383,8 @@ class Solver
     vec<int> distance_level_incs;
     Heap<VarOrderLt> order_heap_VSIDS, order_heap_CHB, order_heap_DISTANCE;
     Heap<VarOrderLt> *order_heap; // A priority queue of variables ordered with respect to the variable activity.
+    int max_activity_bump_size;   // How many literals of the collected variables will be bumped
+    int max_lbd_calc_size;        // How many literals a clause should have before estimating its LBD
 
     int full_heap_size; // Store size of heap in case it is completely filled, to be able to compare it to current size
     double progress_estimate; // Set by 'search()'.
@@ -478,7 +480,7 @@ class Solver
     vec<uint64_t> M;
     std::vector<std::vector<CRef>> O; // occurrence data structure
     uint64_t T, inprocess_attempts, inprocess_next_lim;
-    int L;
+    int L, inprocess_learnt_level;
     double inprocess_inc; // control how frequent inprocessing is triggered
     uint64_t inprocess_penalty;
     bool inprocessing();
@@ -519,7 +521,7 @@ class Solver
     lbool solve_();                                           // Main solve method (assumptions given in 'assumptions').
     void reduceDB();                                          // Reduce the set of learnt clauses.
     void reduceDB_Tier2();
-    void reduceDB_Core();
+    bool reduceDB_Core();                                     // Return true, if more than 5% have been deleted
     void removeSatisfied(vec<CRef> &cs); // Shrink 'cs' to contain only non-satisfied clauses.
     void safeRemoveSatisfied(vec<CRef> &cs, unsigned valid_mark);
     void rebuildOrderHeap();
@@ -561,6 +563,8 @@ class Solver
 
     template <class V> int computeLBD(const V &c)
     {
+        if(c.size() > max_lbd_calc_size) return c.size();
+
         int lbd = 0;
         const int assumption_level = assumptions.size(); // ignore anything below
         counter++;
