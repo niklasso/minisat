@@ -557,6 +557,7 @@ class Solver
     public:
     int level(Var x) const;
     bool withinBudget() const;
+    virtual void printStats();
 
     protected:
     double progressEstimate() const; // DELETE THIS ?? IT'S NOT VERY USEFUL ...

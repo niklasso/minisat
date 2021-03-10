@@ -3325,6 +3325,37 @@ void Solver::reset_old_trail()
     old_trail_qhead = 0;
 }
 
+void Solver::printStats()
+{
+    double cpu_time = cpuTime();
+    double mem_used = memUsedPeak();
+    printf("c restarts              : %" PRIu64 "\n", starts);
+    printf("c conflicts             : %-12" PRIu64 "   (%.0f /sec)\n", conflicts, conflicts / cpu_time);
+    printf("c decisions             : %-12" PRIu64 "   (%4.2f %% random) (%.0f /sec)\n", decisions,
+           (float)rnd_decisions * 100 / (float)decisions, decisions / cpu_time);
+    printf("c propagations          : %-12" PRIu64 "   (%.0f /sec)\n", propagations, propagations / cpu_time);
+    printf("c conflict literals     : %-12" PRIu64 "   (%4.2f %% deleted)\n", tot_literals,
+           (max_literals - tot_literals) * 100 / (double)max_literals);
+    printf("c backtracks            : %-12" PRIu64 "   (NCB %0.f%% , CB %0.f%%)\n", non_chrono_backtrack + chrono_backtrack,
+           (non_chrono_backtrack * 100) / (double)(non_chrono_backtrack + chrono_backtrack),
+           (chrono_backtrack * 100) / (double)(non_chrono_backtrack + chrono_backtrack));
+    printf("c partial restarts      : %-12" PRIu64 "   (partial: %" PRIu64 "  savedD: %" PRIu64 " savedP: %" PRIu64
+           " (%.2lf %%))\n",
+           starts, restart.partialRestarts, restart.savedDecisions, restart.savedPropagations,
+           ((double)restart.savedPropagations * 100.0) / (double)propagations);
+    printf("c polarity              : %d pos, %d neg\n", posMissingInSome, negMissingInSome);
+    printf("c LCM                   : %lu runs, %lu Ctried, %lu Cshrinked (%lu known duplicates), %lu Ldeleted, %lu "
+           "Lrev-deleted\n",
+           nbSimplifyAll, LCM_total_tries, LCM_successful_tries, nr_lcm_duplicates, LCM_dropped_lits, LCM_dropped_reverse);
+    printf("c Inprocessing          : %lu subsumed, %lu dropped lits, %lu attempts, %lu mems\n", inprocessing_C,
+           inprocessing_L, inprocessings, inprocess_mems);
+    printf("c Stats:                : %lf solve, %lu steps, %lf simp, %lu steps, %d var, budget: %d\n", statistics.solveSeconds,
+           statistics.solveSteps, statistics.simpSeconds, statistics.simpSteps, nVars(), withinBudget());
+    printf("c backup trail: stored: %lu used successfully: %lu\n", backuped_trail_lits, used_backup_lits);
+    if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
+    printf("c CPU time              : %g s\n", cpu_time);
+}
+
 bool Solver::call_ls(bool use_up_build)
 {
     if (!use_ccnr) return false;
