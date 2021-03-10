@@ -521,7 +521,7 @@ class Solver
     lbool solve_();                                           // Main solve method (assumptions given in 'assumptions').
     void reduceDB();                                          // Reduce the set of learnt clauses.
     void reduceDB_Tier2();
-    bool reduceDB_Core();                                     // Return true, if more than 5% have been deleted
+    bool reduceDB_Core();                // Return true, if more than 5% have been deleted
     void removeSatisfied(vec<CRef> &cs); // Shrink 'cs' to contain only non-satisfied clauses.
     void safeRemoveSatisfied(vec<CRef> &cs, unsigned valid_mark);
     void rebuildOrderHeap();
@@ -563,7 +563,7 @@ class Solver
 
     template <class V> int computeLBD(const V &c)
     {
-        if(c.size() > max_lbd_calc_size) return c.size();
+        if (c.size() > max_lbd_calc_size) return c.size();
 
         int lbd = 0;
         const int assumption_level = assumptions.size(); // ignore anything below

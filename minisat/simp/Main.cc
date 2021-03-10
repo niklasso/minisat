@@ -70,7 +70,8 @@ void printStats(Solver &solver)
            "Lrev-deleted\n",
            solver.nbSimplifyAll, solver.LCM_total_tries, solver.LCM_successful_tries, solver.nr_lcm_duplicates,
            solver.LCM_dropped_lits, solver.LCM_dropped_reverse);
-    printf("c Inprocessing          : %lu subsumed, %lu dropped lits, %lu attempts, %lu mems\n", solver.inprocessing_C, solver.inprocessing_L, solver.inprocessings, solver.inprocess_mems);
+    printf("c Inprocessing          : %lu subsumed, %lu dropped lits, %lu attempts, %lu mems\n", solver.inprocessing_C,
+           solver.inprocessing_L, solver.inprocessings, solver.inprocess_mems);
     printf("c Stats:                : %lf solve, %lu steps, %lf simp, %lu steps, %d var, budget: %d\n",
            solver.statistics.solveSeconds, solver.statistics.solveSteps, solver.statistics.simpSeconds,
            solver.statistics.simpSteps, solver.nVars(), solver.withinBudget());

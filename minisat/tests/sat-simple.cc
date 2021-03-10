@@ -21,7 +21,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 using namespace MERGESAT_NSPACE;
 
-bool TestSolver::test_entrypoint ()
+bool TestSolver::test_entrypoint()
 {
     /* Make sure the values are as expected after solving */
     test_assert(okay(), "solver has to be okay");
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 
     solver.verbosity = 0;
 
-    while(solver.nVars() < 3) solver.newVar();
+    while (solver.nVars() < 3) solver.newVar();
 
     solver.addClause(mkLit(1));
     solver.addClause(mkLit(2));

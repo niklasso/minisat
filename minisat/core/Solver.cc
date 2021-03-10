@@ -175,14 +175,18 @@ static DoubleOption opt_ccnr_percent_ratio("SLS", "ccnr-percent-ratio", "TBD", 0
 static DoubleOption opt_ccnr_up_time_ratio("SLS", "ccnr-up-time-ratio", "TBD", 0.2, DoubleRange(0, true, 1, true));
 static IntOption opt_ccnr_ls_mems_num("SLS", "ccnr-ls-mems", "TBD", 50 * 1000 * 1000, IntRange(0, INT32_MAX));
 static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 2000, IntRange(0, INT32_MAX));
-static IntOption opt_ccnr_state_change_time_inc("SLS", "increment rephasing distance after rephasing by", "TBD", 1, IntRange(0, INT32_MAX));
-static DoubleOption opt_ccnr_state_change_time_inc_inc("SLS", "increment rephasing increment distance by", "TBD", 0.2, DoubleRange(0, true, 1, true));
+static IntOption
+opt_ccnr_state_change_time_inc("SLS", "increment rephasing distance after rephasing by", "TBD", 1, IntRange(0, INT32_MAX));
+static DoubleOption
+opt_ccnr_state_change_time_inc_inc("SLS", "increment rephasing increment distance by", "TBD", 0.2, DoubleRange(0, true, 1, true));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
 
-static IntOption opt_max_activity_bump_size(_cat, "max-act-bump", "Do not bump more than X vars per analysis", 100, IntRange(0, INT32_MAX));
-static IntOption opt_max_lbd_calc_size(_cat, "max-lbd-calc", "Do not calculate LBD for clauses larger than X", 100, IntRange(0, INT32_MAX));
+static IntOption
+opt_max_activity_bump_size(_cat, "max-act-bump", "Do not bump more than X vars per analysis", 100, IntRange(0, INT32_MAX));
+static IntOption
+opt_max_lbd_calc_size(_cat, "max-lbd-calc", "Do not calculate LBD for clauses larger than X", 100, IntRange(0, INT32_MAX));
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -1094,31 +1098,30 @@ void Solver::cancelUntil(int bLevel, bool allow_trail_saving)
 
             if (level(x) <= bLevel) {
                 add_tmp.push(trail[c]);
-            } else {
+                continue;
+            }
+            if (savetrail) {
+                old_trail.push_(trail[c]); /* we traverse trail in reverse order */
+                oldreasons[x] = reason(x);
+            }
 
-                if (savetrail) {
-                    old_trail.push_(trail[c]); /* we traverse trail in reverse order */
-                    oldreasons[x] = reason(x);
-                }
-
-                if (!usesVSIDS()) {
-                    uint32_t age = conflicts - picked[x];
-                    if (age > 0) {
-                        double adjusted_reward = ((double)(conflicted[x] + almost_conflicted[x])) / ((double)age);
-                        double old_activity = activity_CHB[x];
-                        activity_CHB[x] = step_size * adjusted_reward + ((1 - step_size) * old_activity);
-                        if (usesCHB() && order_heap->inHeap(x)) {
-                            if (activity_CHB[x] > old_activity)
-                                order_heap->decrease(x);
-                            else
-                                order_heap->increase(x);
-                        }
+            if (!usesVSIDS()) {
+                uint32_t age = conflicts - picked[x];
+                if (age > 0) {
+                    double adjusted_reward = ((double)(conflicted[x] + almost_conflicted[x])) / ((double)age);
+                    double old_activity = activity_CHB[x];
+                    activity_CHB[x] = step_size * adjusted_reward + ((1 - step_size) * old_activity);
+                    if (usesCHB() && order_heap->inHeap(x)) {
+                        if (activity_CHB[x] > old_activity)
+                            order_heap->decrease(x);
+                        else
+                            order_heap->increase(x);
                     }
                 }
-#ifdef ANTI_EXPLORATION
-                canceled[x] = conflicts;
-#endif
             }
+#ifdef ANTI_EXPLORATION
+            canceled[x] = conflicts;
+#endif
 
             assigns[x] = l_Undef;
 #ifdef PRINT_OUT
@@ -1652,8 +1655,13 @@ CRef Solver::propagate()
                         assert((new_conflict.size() == 2 || new_conflict[0] == old_trail_top) &&
                                "asserting literal is at position 1");
                         /* No need to touch watch lists, we will backtrack this level anyways! */
-                        return confl;
+                        goto propagation_out;
                     } else if (value(old_trail_top) == l_Undef) {
+                        Clause &new_conflict = ca[old_reason];
+                        if (new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
+                            /* We will use this unit clause, the clause is just not structured correctly yet */
+                            break;
+                        }
                         used_backup_lits++;
                         TRACE(std::cout << "c prop: enqueue literal " << old_trail_top << " with reason[" << old_reason
                                         << "] " << ca[old_reason] << std::endl;);
@@ -2401,11 +2409,11 @@ bool Solver::check_invariants()
         }
     }
 
-    for(int i = 0 ; i < old_trail.size(); ++ i ) {
+    for (int i = 0; i < old_trail.size(); ++i) {
         const Lit old_trail_top = old_trail[old_trail_qhead];
         const CRef old_reason = oldreasons[var(old_trail_top)];
         if (old_reason == CRef_Undef) continue;
-        const Clause& c = ca[old_reason];
+        const Clause &c = ca[old_reason];
         assert((c.size() == 2 || c[0] == old_trail_top) && "assert literal has to be at first position");
     }
 
@@ -2418,10 +2426,10 @@ void Solver::info_based_rephase()
 {
     int var_nums = nVars();
     for (int i = 0; i < var_nums; ++i) polarity[i] = !ls_mediation_soln[i];
-    if (!DISTANCE && ccnr.conflict_ct.size() > 0 && ccnr._step > 0) {
+    if (!considersDISTANCE() && ccnr.conflict_ct.size() > 0 && ccnr._step > 0) {
         for (int i = 0; i < var_nums; ++i) {
             if (ccnr.conflict_ct[i + 1] > 0) {
-                if (VSIDS) {
+                if (usesVSIDS()) {
                     varBumpActivity(i, ccnr.conflict_ct[i + 1] * 100 / ccnr._step);
                 } else {
                     conflicted[i] += max((long long int)1, ccnr.conflict_ct[i + 1] * 100 / ccnr._step);
@@ -2732,7 +2740,7 @@ lbool Solver::search(int &nof_conflicts)
                 bool successful_reduced = reduceDB_Core();
                 core_size_lim += core_size_lim * core_size_lim_inc;
                 /* add extra penalty, if no success */
-                if(!successful_reduced) core_size_lim += core_size_lim * core_size_lim_inc;
+                if (!successful_reduced) core_size_lim += core_size_lim * core_size_lim_inc;
             }
 
             if (learnts_tier2.size() > 7000) {
@@ -2972,13 +2980,11 @@ lbool Solver::solve_()
             toggle_decision_heuristic(!usesVSIDS()); // switch to VSIDS
             if (verbosity >= 1) {
                 if (usesVSIDS()) {
-                    printf("c Switched to VSIDS.\n");
+                    if (verbosity > 1) printf("c Switched to VSIDS.\n");
                 } else {
-                    printf("c Switched to LRB/DISTANCE.\n");
+                    if (verbosity > 1) printf("c Switched to LRB/DISTANCE.\n");
                 }
             }
-            last_switch_conflicts = starts;
-            fflush(stdout);
         }
     }
 
@@ -3106,7 +3112,7 @@ bool Solver::inprocessing()
     if (inprocess_next_lim != 0 && solves && inprocess_attempts++ >= inprocess_next_lim && inprocess_inc != (double)0) {
         L = 60; // clauses with lbd higher than 60 are not considered (and rather large anyways)
         inprocess_next_lim = (uint64_t)((double)inprocess_next_lim * inprocess_inc);
-        inprocessings ++;
+        inprocessings++;
         int Z = 0, i, j, k, l = -1, p;
 
         if (verbosity > 0)
@@ -3116,14 +3122,14 @@ bool Solver::inprocessing()
 
         add_tmp.clear();
 
-        for (i = 0; i < 1+inprocess_learnt_level; ++i) {
+        for (i = 0; i < 1 + inprocess_learnt_level; ++i) {
             vec<CRef> &V = i == 0 ? clauses : (i == 1 ? learnts_core : (i == 2 ? learnts_tier2 : learnts_local));
             for (j = 0; j < V.size(); ++j) {
                 CRef R = V[j];
                 Clause &c = ca[R];
                 if (c.mark() == 1 || R == reason(var(c[0])) || R == reason(var(c[1]))) continue;
                 for (k = 0; k < c.size(); ++k) O[toInt(c[k])].push_back(R);
-                inprocess_mems ++;
+                inprocess_mems++;
             }
         }
 
@@ -3139,7 +3145,7 @@ bool Solver::inprocessing()
                 T++;
                 CRef s = learnts[i];
                 Clause &c = ca[s];
-                inprocess_mems ++;
+                inprocess_mems++;
                 if (c.mark() == 1 || c.S() || c.lbd() > 12) continue; // run this check for each clause exactly once!
                 Lit m = c[0];
 
@@ -3160,7 +3166,7 @@ bool Solver::inprocessing()
                         r == reason(var(d[0])))
                         continue; // smaller clauses cannot be (self-)subsumed
 
-                    inprocess_mems ++;
+                    inprocess_mems++;
                     l = -1;
                     p = 0;
                     for (k = 0; k < d.size(); ++k) {
