@@ -13,6 +13,17 @@ called Distance at the beginning of search
 
 Maple_LCM_Dist-alluip-trail -- Copyright (c) 2020, Randy Hickey and Fahiem Bacchus,
 Based on Trail Saving on Backtrack SAT 2020 paper.
+MapleLCMDistChronoBT, based on Maple_LCM_Dist -- Copyright (c) 2018, Alexander Nadel, Vadim Ryvchin: "Chronological Backtracking" in SAT-2018, pp. 111-121.
+
+MapleLCMDistChronoBT-DL, based on MapleLCMDistChronoBT -- Copyright (c) 2019, Stepan Kochemazov, Oleg Zaikin, Victor Kondratiev,
+Alexander Semenov: The solver was augmented with heuristic that moves duplicate learnt clauses into the core/tier2 tiers depending on a number of parameters.
+
+MapleLCMDistChronoBT-DL, based on MapleLCMDistChronoBT -- Copyright (c) 2020, Stepan Kochemazov, Oleg Zaikin, Victor Kondratiev,
+Alexander Semenov: The solver was augmented with heuristic that moves duplicate learnt clauses into the core/tier2 tiers depending on a number of parameters.
+
+MapleLCMDistChronoBT-DL-f2trc, based on MapleLCMDistChronoBT -- Copyright (c) 2020, Stepan Kochemazov
+The deterministic variant of the DL-version with modified procedures for handling Tier 2 clauses
+and with added procedures for purging Core learnts.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -428,6 +439,8 @@ class Solver
     vec<Lit> learnt_clause; // Container, used to store result of conflict analysis
 
     int core_lbd_cut;
+    int core_size_lim;
+    float core_size_lim_inc;
     float global_lbd_sum;
     MyQueue<int> lbd_queue; // For computing moving averages of recent LBD values.
 
@@ -503,6 +516,7 @@ class Solver
     lbool solve_();                                           // Main solve method (assumptions given in 'assumptions').
     void reduceDB();                                          // Reduce the set of learnt clauses.
     void reduceDB_Tier2();
+    void reduceDB_Core();
     void removeSatisfied(vec<CRef> &cs); // Shrink 'cs' to contain only non-satisfied clauses.
     void safeRemoveSatisfied(vec<CRef> &cs, unsigned valid_mark);
     void rebuildOrderHeap();
