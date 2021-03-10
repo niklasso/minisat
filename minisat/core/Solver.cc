@@ -2426,10 +2426,10 @@ void Solver::info_based_rephase()
 {
     int var_nums = nVars();
     for (int i = 0; i < var_nums; ++i) polarity[i] = !ls_mediation_soln[i];
-    if (!DISTANCE && ccnr.conflict_ct.size() > 0 && ccnr._step > 0) {
+    if (!considersDISTANCE() && ccnr.conflict_ct.size() > 0 && ccnr._step > 0) {
         for (int i = 0; i < var_nums; ++i) {
             if (ccnr.conflict_ct[i + 1] > 0) {
-                if (VSIDS) {
+                if (usesVSIDS()) {
                     varBumpActivity(i, ccnr.conflict_ct[i + 1] * 100 / ccnr._step);
                 } else {
                     conflicted[i] += max((long long int)1, ccnr.conflict_ct[i + 1] * 100 / ccnr._step);
@@ -2980,13 +2980,11 @@ lbool Solver::solve_()
             toggle_decision_heuristic(!usesVSIDS()); // switch to VSIDS
             if (verbosity >= 1) {
                 if (usesVSIDS()) {
-                    printf("c Switched to VSIDS.\n");
+                    if (verbosity > 1) printf("c Switched to VSIDS.\n");
                 } else {
-                    printf("c Switched to LRB/DISTANCE.\n");
+                    if (verbosity > 1) printf("c Switched to LRB/DISTANCE.\n");
                 }
             }
-            last_switch_conflicts = starts;
-            fflush(stdout);
         }
     }
 
