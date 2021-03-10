@@ -1098,31 +1098,30 @@ void Solver::cancelUntil(int bLevel, bool allow_trail_saving)
 
             if (level(x) <= bLevel) {
                 add_tmp.push(trail[c]);
-            } else {
+                continue;
+            }
+            if (savetrail) {
+                old_trail.push_(trail[c]); /* we traverse trail in reverse order */
+                oldreasons[x] = reason(x);
+            }
 
-                if (savetrail) {
-                    old_trail.push_(trail[c]); /* we traverse trail in reverse order */
-                    oldreasons[x] = reason(x);
-                }
-
-                if (!usesVSIDS()) {
-                    uint32_t age = conflicts - picked[x];
-                    if (age > 0) {
-                        double adjusted_reward = ((double)(conflicted[x] + almost_conflicted[x])) / ((double)age);
-                        double old_activity = activity_CHB[x];
-                        activity_CHB[x] = step_size * adjusted_reward + ((1 - step_size) * old_activity);
-                        if (usesCHB() && order_heap->inHeap(x)) {
-                            if (activity_CHB[x] > old_activity)
-                                order_heap->decrease(x);
-                            else
-                                order_heap->increase(x);
-                        }
+            if (!usesVSIDS()) {
+                uint32_t age = conflicts - picked[x];
+                if (age > 0) {
+                    double adjusted_reward = ((double)(conflicted[x] + almost_conflicted[x])) / ((double)age);
+                    double old_activity = activity_CHB[x];
+                    activity_CHB[x] = step_size * adjusted_reward + ((1 - step_size) * old_activity);
+                    if (usesCHB() && order_heap->inHeap(x)) {
+                        if (activity_CHB[x] > old_activity)
+                            order_heap->decrease(x);
+                        else
+                            order_heap->increase(x);
                     }
                 }
-#ifdef ANTI_EXPLORATION
-                canceled[x] = conflicts;
-#endif
             }
+#ifdef ANTI_EXPLORATION
+            canceled[x] = conflicts;
+#endif
 
             assigns[x] = l_Undef;
 #ifdef PRINT_OUT
