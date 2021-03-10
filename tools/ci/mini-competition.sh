@@ -8,17 +8,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 declare -i TIMEOUT=600
 declare -i SPACE_MB=4096
 declare LOG_DUMP=""
+declare RESULTS_DIRS=""
+declare OUTPUT_FILE=""
 declare -i VERBOSE=0
 
 get_drattrim() {
-    pushd "$SCRIPT_DIR"
+    pushd "$SCRIPT_DIR" &>/dev/null
     if [ ! -x drat-trim/drat-trim ]; then
         git clone https://github.com/marijnheule/drat-trim.git
-        pushd drat-trim
+        pushd drat-trim &>/dev/null
         make
-        popd
+        popd &>/dev/null
     fi
-    popd
+    popd &>/dev/null
 }
 
 get_verify() {
@@ -28,7 +30,7 @@ get_verify() {
 }
 
 get_benchmark() {
-    pushd "$SCRIPT_DIR"
+    pushd "$SCRIPT_DIR" &>/dev/null
     mkdir -p benchmarks
     cd benchmarks
 
@@ -63,7 +65,7 @@ get_benchmark() {
     [ -r "jkkk-one-one-10-30-unsat.cnf.xz" ] || wget --content-disposition https://gbd.iti.kit.edu/file/f3bda5fcae82cfa27460df877965eeca
     [ -r "prime2209-84.cnf.xz" ] || wget --content-disposition https://gbd.iti.kit.edu/file/af66c2b2ff8a9cd900d9f2f79e53f6a7
 
-    popd
+    popd &>/dev/null
 }
 
 usage() {
@@ -80,14 +82,88 @@ usage() {
     OPTIONS
 
       -b BenchmarkDir ...... use files from this directory for the benchmark.
+      -d ................... only print commands to be executed, do not execute them
+      -D ................... print single line commands for cluster execution
       -l log ............... log file with summary of analysis
       -m MB ................ limit memory usage (in MB, default: $SPACE_MB)
+      -o outfile ........... log evaluation into this file
+      -R ................... interpret CLI as directories to be evaluated
+                             will respect the presented time and memory limit for eva
       -t timout ............ limit tool runtime (in s, default: $TIMEOUT)
       -v ................... increase verbosity of output and dumped log
 EOF
 }
 
+# Parse output file, and populate global structures
+process_solver_output() {
+    local LOG_FILE="$1"
+    local TMP_OUTFILE="$2"
+
+    local RESULT="$(awk -F':' '/\[runlim\] result:/ {print $2}' "$LOG_FILE" | xargs)"
+    local RUNTIME="$(awk -F':' '/\[runlim\] real:/ {print $2}' "$LOG_FILE" | sed 's:seconds::g' | xargs)"
+    local SPACE="$(awk -F':' '/\[runlim\] space:/ {print $2}' "$LOG_FILE" | sed 's:MB::g' | xargs)"
+    local STATUS="$(awk -F':' '/\[runlim\] status:/ {print $2}' "$LOG_FILE" | xargs)"
+
+    local S_LINE="$(grep "^s " "$TMP_OUTFILE")"
+    local -i SAT_RESULT=0
+
+    # if sat, verify model
+    if [ "$S_LINE" == "s SATISFIABLE" ]; then
+        SAT_RESULT=10
+        echo "verify sat"
+    fi
+
+    # if unsat, verify proof
+    if [ "$S_LINE" == "s UNSATISFIABLE" ]; then
+        SAT_RESULT=20
+        echo "verify unsat"
+    fi
+
+    if [ -n "$LOG_DUMP" ] && [ ! -r "$LOG_DUMP" ]; then
+        echo "benchmark;solver;sat-status;sat-status;time;memory;status,runlim-status" >>"$LOG_DUMP"
+    fi
+    [ -n "$LOG_DUMP" ] && echo "$benchmark;$solver;$SAT_RESULT;$RUNTIME;$SPACE;$STATUS;$RUNLIM_STATUS" >>"$LOG_DUMP"
+    [ "$VERBOSE" -gt 0 ] && echo "[stats] $benchmark;$solver;$SAT_RESULT;$RUNTIME;$SPACE;$STATUS;$RUNLIM_STATUS"
+
+    if [ "$STATUS" != "out of time" ] && [ "$STATUS" != "out of memory" ] && [ "$STATUS" != "ok" ]; then
+        echo "error: failed to run $solver $benchmark (results $RESULTS, time $RUNTIME, status $STATUS)"
+        echo "== RUNLIM LOG =="
+        cat "$LOG_FILE"
+        echo "== SOLVER OUTPUT =="
+        cat "$TMP_OUTFILE"
+        ERRORS["$solver"]=$((ERRORS["$solver"] + 1))
+        ERROR=$((ERROR + 1))
+
+        # account par2 for errors
+        PAR2["$solver"]=$(echo "${PAR2["$solver"]} + $TIMEOUT + $TIMEOUT" | bc)
+
+        # skip further evaluation
+        return
+    fi
+
+    # calculate par2, and track stats
+    if [ "$STATUS" == "out of time" ] || [ "$STATUS" == "out of memory" ]; then
+        PAR2["$solver"]=$(echo "${PAR2["$solver"]} + $TIMEOUT + $TIMEOUT" | bc)
+    else
+        PAR2["$solver"]=$(echo "${PAR2["$solver"]} + $RUNTIME" | bc)
+        SOLVED["$solver"]=$((${SOLVED["$solver"]} + 1))
+        if [ "$S_LINE" == "s SATISFIABLE" ]; then
+            SAT["$solver"]=$((${SAT["$solver"]} + 1))
+            TIME_SAT["$solver"]=$(echo "${TIME_SAT["$solver"]} + $RUNTIME" | bc)
+        elif [ "$S_LINE" == "s UNSATISFIABLE" ]; then
+            UNSAT["$solver"]=$((${UNSAT["$solver"]} + 1))
+            TIME_UNSAT["$solver"]=$(echo "${TIME_UNSAT["$solver"]} + $RUNTIME" | bc)
+        fi
+
+        if (($(echo "$RUNTIME > ${MAXTIME["$solver"]}" | bc -l))); then
+            MAXTIME["$solver"]="$RUNTIME"
+        fi
+    fi
+
+}
+
 BENCHMARKDIR="$SCRIPT_DIR"/benchmarks
+DRYRUN=no
 
 for tool in runlim bc awk; do
     if ! command -v "$tool" &>/dev/null; then
@@ -96,10 +172,16 @@ for tool in runlim bc awk; do
 done
 
 # do we want to package Riss(for Coprocessor) or Sparrow as well?
-while getopts "b:hl:m:t:v" OPTION; do
+while getopts "b:dDhl:m:o:Rt:v" OPTION; do
     case $OPTION in
     b)
         BENCHMARKDIR="$OPTARG"
+        ;;
+    d)
+        DRYRUN=plain
+        ;;
+    D)
+        DRYRUN=oneline
         ;;
     h)
         usage
@@ -111,6 +193,12 @@ while getopts "b:hl:m:t:v" OPTION; do
         ;;
     m)
         SPACE_MB="$OPTARG"
+        ;;
+    o)
+        OUTPUT_FILE="$OPTARG"
+        ;;
+    R)
+        RESULTS_DIRS="true"
         ;;
     t)
         TIMEOUT="$OPTARG"
@@ -129,7 +217,7 @@ declare -r TIMEOUT
 declare -r SPACE_MB
 
 # in case no benchmark directory is specified, get a small benchmark
-if [ "$BENCHMARKDIR" = "$SCRIPT_DIR"/benchmarks ]; then
+if [ "$BENCHMARKDIR" = "$SCRIPT_DIR"/benchmarks ] && [ -z "$RESULTS_DIRS" ]; then
     get_benchmark
 fi
 
@@ -166,81 +254,68 @@ for solver in "$@"; do
     UNSAT["$solver"]=0
 done
 
-# run benchmarks
-declare -i TRIED_BENCHMARK=0
-for benchmark in $(find "${BENCHMARKDIR}" -type f); do
-    TRIED_BENCHMARK=$((TRIED_BENCHMARK + 1))
-    benchmark="$(readlink -e "$benchmark")"
-    for solver in "$@"; do
-        echo "Run solver: $solver $benchmark"
-        RUNLIM_STATUS=0
-        runlim -o "$LOG_FILE" -k -r "$TIMEOUT" -s "$SPACE_MB" $solver "$benchmark" &>"$TMP_OUTFILE" || RUNLIM_STATUS=1
+declare -a SOLVER_CMD=()
 
-        RESULT="$(awk -F':' '/\[runlim\] result:/ {print $2}' "$LOG_FILE" | xargs)"
-        RUNTIME="$(awk -F':' '/\[runlim\] real:/ {print $2}' "$LOG_FILE" | sed 's:seconds::g' | xargs)"
-        SPACE="$(awk -F':' '/\[runlim\] space:/ {print $2}' "$LOG_FILE" | sed 's:MB::g' | xargs)"
-        STATUS="$(awk -F':' '/\[runlim\] status:/ {print $2}' "$LOG_FILE" | xargs)"
-
-        S_LINE="$(grep "^s " "$TMP_OUTFILE")"
-        SAT_RESULT=0
-
-        # if sat, verify model
-        if [ "$S_LINE" == "s SATISFIABLE" ]; then
-            SAT_RESULT=10
-            echo "verify sat"
-        fi
-
-        # if unsat, verify proof
-        if [ "$S_LINE" == "s UNSATISFIABLE" ]; then
-            SAT_RESULT=20
-            echo "verify unsat"
-        fi
-
-        if [ -n "$LOG_DUMP" ] && [ ! -r "$LOG_DUMP" ]; then
-            echo "benchmark;solver;sat-status;sat-status;time;memory;status,runlim-status" >>"$LOG_DUMP"
-        fi
-        [ -n "$LOG_DUMP" ] && echo "$benchmark;$solver;$SAT_RESULT;$RUNTIME;$SPACE;$STATUS;$RUNLIM_STATUS" >>"$LOG_DUMP"
-        [ "$VERBOSE" -gt 0 ] && echo "[stats] $benchmark;$solver;$SAT_RESULT;$RUNTIME;$SPACE;$STATUS;$RUNLIM_STATUS"
-
-        if [ "$STATUS" != "out of time" ] && [ "$STATUS" != "out of memory" ] && [ "$STATUS" != "ok" ]; then
-            echo "error: failed to run $solver $benchmark (results $RESULTS, time $RUNTIME, status $STATUS)"
-            echo "== RUNLIM LOG =="
-            cat "$LOG_FILE"
-            echo "== SOLVER OUTPUT =="
-            cat "$TMP_OUTFILE"
-            ERRORS["$solver"]=$((ERRORS["$solver"] + 1))
-            ERROR=$((ERROR + 1))
-
-            # skip further evaluation
-            continue
-        fi
-
-        # calculate par2, and track stats
-        if [ "$STATUS" == "out of time" ] || [ "$STATUS" == "out of memory" ]; then
-            PAR2["$solver"]=$(echo "${PAR2["$solver"]} + $TIMEOUT + $TIMEOUT" | bc)
-        else
-            PAR2["$solver"]=$(echo "${PAR2["$solver"]} + $RUNTIME" | bc)
-            SOLVED["$solver"]=$((${SOLVED["$solver"]} + 1))
-            if [ "$S_LINE" == "s SATISFIABLE" ]; then
-                SAT["$solver"]=$((${SAT["$solver"]} + 1))
-                TIME_SAT["$solver"]=$(echo "${TIME_SAT["$solver"]} + $RUNTIME" | bc)
-            elif [ "$S_LINE" == "s UNSATISFIABLE" ]; then
-                UNSAT["$solver"]=$((${UNSAT["$solver"]} + 1))
-                TIME_UNSAT["$solver"]=$(echo "${TIME_UNSAT["$solver"]} + $RUNTIME" | bc)
+# run benchmarks, or evaluate results?
+if [ -z "$RESULTS_DIRS" ]; then
+    declare -i TRIED_BENCHMARK=0
+    for benchmark in $(find "${BENCHMARKDIR}" -type f); do
+        TRIED_BENCHMARK=$((TRIED_BENCHMARK + 1))
+        benchmark="$(readlink -e "$benchmark")"
+        for solver in "$@"; do
+            [ "$VERBOSE" -gt 0 ] && echo "Run solver: $solver $benchmark"
+            RUNLIM_STATUS=0
+            SOLVER_CMD=(runlim -o "$LOG_FILE" -k -r "$TIMEOUT" -s "$SPACE_MB" $solver "$benchmark")
+            if [ "$DRYRUN" = "no" ]; then
+                "${SOLVER_CMD[@]}" &>"$TMP_OUTFILE" || RUNLIM_STATUS=1
+            elif [ "$DRYRUN" = "plain" ]; then
+                echo "${SOLVER_CMD[@]}"
+                continue
+            elif [ "$DRYRUN" = "oneline" ]; then
+                # print commands to be executed in 1 line
+                B="${benchmark////_}"
+                B="${B// /-}"
+                S="solver-data-${solver////_}"
+                S="${S// /-}"
+                S="${S//=/-}"
+                OUTPUT_FILE_BASE="$S/$B"
+                echo "cd $PWD; md5sum \"$benchmark\" &> /dev/null || true; ls $solver &> /dev/null || true; mkdir -p \"$S\"; echo \"c host: $(hostname)\" > \"$OUTPUT_FILE_BASE\".out; echo \"c date: $(date --iso-8601)\" >> \"$OUTPUT_FILE_BASE\".out; runlim -o \"$OUTPUT_FILE_BASE.runlim\" -k -r \"$TIMEOUT\" -s \"$SPACE_MB\" $solver \"$benchmark\" &>> \"$OUTPUT_FILE_BASE\".out"
+                continue
+            else
+                echo "error: unknown DRYRUN command $DRYRUN, abort"
+                exit 1
             fi
 
-            if (($(echo "$RUNTIME > ${MAXTIME["$solver"]}" | bc -l))); then
-                MAXTIME["$solver"]="$RUNTIME"
-            fi
-        fi
-
+            # perform parsing in separate function
+            process_solver_output "$LOG_FILE" "$TMP_OUTFILE"
+        done
     done
-done
+else
+    for solver in "$@"; do
+        pushd "$solver" &>/dev/null
+        pwd
+        ls
+        for benchmark in $(find "$PWD" -type f -name "*.runlim"); do
+            base_file="$(basename "$benchmark" .runlim)"
+            RUNLIM_FILE="$base_file.runlim"
+            SOLVER_OUTFILE="$base_file.out"
+            process_solver_output "$RUNLIM_FILE" "$SOLVER_OUTFILE"
+        done
+        popd &>/dev/null
+    done
 
-echo "Summary"
+fi
+
+# stop early, in case we only print commands
+if [ "$DRYRUN" != "no" ]; then
+    exit "$ERROR"
+fi
+
+# Print, and log, evaluation
+echo "Summary" | tee "$OUTPUT_FILE"
 for solver in "$@"; do
     echo "$solver: par2: ${PAR2["$solver"]} maxtime: ${MAXTIME["$solver"]} solved: ${SOLVED["$solver"]} (sat: ${SAT["$solver"]} (${TIME_SAT["$solver"]} s) unsat: ${UNSAT["$solver"]} (${TIME_UNSAT["$solver"]} s)) errors: ${ERRORS["$solver"]} (full benchmark: $TRIED_BENCHMARK)"
-done
+done |& tee -a "$OUTPUT_FILE"
 
 if [ "$ERROR" -ne 0 ]; then
     exit "$ERROR"
