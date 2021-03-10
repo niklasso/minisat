@@ -82,6 +82,9 @@ endif
 SRCS = $(wildcard minisat/core/*.cc) $(wildcard minisat/simp/*.cc) $(wildcard minisat/utils/*.cc)
 HDRS = $(wildcard minisat/mtl/*.h) $(wildcard minisat/core/*.h) $(wildcard minisat/simp/*.h) $(wildcard minisat/utils/*.h)
 OBJS = $(filter-out %Main.o, $(SRCS:.cc=.o))
+TESTSRCS = $(wildcard minisat/tests/*.cc)
+TESTPATHS = $(filter-out %Main.o, $(TESTSRCS:.cc=))
+TESTS = $(subst minisat/tests/,,$(TESTPATHS))
 
 r:	$(BUILD_DIR)/release/bin/$(MINISAT)
 d:	$(BUILD_DIR)/debug/bin/$(MINISAT)
@@ -116,6 +119,26 @@ $(BUILD_DIR)/debug/bin/$(MINISAT):	 	$(BUILD_DIR)/debug/minisat/simp/Main.o $(BU
 $(BUILD_DIR)/profile/bin/$(MINISAT):	 	$(BUILD_DIR)/profile/minisat/simp/Main.o $(BUILD_DIR)/profile/lib/$(MINISAT_SLIB)
 # need the main-file be compiled with fpic?
 $(BUILD_DIR)/dynamic/bin/$(MINISAT):	 	$(BUILD_DIR)/dynamic/minisat/simp/Main.o $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
+
+# Test depenencies, auto-generate a target per test, and make all tests
+define make-test-target
+  $(BUILD_DIR)/debug/tests/$1: $(BUILD_DIR)/debug/minisat/tests/$1.o $(BUILD_DIR)/debug/lib/$(MINISAT_SLIB)
+  $(BUILD_DIR)/release/tests/$1: $(BUILD_DIR)/release/minisat/tests/$1.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
+  -include $(BUILD_DIR)/release/minisat/tests/$1.d
+
+  tests-d-all:: $(BUILD_DIR)/debug/tests/$1
+  tests-r-all:: $(BUILD_DIR)/release/tests/$1
+
+  $(BUILD_DIR)/release/tests/run-$1: $(BUILD_DIR)/release/tests/$1
+	$(ECHO) Running: $@
+	$(BUILD_DIR)/release/tests/$1
+  $(BUILD_DIR)/debug/tests/run-$1: $(BUILD_DIR)/debug/tests/$1
+	$(ECHO) Running: $@
+	$(BUILD_DIR)/debug/tests/$1
+  run-tests-d-all:: $(BUILD_DIR)/debug/tests/run-$1
+  run-tests-r-all:: $(BUILD_DIR)/release/tests/run-$1
+endef
+$(foreach element,$(TESTS),$(eval $(call make-test-target,$(element))))
 
 ## Executable dependencies (core-version)
 $(BUILD_DIR)/release/bin/$(MINISAT_CORE):	$(BUILD_DIR)/release/minisat/core/Main.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
@@ -159,6 +182,13 @@ $(BUILD_DIR)/release/bin/$(MINISAT_CORE) $(BUILD_DIR)/debug/bin/$(MINISAT_CORE) 
 	$(ECHO) Linking Binary: $@
 	$(VERB) mkdir -p $(dir $@)
 	$(VERB) $(CXX) $^ $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@
+
+## Linking tests
+$(BUILD_DIR)/debug/tests/%:
+	$(ECHO) Linking Binary: $@
+	$(VERB) mkdir -p $(dir $@)
+	$(VERB) $(CXX) $^ $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@
+
 
 ## Static Library rule
 %/lib/$(MINISAT_SLIB):
@@ -215,6 +245,9 @@ clean:
 	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
 	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\
 	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
+	rm -f $(foreach t, release debug, $(foreach o, $(TESTS), $(BUILD_DIR)/$t/tests/$o)) \
+	      $(foreach t, release debug, $(foreach o, $(TESTS), $(BUILD_DIR)/$t/tests/$o.o)) \
+	      $(foreach t, release debug, $(foreach o, $(TESTS), $(BUILD_DIR)/$t/tests/$o.d))
 
 distclean:	clean
 	rm -f config.mk

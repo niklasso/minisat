@@ -83,13 +83,24 @@ void printStats(Solver &solver)
 static Solver *solver;
 // Terminate by notifying the solver and back out gracefully. This is mainly to have a test-case
 // for this feature of the Solver as it may take longer than an immediate call to '_exit()'.
-static void SIGINT_interrupt(int signalnr)
+static void default_signal_handler(int signalnr)
 {
     static bool interrupted = false;
     solver->interrupt();
 
-    if (signalnr == SIGXCPU) exit(124);
-    if (interrupted) _exit(0);
+    int ret = 0;
+    if (signalnr == SIGXCPU) ret = 124;
+    if (signalnr == SIGSEGV) ret = 139;
+    if (interrupted || ret != 0) {
+        if (solver->verbosity > 0) {
+            printf("c\nc *** caught signal %d ***\nc\n", signalnr);
+            printStats(*solver);
+            printf("c\n");
+            printf("c *** INTERRUPTED ***\n");
+        }
+        _exit(ret);
+    }
+
     interrupted = true;
 }
 
@@ -103,7 +114,7 @@ static void SIGINT_exit(int)
     printf("c *** INTERRUPTED ***\n");
     if (solver->verbosity > 0) {
         printStats(*solver);
-        printf("\n");
+        printf("c\n");
         printf("c *** INTERRUPTED ***\n");
     }
     _exit(1);
@@ -215,9 +226,10 @@ int main(int argc, char **argv)
 
         // Change to signal-handlers that will only notify the solver and allow it to terminate
         // voluntarily:
-        signal(SIGINT, SIGINT_interrupt);
-        signal(SIGTERM, SIGINT_interrupt);
-        signal(SIGXCPU, SIGINT_interrupt);
+        signal(SIGINT, default_signal_handler);
+        signal(SIGTERM, default_signal_handler);
+        signal(SIGXCPU, default_signal_handler);
+        signal(SIGSEGV, default_signal_handler); /* we still want to understand the state */
 
         S.parsing = false;
         S.eliminate(true);
