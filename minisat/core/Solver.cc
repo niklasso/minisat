@@ -1645,6 +1645,7 @@ CRef Solver::propagate()
                         if (new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
                             /* We will hit a conflict here, the clause is just not structured correctly yet,
                                nor watched correctly. */
+                            reset_old_trail();
                             break;
                         }
                         confl = old_reason;
@@ -1660,6 +1661,7 @@ CRef Solver::propagate()
                         Clause &new_conflict = ca[old_reason];
                         if (new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
                             /* We will use this unit clause, the clause is just not structured correctly yet */
+                            reset_old_trail();
                             break;
                         }
                         used_backup_lits++;
