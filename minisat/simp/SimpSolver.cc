@@ -697,7 +697,8 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     if (verbosity >= 1) printf("c Reduced to %d vars, %d cls (grow=%d)\n", n_vars, n_cls, grow);
 
     if ((double)n_cls / n_vars >= 10 || n_vars < 10000) {
-        if (verbosity > 0) printf("c No iterative elimination performed. (vars=%d, c/v ratio=%.1f)\n", n_vars, (double)n_cls / n_vars);
+        if (verbosity > 0)
+            printf("c No iterative elimination performed. (vars=%d, c/v ratio=%.1f)\n", n_vars, (double)n_cls / n_vars);
         goto cleanup;
     }
 

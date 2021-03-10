@@ -38,12 +38,12 @@ namespace MERGESAT_NSPACE
 
 //=================================================================================================
 
-void test_assert(bool condition, const char* description)
+void test_assert(bool condition, const char *description)
 {
     /* Allow to stop here during debugging */
     assert(condition);
 
-    if(!condition) {
+    if (!condition) {
         printf("c condition %s fails, abort\n", (description == NULL ? "<unknown>" : description));
         _exit(1);
     }
