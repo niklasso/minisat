@@ -2418,6 +2418,7 @@ bool Solver::check_invariants()
         if (old_reason == CRef_Undef) continue;
         const Clause &c = ca[old_reason];
         assert((c.size() == 2 || c[0] == old_trail_top) && "assert literal has to be at first position");
+        if(!(c.size() == 2 || c[0] == old_trail_top)) pass = false;
     }
 
 
