@@ -1,6 +1,6 @@
 ###################################################################################################
 
-.PHONY:	r d p sh cr cd cp csh lr ld lp lsh config all install install-headers install-lib\
+.PHONY:	r d p sh lr ld lp lsh config all install install-headers install-lib\
         install-bin clean distclean
 all:	r lr lsh
 
@@ -50,7 +50,6 @@ mandir      ?= $(datarootdir)/man
 
 # Target file names
 MINISAT      = mergesat#       Name of MiniSat main executable.
-MINISAT_CORE = mergesat_core#  Name of simplified MiniSat executable (only core solver support).
 MINISAT_SLIB = lib$(MINISAT).a#  Name of MiniSat static library.
 MINISAT_DLIB = lib$(MINISAT).so# Name of MiniSat shared library.
 
@@ -91,11 +90,6 @@ d:	$(BUILD_DIR)/debug/bin/$(MINISAT)
 p:	$(BUILD_DIR)/profile/bin/$(MINISAT)
 sh:	$(BUILD_DIR)/dynamic/bin/$(MINISAT)
 
-cr:	$(BUILD_DIR)/release/bin/$(MINISAT_CORE)
-cd:	$(BUILD_DIR)/debug/bin/$(MINISAT_CORE)
-cp:	$(BUILD_DIR)/profile/bin/$(MINISAT_CORE)
-csh:	$(BUILD_DIR)/dynamic/bin/$(MINISAT_CORE)
-
 lr:	$(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
 ld:	$(BUILD_DIR)/debug/lib/$(MINISAT_SLIB)
 lp:	$(BUILD_DIR)/profile/lib/$(MINISAT_SLIB)
@@ -110,8 +104,6 @@ $(BUILD_DIR)/dynamic/%.o:			MINISAT_CXXFLAGS +=$(MINISAT_REL) $(MINISAT_FPIC)
 ## Build-type Link-flags:
 $(BUILD_DIR)/profile/bin/$(MINISAT):		MINISAT_LDFLAGS += -pg
 $(BUILD_DIR)/release/bin/$(MINISAT):		MINISAT_LDFLAGS += $(RELEASE_LDFLAGS) $(MINISAT_RELSYM)
-$(BUILD_DIR)/profile/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += -pg
-$(BUILD_DIR)/release/bin/$(MINISAT_CORE):	MINISAT_LDFLAGS += $(RELEASE_LDFLAGS) $(MINISAT_RELSYM)
 
 ## Executable dependencies
 $(BUILD_DIR)/release/bin/$(MINISAT):	 	$(BUILD_DIR)/release/minisat/simp/Main.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
@@ -139,13 +131,6 @@ define make-test-target
   run-tests-r-all:: $(BUILD_DIR)/release/tests/run-$1
 endef
 $(foreach element,$(TESTS),$(eval $(call make-test-target,$(element))))
-
-## Executable dependencies (core-version)
-$(BUILD_DIR)/release/bin/$(MINISAT_CORE):	$(BUILD_DIR)/release/minisat/core/Main.o $(BUILD_DIR)/release/lib/$(MINISAT_SLIB)
-$(BUILD_DIR)/debug/bin/$(MINISAT_CORE):	 	$(BUILD_DIR)/debug/minisat/core/Main.o $(BUILD_DIR)/debug/lib/$(MINISAT_SLIB)
-$(BUILD_DIR)/profile/bin/$(MINISAT_CORE):	$(BUILD_DIR)/profile/minisat/core/Main.o $(BUILD_DIR)/profile/lib/$(MINISAT_SLIB)
-# need the main-file be compiled with fpic?
-$(BUILD_DIR)/dynamic/bin/$(MINISAT_CORE): 	$(BUILD_DIR)/dynamic/minisat/core/Main.o $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB)
 
 ## Library dependencies
 $(BUILD_DIR)/release/lib/$(MINISAT_SLIB):	$(foreach o,$(OBJS),$(BUILD_DIR)/release/$(o))
@@ -177,8 +162,7 @@ $(BUILD_DIR)/dynamic/%.o:	%.cc
 	$(VERB) $(CXX) $(MINISAT_CXXFLAGS) $(CXXFLAGS) -c -o $@ $< -MMD -MF $(BUILD_DIR)/dynamic/$*.d
 
 ## Linking rule
-$(BUILD_DIR)/release/bin/$(MINISAT) $(BUILD_DIR)/debug/bin/$(MINISAT) $(BUILD_DIR)/profile/bin/$(MINISAT) $(BUILD_DIR)/dynamic/bin/$(MINISAT)\
-$(BUILD_DIR)/release/bin/$(MINISAT_CORE) $(BUILD_DIR)/debug/bin/$(MINISAT_CORE) $(BUILD_DIR)/profile/bin/$(MINISAT_CORE) $(BUILD_DIR)/dynamic/bin/$(MINISAT_CORE):
+$(BUILD_DIR)/release/bin/$(MINISAT) $(BUILD_DIR)/debug/bin/$(MINISAT) $(BUILD_DIR)/profile/bin/$(MINISAT) $(BUILD_DIR)/dynamic/bin/$(MINISAT):
 	$(ECHO) Linking Binary: $@
 	$(VERB) mkdir -p $(dir $@)
 	$(VERB) $(CXX) $^ $(MINISAT_LDFLAGS) $(LDFLAGS) -o $@
@@ -240,7 +224,7 @@ install-bin: $(BUILD_DIR)/dynamic/bin/$(MINISAT)
 clean:
 	rm -f $(foreach t, release debug profile dynamic, $(foreach o, $(SRCS:.cc=.o), $(BUILD_DIR)/$t/$o)) \
           $(foreach t, release debug profile dynamic, $(foreach d, $(SRCS:.cc=.d), $(BUILD_DIR)/$t/$d)) \
-	  $(foreach t, release debug profile dynamic, $(BUILD_DIR)/$t/bin/$(MINISAT_CORE) $(BUILD_DIR)/$t/bin/$(MINISAT)) \
+	  $(foreach t, release debug profile dynamic, $(BUILD_DIR)/$t/bin/$(MINISAT)) \
 	  $(foreach t, release debug profile, $(BUILD_DIR)/$t/lib/$(MINISAT_SLIB)) \
 	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
 	  $(BUILD_DIR)/dynamic/lib/$(MINISAT_DLIB).$(SOMAJOR)\

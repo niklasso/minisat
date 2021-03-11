@@ -1645,6 +1645,7 @@ CRef Solver::propagate()
                         if (new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
                             /* We will hit a conflict here, the clause is just not structured correctly yet,
                                nor watched correctly. */
+                            reset_old_trail();
                             break;
                         }
                         confl = old_reason;
@@ -1660,6 +1661,7 @@ CRef Solver::propagate()
                         Clause &new_conflict = ca[old_reason];
                         if (new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
                             /* We will use this unit clause, the clause is just not structured correctly yet */
+                            reset_old_trail();
                             break;
                         }
                         used_backup_lits++;
@@ -1854,7 +1856,8 @@ bool Solver::reduceDB_Core()
     }
     ret = j < learnts_core.size() * 0.95;
     learnts_core.shrink(i - j);
-    if (verbosity > 0) printf("c Core size after reduce: %i, dropped more than 5\%: %d\n", learnts_core.size(), ret);
+    if (verbosity > 0)
+        printf("c Core size after reduce: %i, dropped more than 5 percent: %d\n", learnts_core.size(), ret);
 
     return ret;
 }
@@ -2415,6 +2418,7 @@ bool Solver::check_invariants()
         if (old_reason == CRef_Undef) continue;
         const Clause &c = ca[old_reason];
         assert((c.size() == 2 || c[0] == old_trail_top) && "assert literal has to be at first position");
+        if(!(c.size() == 2 || c[0] == old_trail_top)) pass = false;
     }
 
 
@@ -3323,6 +3327,37 @@ void Solver::reset_old_trail()
     old_trail_qhead = 0;
 }
 
+void Solver::printStats()
+{
+    double cpu_time = cpuTime();
+    double mem_used = memUsedPeak();
+    printf("c restarts              : %" PRIu64 "\n", starts);
+    printf("c conflicts             : %-12" PRIu64 "   (%.0f /sec)\n", conflicts, conflicts / cpu_time);
+    printf("c decisions             : %-12" PRIu64 "   (%4.2f %% random) (%.0f /sec)\n", decisions,
+           (float)rnd_decisions * 100 / (float)decisions, decisions / cpu_time);
+    printf("c propagations          : %-12" PRIu64 "   (%.0f /sec)\n", propagations, propagations / cpu_time);
+    printf("c conflict literals     : %-12" PRIu64 "   (%4.2f %% deleted)\n", tot_literals,
+           (max_literals - tot_literals) * 100 / (double)max_literals);
+    printf("c backtracks            : %-12" PRIu64 "   (NCB %0.f%% , CB %0.f%%)\n", non_chrono_backtrack + chrono_backtrack,
+           (non_chrono_backtrack * 100) / (double)(non_chrono_backtrack + chrono_backtrack),
+           (chrono_backtrack * 100) / (double)(non_chrono_backtrack + chrono_backtrack));
+    printf("c partial restarts      : %-12" PRIu64 "   (partial: %" PRIu64 "  savedD: %" PRIu64 " savedP: %" PRIu64
+           " (%.2lf %%))\n",
+           starts, restart.partialRestarts, restart.savedDecisions, restart.savedPropagations,
+           ((double)restart.savedPropagations * 100.0) / (double)propagations);
+    printf("c polarity              : %d pos, %d neg\n", posMissingInSome, negMissingInSome);
+    printf("c LCM                   : %lu runs, %lu Ctried, %lu Cshrinked (%lu known duplicates), %lu Ldeleted, %lu "
+           "Lrev-deleted\n",
+           nbSimplifyAll, LCM_total_tries, LCM_successful_tries, nr_lcm_duplicates, LCM_dropped_lits, LCM_dropped_reverse);
+    printf("c Inprocessing          : %lu subsumed, %lu dropped lits, %lu attempts, %lu mems\n", inprocessing_C,
+           inprocessing_L, inprocessings, inprocess_mems);
+    printf("c Stats:                : %lf solve, %lu steps, %lf simp, %lu steps, %d var, budget: %d\n", statistics.solveSeconds,
+           statistics.solveSteps, statistics.simpSeconds, statistics.simpSteps, nVars(), withinBudget());
+    printf("c backup trail: stored: %lu used successfully: %lu\n", backuped_trail_lits, used_backup_lits);
+    if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
+    printf("c CPU time              : %g s\n", cpu_time);
+}
+
 bool Solver::call_ls(bool use_up_build)
 {
     if (!use_ccnr) return false;
@@ -3393,7 +3428,7 @@ bool Solver::call_ls(bool use_up_build)
         ls_mediation_soln[v] = (value(v) == l_True) ? 1 : 0;
     }
 
-    for (int c = 0; c < ccnr._num_clauses; c++) {
+    for (size_t c = 0; c < ccnr._num_clauses; c++) {
         for (CCNR::lit item : ccnr._clauses[c].literals) {
             int v = item.var_num;
             ccnr._vars[v].literals.push_back(item);

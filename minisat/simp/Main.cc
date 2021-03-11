@@ -47,38 +47,7 @@ using namespace MERGESAT_NSPACE;
 //=================================================================================================
 
 
-void printStats(Solver &solver)
-{
-    double cpu_time = cpuTime();
-    double mem_used = memUsedPeak();
-    printf("c restarts              : %" PRIu64 "\n", solver.starts);
-    printf("c conflicts             : %-12" PRIu64 "   (%.0f /sec)\n", solver.conflicts, solver.conflicts / cpu_time);
-    printf("c decisions             : %-12" PRIu64 "   (%4.2f %% random) (%.0f /sec)\n", solver.decisions,
-           (float)solver.rnd_decisions * 100 / (float)solver.decisions, solver.decisions / cpu_time);
-    printf("c propagations          : %-12" PRIu64 "   (%.0f /sec)\n", solver.propagations, solver.propagations / cpu_time);
-    printf("c conflict literals     : %-12" PRIu64 "   (%4.2f %% deleted)\n", solver.tot_literals,
-           (solver.max_literals - solver.tot_literals) * 100 / (double)solver.max_literals);
-    printf("c backtracks            : %-12" PRIu64 "   (NCB %0.f%% , CB %0.f%%)\n", solver.non_chrono_backtrack + solver.chrono_backtrack,
-           (solver.non_chrono_backtrack * 100) / (double)(solver.non_chrono_backtrack + solver.chrono_backtrack),
-           (solver.chrono_backtrack * 100) / (double)(solver.non_chrono_backtrack + solver.chrono_backtrack));
-    printf("c partial restarts      : %-12" PRIu64 "   (partial: %" PRIu64 "  savedD: %" PRIu64 " savedP: %" PRIu64
-           " (%.2lf %%))\n",
-           solver.starts, solver.restart.partialRestarts, solver.restart.savedDecisions, solver.restart.savedPropagations,
-           ((double)solver.restart.savedPropagations * 100.0) / (double)solver.propagations);
-    printf("c polarity              : %d pos, %d neg\n", solver.posMissingInSome, solver.negMissingInSome);
-    printf("c LCM                   : %lu runs, %lu Ctried, %lu Cshrinked (%lu known duplicates), %lu Ldeleted, %lu "
-           "Lrev-deleted\n",
-           solver.nbSimplifyAll, solver.LCM_total_tries, solver.LCM_successful_tries, solver.nr_lcm_duplicates,
-           solver.LCM_dropped_lits, solver.LCM_dropped_reverse);
-    printf("c Inprocessing          : %lu subsumed, %lu dropped lits, %lu attempts, %lu mems\n", solver.inprocessing_C,
-           solver.inprocessing_L, solver.inprocessings, solver.inprocess_mems);
-    printf("c Stats:                : %lf solve, %lu steps, %lf simp, %lu steps, %d var, budget: %d\n",
-           solver.statistics.solveSeconds, solver.statistics.solveSteps, solver.statistics.simpSeconds,
-           solver.statistics.simpSteps, solver.nVars(), solver.withinBudget());
-    printf("c backup trail: stored: %lu used successfully: %lu\n", solver.backuped_trail_lits, solver.used_backup_lits);
-    if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
-    printf("c CPU time              : %g s\n", cpu_time);
-}
+void printStats(Solver &solver) { solver.printStats(); }
 
 
 static Solver *solver;
@@ -122,6 +91,20 @@ static void SIGINT_exit(int)
 }
 
 
+// print pcs information into file
+void print_pcs_file(const char *output_file_name)
+{
+    if (0 != (const char *)output_file_name) {
+        FILE *pcsFile = fopen((const char *)output_file_name, "wb"); // open file
+        fprintf(pcsFile, "# PCS Information for MergeSat\n#\n#\n# Parameters\n#\n#\n");
+        ::printOptions(pcsFile);
+        fprintf(pcsFile, "\n\n#\n#\n# Dependencies \n#\n#\n");
+        ::printOptionsDependencies(pcsFile);
+        fclose(pcsFile);
+        exit(0);
+    }
+}
+
 //=================================================================================================
 // Main:
 
@@ -141,16 +124,19 @@ int main(int argc, char **argv)
 #endif
         // Extra options:
         //
-        IntOption verb("MAIN", "verb", "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 4));
+        IntOption verb("MAIN", "verb", "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 4), false);
         BoolOption pre("MAIN", "pre", "Completely turn on/off any preprocessing.", true);
-        BoolOption s_model("MAIN", "model", "Do report a model if the formula is satisfiable.", true);
+        BoolOption s_model("MAIN", "model", "Do report a model if the formula is satisfiable.", true, false);
         StringOption dimacs("MAIN", "dimacs", "If given, stop after preprocessing and write the result to this file.");
-        IntOption cpu_lim("MAIN", "cpu-lim", "Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX));
-        IntOption mem_lim("MAIN", "mem-lim", "Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX));
-        BoolOption drup("MAIN", "drup", "Generate DRUP UNSAT proof.", false);
+        IntOption cpu_lim("MAIN", "cpu-lim", "Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX), false);
+        IntOption mem_lim("MAIN", "mem-lim", "Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX), false);
+        BoolOption drup("MAIN", "drup", "Generate DRUP UNSAT proof.", false, false);
         StringOption drup_file("MAIN", "drup-file", "DRUP UNSAT proof ouput file.", "");
+        StringOption pcs_file("MAIN", "pcs-file", "Print solver parameter configuration to this file.", "");
 
         parseOptions(argc, argv, true);
+
+        if(!pcs_file.is_empty()) print_pcs_file(pcs_file);
 
         SimpSolver S;
         double initial_time = cpuTime();

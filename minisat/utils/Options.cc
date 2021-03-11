@@ -23,9 +23,10 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 using namespace MERGESAT_NSPACE;
 
-void MERGESAT_NSPACE::parseOptions(int &argc, char **argv, bool strict)
+bool MERGESAT_NSPACE::parseOptions(int &argc, char **argv, bool strict)
 {
     int i, j;
+    bool ret = false;
     for (i = j = 1; i < argc; i++) {
         const char *str = argv[i];
         if (match(str, "--") && match(str, Option::getHelpPrefixString()) && match(str, "help")) {
@@ -33,6 +34,7 @@ void MERGESAT_NSPACE::parseOptions(int &argc, char **argv, bool strict)
                 printUsageAndExit(argc, argv);
             else if (match(str, "-verb"))
                 printUsageAndExit(argc, argv, true);
+            ret = true;
         } else {
             bool parsed_ok = false;
 
@@ -55,6 +57,8 @@ void MERGESAT_NSPACE::parseOptions(int &argc, char **argv, bool strict)
     }
 
     argc -= (i - j);
+
+    return ret; /* indicate whether --help was specified */
 }
 
 
@@ -90,4 +94,68 @@ void MERGESAT_NSPACE::printUsageAndExit(int argc, char **argv, bool verbose)
     fprintf(stderr, "  --%shelp-verb   Print verbose help message.\n", Option::getHelpPrefixString());
     fprintf(stderr, "\n");
     exit(0);
+}
+
+
+void MERGESAT_NSPACE::printOptions(FILE *pcsFile, int granularity)
+{
+    sort(Option::getOptionList(), Option::OptionLt());
+
+    const char *prev_cat = nullptr;
+    const char *prev_type = nullptr;
+
+    // all options in the global list
+    for (int i = 0; i < Option::getOptionList().size(); i++) {
+        const char *cat = Option::getOptionList()[i]->category;
+        const char *type = Option::getOptionList()[i]->type_name;
+
+        // print new category
+        if (cat != prev_cat) {
+            fprintf(pcsFile, "\n#\n#%s OPTIONS:\n#\n", cat);
+        } else if (type != prev_type) {
+            fprintf(pcsFile, "\n");
+        }
+
+        // print the actual option
+        Option::getOptionList()[i]->printOptions(pcsFile, granularity);
+
+        // set prev values, so that print is nicer
+        prev_cat = Option::getOptionList()[i]->category;
+        prev_type = Option::getOptionList()[i]->type_name;
+    }
+}
+
+
+void MERGESAT_NSPACE::printOptionsDependencies(FILE *pcsFile, int granularity)
+{
+    sort(Option::getOptionList(), Option::OptionLt());
+
+    const char *prev_cat = nullptr;
+    const char *prev_type = nullptr;
+
+    // all options in the global list
+    for (int i = 0; i < Option::getOptionList().size(); i++) {
+
+        // no dependency
+        if (Option::getOptionList()[i]->dependOnNonDefaultOf == 0) { // or too deep in the dependency level
+            continue;
+        } // can jump over full categories
+
+        const char *cat = Option::getOptionList()[i]->category;
+        const char *type = Option::getOptionList()[i]->type_name;
+
+        // print new category
+        if (cat != prev_cat) {
+            fprintf(pcsFile, "\n#\n#%s OPTIONS:\n#\n", cat);
+        } else if (type != prev_type) {
+            fprintf(pcsFile, "\n");
+        }
+
+        // print the actual option
+        Option::getOptionList()[i]->printOptionsDependencies(pcsFile, granularity);
+
+        // set prev values, so that print is nicer
+        prev_cat = Option::getOptionList()[i]->category;
+        prev_type = Option::getOptionList()[i]->type_name;
+    }
 }

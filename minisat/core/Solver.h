@@ -557,6 +557,7 @@ class Solver
     public:
     int level(Var x) const;
     bool withinBudget() const;
+    virtual void printStats();
 
     protected:
     double progressEstimate() const; // DELETE THIS ?? IT'S NOT VERY USEFUL ...
@@ -770,12 +771,12 @@ class Solver
     float up_time_ratio;
     //  control ls memory use per call.
     long long ls_mems_num;
-    int state_change_time; // starts
+    uint64_t state_change_time; // starts
     double state_change_time_inc, state_change_time_inc_inc;
     //  whether the mediation_soln is used as rephase, if not
     bool mediation_used;
 
-    int switch_heristic_mod; // starts
+    uint64_t switch_heristic_mod; // starts
     int last_switch_conflicts;
 
     // informations
