@@ -323,7 +323,7 @@ class Solver
     };
 
     struct ConflictData {
-        ConflictData() : nHighestLevel(-1), bOnlyOneLitFromHighest(false) {}
+        ConflictData() : nHighestLevel(-1), secondHighestLevel(-1), bOnlyOneLitFromHighest(false) {}
 
         int nHighestLevel;
         int secondHighestLevel;
