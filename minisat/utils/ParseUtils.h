@@ -164,7 +164,7 @@ inline FILE *open_pipe(const char *fmt, const char *path, const char *mode)
     if (!found) fprintf(stderr, "c WARNING: failed to find executable %s\n", name);
     free(name);
     if (!found) return 0;
-    char *cmd = (char *)xrealloc(NULL, strlen(fmt) + strlen(path));
+    char *cmd = (char *)xrealloc(NULL, strlen(fmt) + strlen(path) + 1);
     if (!cmd) return 0;
     sprintf(cmd, fmt, path);
     FILE *res = popen(cmd, mode);

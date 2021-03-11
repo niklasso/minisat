@@ -178,7 +178,7 @@ static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 20
 static IntOption
 opt_ccnr_state_change_time_inc("SLS", "increment rephasing distance after rephasing by", "TBD", 1, IntRange(0, INT32_MAX));
 static DoubleOption
-opt_ccnr_state_change_time_inc_inc("SLS", "increment rephasing increment distance by", "TBD", 0.2, DoubleRange(0, true, 1, true));
+opt_ccnr_state_change_time_inc_inc("SLS", "increment rephasing increment distance by", "TBD", 1.0, DoubleRange(0, true, HUGE_VAL, true));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
@@ -331,8 +331,10 @@ Solver::Solver()
 
   , counter(0)
 
+  , T(0)
   , inprocess_attempts(0)
   , inprocess_next_lim(opt_inprocessing_init_delay)
+  , L(0)
   , inprocess_learnt_level(opt_inprocess_learnt_level)
 
   , inprocess_inc(opt_inprocessing_inc)
@@ -412,7 +414,10 @@ Solver::Solver()
 }
 
 
-Solver::~Solver() {}
+Solver::~Solver() {
+    if (onlineDratChecker) delete onlineDratChecker;
+    onlineDratChecker = NULL;
+}
 
 
 // simplify All
@@ -2418,7 +2423,7 @@ bool Solver::check_invariants()
         if (old_reason == CRef_Undef) continue;
         const Clause &c = ca[old_reason];
         assert((c.size() == 2 || c[0] == old_trail_top) && "assert literal has to be at first position");
-        if(!(c.size() == 2 || c[0] == old_trail_top)) pass = false;
+        if (!(c.size() == 2 || c[0] == old_trail_top)) pass = false;
     }
 
 
@@ -2514,7 +2519,7 @@ lbool Solver::search(int &nof_conflicts)
     if (starts > state_change_time) {
         /* grow limit after each rephasing */
         state_change_time = state_change_time + state_change_time_inc;
-        state_change_time_inc = state_change_time_inc *= state_change_time_inc_inc;
+        state_change_time_inc *= state_change_time_inc_inc;
 
         /* actually rephase */
         if (rand() % 100 < 50)
@@ -2860,7 +2865,7 @@ void Solver::toggle_decision_heuristic(bool to_VSIDS)
             order_heap = &order_heap_CHB;
             current_heuristic = CHB;
         } else {
-            order_heap_CHB.growTo(order_heap_VSIDS);
+            order_heap_DISTANCE.growTo(order_heap_VSIDS);
             order_heap_DISTANCE.build(order_heap_VSIDS.elements());
             order_heap = &order_heap_DISTANCE;
             current_heuristic = DISTANCE;

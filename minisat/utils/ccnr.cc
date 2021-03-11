@@ -130,6 +130,15 @@ int Mersenne::next(int bound)
 //-----------------------
 // constructor with default setting.
 ls_solver::ls_solver()
+: _num_vars(0)
+, _num_clauses(0)
+, _best_found_cost(0)
+, _best_cost_time(0)
+, _step(0)
+, _aspiration_score(0)
+, _avg_clause_weight(0)
+, _delta_total_clause_weight(0)
+, _init_unsat_nums(0)
 {
     _additional_len = 10;
     _max_tries = 1;                 // 100
