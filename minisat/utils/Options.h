@@ -172,7 +172,7 @@ class Option
                 dependOnNonDefaultOf->name, defaultAsString, dependOnNonDefaultOf->name);
     }
 
-    virtual void getNonDefaultString(int granularity, char *buffer, int size) = 0; // convert the default value into a string
+    virtual void getNonDefaultString(int granularity, char *buffer, size_t size) = 0; // convert the default value into a string
 
     friend bool parseOptions(int &argc, char **argv, bool strict);
     friend void printUsageAndExit(int argc, char **argv, bool verbose);
@@ -342,7 +342,7 @@ class DoubleOption : public Option
 
     virtual bool canPrintOppositeOfDefault(int granularity) { return false; }
 
-    virtual void getNonDefaultString(int granularity, char *buffer, int size)
+    virtual void getNonDefaultString(int granularity, char *buffer, size_t size)
     {
         // snprintf(buffer, size, "%lf", defaultValue); // could only print the default value
         return;
@@ -498,7 +498,7 @@ class IntOption : public Option
             fprintf(pcsFile, "%s  {", name);
             std::vector<int> values;
             fillGranularityDomain(granularity, values);
-            for (int i = 0; i < values.size(); ++i) {
+            for (size_t i = 0; i < values.size(); ++i) {
                 if (i != 0) {
                     fprintf(pcsFile, ",");
                 }
@@ -528,12 +528,12 @@ class IntOption : public Option
         return granularity != 0 || ((range.end - range.begin <= 16) && range.end - range.begin > 1);
     }
 
-    virtual void getNonDefaultString(int granularity, char *buffer, int size)
+    virtual void getNonDefaultString(int granularity, char *buffer, size_t size)
     {
         if (granularity != 0) {
             std::vector<int> values;
             fillGranularityDomain(granularity, values);
-            for (int i = 0; i < values.size(); ++i) {
+            for (size_t i = 0; i < values.size(); ++i) {
                 if (values[i] == defaultValue) {
                     continue;
                 }                                        // do not print default value
@@ -711,7 +711,7 @@ class Int64Option : public Option
             fprintf(pcsFile, "%s  {", name);
             std::vector<int64_t> values;
             fillGranularityDomain(granularity, values);
-            for (int i = 0; i < values.size(); ++i) {
+            for (size_t i = 0; i < values.size(); ++i) {
                 if (i != 0) {
                     fprintf(pcsFile, ",");
                 }
@@ -741,12 +741,12 @@ class Int64Option : public Option
         return granularity != 0 || ((range.end - range.begin <= 16) && range.end - range.begin > 1);
     }
 
-    virtual void getNonDefaultString(int granularity, char *buffer, int size)
+    virtual void getNonDefaultString(int granularity, char *buffer, size_t size)
     {
         if (granularity != 0) {
             std::vector<int64_t> values;
             fillGranularityDomain(granularity, values);
-            for (int i = 0; i < values.size(); ++i) {
+            for (size_t i = 0; i < values.size(); ++i) {
                 if (values[i] == defaultValue) {
                     continue;
                 }                                         // do not print default value
@@ -910,7 +910,7 @@ class StringOption : public Option
 
     virtual bool canPrintOppositeOfDefault(int granularity) { return false; }
 
-    virtual void getNonDefaultString(int granularity, char *buffer, int size)
+    virtual void getNonDefaultString(int granularity, char *buffer, size_t size)
     {
         if (defaultValue == 0) {
             buffer[0] = 0;
@@ -1008,7 +1008,7 @@ class BoolOption : public Option
 
     virtual bool canPrintOppositeOfDefault(int granularity) { return true; }
 
-    virtual void getNonDefaultString(int granularity, char *buffer, int size)
+    virtual void getNonDefaultString(int granularity, char *buffer, size_t size)
     {
         assert(size > 3 && "cannot print values otherwise");
         strncpy(buffer, !defaultValue ? "yes" : "no", size);

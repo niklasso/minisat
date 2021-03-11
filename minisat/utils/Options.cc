@@ -26,6 +26,7 @@ using namespace MERGESAT_NSPACE;
 bool MERGESAT_NSPACE::parseOptions(int &argc, char **argv, bool strict)
 {
     int i, j;
+    bool ret = false;
     for (i = j = 1; i < argc; i++) {
         const char *str = argv[i];
         if (match(str, "--") && match(str, Option::getHelpPrefixString()) && match(str, "help")) {
@@ -33,6 +34,7 @@ bool MERGESAT_NSPACE::parseOptions(int &argc, char **argv, bool strict)
                 printUsageAndExit(argc, argv);
             else if (match(str, "-verb"))
                 printUsageAndExit(argc, argv, true);
+            ret = true;
         } else {
             bool parsed_ok = false;
 
@@ -55,6 +57,8 @@ bool MERGESAT_NSPACE::parseOptions(int &argc, char **argv, bool strict)
     }
 
     argc -= (i - j);
+
+    return ret; /* indicate whether --help was specified */
 }
 
 
