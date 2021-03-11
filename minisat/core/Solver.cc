@@ -331,8 +331,10 @@ Solver::Solver()
 
   , counter(0)
 
+  , T(0)
   , inprocess_attempts(0)
   , inprocess_next_lim(opt_inprocessing_init_delay)
+  , L(0)
   , inprocess_learnt_level(opt_inprocess_learnt_level)
 
   , inprocess_inc(opt_inprocessing_inc)
