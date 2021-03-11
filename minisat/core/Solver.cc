@@ -178,7 +178,7 @@ static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 20
 static IntOption
 opt_ccnr_state_change_time_inc("SLS", "increment rephasing distance after rephasing by", "TBD", 1, IntRange(0, INT32_MAX));
 static DoubleOption
-opt_ccnr_state_change_time_inc_inc("SLS", "increment rephasing increment distance by", "TBD", 0.2, DoubleRange(0, true, 1, true));
+opt_ccnr_state_change_time_inc_inc("SLS", "increment rephasing increment distance by", "TBD", 1.0, DoubleRange(0, true, HUGE_VAL, true));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
@@ -2516,7 +2516,7 @@ lbool Solver::search(int &nof_conflicts)
     if (starts > state_change_time) {
         /* grow limit after each rephasing */
         state_change_time = state_change_time + state_change_time_inc;
-        state_change_time_inc = state_change_time_inc *= state_change_time_inc_inc;
+        state_change_time_inc *= state_change_time_inc_inc;
 
         /* actually rephase */
         if (rand() % 100 < 50)
