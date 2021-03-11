@@ -2862,7 +2862,7 @@ void Solver::toggle_decision_heuristic(bool to_VSIDS)
             order_heap = &order_heap_CHB;
             current_heuristic = CHB;
         } else {
-            order_heap_CHB.growTo(order_heap_VSIDS);
+            order_heap_DISTANCE.growTo(order_heap_VSIDS);
             order_heap_DISTANCE.build(order_heap_VSIDS.elements());
             order_heap = &order_heap_DISTANCE;
             current_heuristic = DISTANCE;
