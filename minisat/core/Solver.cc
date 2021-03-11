@@ -1856,7 +1856,8 @@ bool Solver::reduceDB_Core()
     }
     ret = j < learnts_core.size() * 0.95;
     learnts_core.shrink(i - j);
-    if (verbosity > 0) printf("c Core size after reduce: %i, dropped more than 5\%: %d\n", learnts_core.size(), ret);
+    if (verbosity > 0)
+        printf("c Core size after reduce: %i, dropped more than 5 percent: %d\n", learnts_core.size(), ret);
 
     return ret;
 }
@@ -3426,7 +3427,7 @@ bool Solver::call_ls(bool use_up_build)
         ls_mediation_soln[v] = (value(v) == l_True) ? 1 : 0;
     }
 
-    for (int c = 0; c < ccnr._num_clauses; c++) {
+    for (size_t c = 0; c < ccnr._num_clauses; c++) {
         for (CCNR::lit item : ccnr._clauses[c].literals) {
             int v = item.var_num;
             ccnr._vars[v].literals.push_back(item);
