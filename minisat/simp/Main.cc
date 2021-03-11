@@ -136,7 +136,7 @@ int main(int argc, char **argv)
 
         parseOptions(argc, argv, true);
 
-        if(!pcs_file.is_empty()) print_pcs_file(pcs_file);
+        if (!pcs_file.is_empty()) print_pcs_file(pcs_file);
 
         SimpSolver S;
         double initial_time = cpuTime();

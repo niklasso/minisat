@@ -824,7 +824,7 @@ class StringOption : public Option
         return *this;
     }
 
-    bool is_empty() {return value == NULL || value->empty();}
+    bool is_empty() { return value == NULL || value->empty(); }
 
     virtual bool hasDefaultValue()
     {
