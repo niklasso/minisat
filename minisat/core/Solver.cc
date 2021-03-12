@@ -385,6 +385,13 @@ Solver::Solver()
   , nr_lcm_duplicates(0)
   , simplifyBuffer(opt_dup_buffer_size)
 
+  , share_parallel(true)
+  , receiveClauses(true)
+  , share_clause_max_size(64)
+  , learnedClsCallback(NULL)
+  , issuer(NULL)
+  , lastDecision(0)
+
   // simplifyAll adjust occasion
   , curSimplify(1)
   , nbconfbeforesimplify(opt_lcm_delay)
@@ -2841,6 +2848,8 @@ lbool Solver::search(int &nof_conflicts)
                 if (next == lit_Undef)
                     // Model found:
                     return l_True;
+
+                lastDecision = var(next);
             }
 
             // Increase decision level and enqueue 'next'
@@ -2855,6 +2864,37 @@ lbool Solver::search(int &nof_conflicts)
 
     // store minimum of assumptions and current level, to forward assumptions again
     last_used_assumptions = assumptions.size() > decisionLevel() ? decisionLevel() : assumptions.size();
+}
+
+void Solver::addLearnedClause(const vec<Lit> &cls)
+{
+    /* allow to reject clause */
+    if (!receiveClauses) return;
+
+    assert(cls.size() > 0 && "should we really share empty clauses?");
+
+    if (cls.size() == 1) {
+        if (value(cls[0]) == l_False) {
+            ok = false;
+        } else {
+            cancelUntil(0);
+            uncheckedEnqueue(cls[0], 0);
+        }
+    } else {
+        /* currently, we cannot tell much about the quality of the clause */
+        CRef cr = ca.alloc(cls, true);
+        learnts_local.push(cr);
+        assert((value(cls[0]) != l_False || value(cls[1]) != l_False) && "cannot watch falsified literals");
+        attachClause(cr);
+        claBumpActivity(ca[cr]);
+    }
+}
+
+void Solver::diversify(int rank, int size)
+{
+    // set parameters based on position in set, and set size
+    // rank ranges from 0 to size - 1!
+    assert(false && "needs to be implemented");
 }
 
 

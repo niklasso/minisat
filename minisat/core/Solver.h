@@ -737,6 +737,17 @@ class Solver
     void simpleAnalyze(CRef confl, vec<Lit> &out_learnt, vec<CRef> &reason_clause, bool True_confl);
     ClauseRingBuffer simplifyBuffer;
 
+    // HordeSat Portfolio support
+    bool share_parallel;                                        // do send clauses for other parallel solvers
+    bool receiveClauses;                                        // do send clauses for other parallel solvers
+    int share_clause_max_size;                                  // max clause size for sharing
+    void (*learnedClsCallback)(const vec<Lit> &, void *issuer); // callback for clause learning
+    void *issuer;                                               // used as the callback parameter
+    int lastDecision;                                           // the last decision made by the solver
+    void addLearnedClause(const vec<Lit> &cls);                 // add a learned clause by hand
+    void diversify(int rank, int size);                         // set parameters based on position in set, and set size
+
+
     // in redundant
     bool removed(CRef cr);
     // adjust simplifyAll occasion
@@ -1139,6 +1150,7 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
 template <class V> inline void Solver::shareViaCallback(const V &v, int lbd)
 {
     if (lbd > core_lbd_cut) return;
+    if (v.size() > share_clause_max_size) return;
 
     if (learnCallback != 0 && v.size() <= learnCallbackLimit) {
         for (int i = 0; i < v.size(); i++) {
@@ -1147,6 +1159,11 @@ template <class V> inline void Solver::shareViaCallback(const V &v, int lbd)
         }
         learnCallbackBuffer[v.size()] = 0;
         learnCallback(learnCallbackState, &(learnCallbackBuffer[0]));
+    }
+
+    /* share only limited clauses in parallel solving! */
+    if (share_parallel && learnedClsCallback != 0 && (v.size() < 3 || lbd <= core_lbd_cut)) {
+        learnedClsCallback(learnt_clause, issuer);
     }
 }
 
