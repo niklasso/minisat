@@ -74,6 +74,8 @@ static DoubleOption opt_step_size(_cat, "step-size", "Initial step size", 0.40, 
 static DoubleOption opt_step_size_dec(_cat, "step-size-dec", "Step size decrement", 0.000001, DoubleRange(0, false, 1, false));
 static DoubleOption opt_min_step_size(_cat, "min-step-size", "Minimal step size", 0.06, DoubleRange(0, false, 1, false));
 static DoubleOption opt_var_decay(_cat, "var-decay", "The variable activity decay factor", 0.80, DoubleRange(0, false, 1, false));
+static IntOption
+opt_var_decay_conflicts(_cat, "var-decay-conflicts", "Bump var decay after X conflicts", 5000, IntRange(1, INT32_MAX));
 static DoubleOption opt_clause_decay(_cat, "cla-decay", "The clause activity decay factor", 0.999, DoubleRange(0, false, 1, false));
 static DoubleOption
 opt_random_var_freq(_cat,
@@ -231,7 +233,8 @@ Solver::Solver()
   , step_size(opt_step_size)
   , step_size_dec(opt_step_size_dec)
   , min_step_size(opt_min_step_size)
-  , timer(5000)
+  , var_decay_timer(opt_var_decay_conflicts)
+  , var_decay_timer_init(opt_var_decay_conflicts)
   , var_decay(opt_var_decay)
   , clause_decay(opt_clause_decay)
   , random_var_freq(opt_random_var_freq)
@@ -2564,7 +2567,8 @@ lbool Solver::search(int &nof_conflicts)
             this_confl = confl;
             // CONFLICT
             if (usesVSIDS()) {
-                if (--timer == 0 && var_decay < 0.95) timer = 5000, var_decay += 0.01;
+                if (--var_decay_timer == 0 && var_decay < 0.95)
+                    var_decay_timer = var_decay_timer_init, var_decay += 0.01;
             } else if (step_size > min_step_size)
                 step_size -= step_size_dec;
 

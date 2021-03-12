@@ -236,7 +236,7 @@ class Solver
     double step_size;
     double step_size_dec;
     double min_step_size;
-    int timer;
+    int var_decay_timer, var_decay_timer_init;
     double var_decay;
     double clause_decay;
     double random_var_freq;
