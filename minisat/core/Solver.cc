@@ -77,6 +77,11 @@ static DoubleOption opt_var_decay(_cat, "var-decay", "The variable activity deca
 static IntOption
 opt_var_decay_conflicts(_cat, "var-decay-conflicts", "Bump var decay after X conflicts", 5000, IntRange(1, INT32_MAX));
 static DoubleOption opt_clause_decay(_cat, "cla-decay", "The clause activity decay factor", 0.999, DoubleRange(0, false, 1, false));
+static DoubleOption opt_lbd_avg_compare_limit(_cat,
+                                              "lbd-avg-compare-limit",
+                                              "Constant used to force restart (higher == less restarts)",
+                                              0.8,
+                                              DoubleRange(0, false, 1, false));
 static DoubleOption
 opt_random_var_freq(_cat,
                     "rnd-freq",
@@ -320,6 +325,7 @@ Solver::Solver()
   , core_size_lim(opt_core_size_lim)
   , core_size_lim_inc(opt_core_size_lim_inc)
   , global_lbd_sum(0)
+  , lbd_avg_compare_limit(opt_lbd_avg_compare_limit)
   , lbd_queue(50)
   , next_T2_reduce(10000)
   , next_L_reduce(15000)
@@ -2727,7 +2733,7 @@ lbool Solver::search(int &nof_conflicts)
             if (!usesVSIDS())
                 restart = nof_conflicts <= 0;
             else if (!cached) {
-                restart = lbd_queue.full() && (lbd_queue.avg() * 0.8 > global_lbd_sum / conflicts_VSIDS);
+                restart = lbd_queue.full() && (lbd_queue.avg() * lbd_avg_compare_limit > global_lbd_sum / conflicts_VSIDS);
                 cached = true;
             }
             if (restart || !withinBudget()) {
