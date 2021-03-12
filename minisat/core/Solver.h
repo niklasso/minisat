@@ -741,7 +741,7 @@ class Solver
     bool share_parallel;                                           // do send clauses for other parallel solvers
     bool receiveClauses;                                           // do send clauses for other parallel solvers
     int share_clause_max_size;                                     // max clause size for sharing
-    void (*learnedClsCallback)(const vector<int> &, void *issuer); // callback for clause learning
+    void (*learnedClsCallback)(const vector<int> &, int glueValue, void *issuer); // callback for clause learning
     void *issuer;                                                  // used as the callback parameter
     int lastDecision;                                              // the last decision made by the solver
     void addLearnedClause(const vec<Lit> &cls);                    // add a learned clause by hand
@@ -1174,7 +1174,7 @@ template <class V> inline void Solver::shareViaCallback(const V &v, int lbd)
                 learnCallbackBuffer[i] = sign(lit) ? -(var(lit) + 1) : (var(lit) + 1);
             }
         }
-        learnedClsCallback(learnCallbackBuffer, issuer);
+        learnedClsCallback(learnCallbackBuffer, lbd, issuer);
     }
 }
 
