@@ -417,7 +417,8 @@ Solver::Solver()
 }
 
 
-Solver::~Solver() {
+Solver::~Solver()
+{
     if (onlineDratChecker) delete onlineDratChecker;
     onlineDratChecker = NULL;
 }
