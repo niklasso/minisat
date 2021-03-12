@@ -183,9 +183,12 @@ static DoubleOption opt_ccnr_up_time_ratio("SLS", "ccnr-up-time-ratio", "TBD", 0
 static IntOption opt_ccnr_ls_mems_num("SLS", "ccnr-ls-mems", "TBD", 50 * 1000 * 1000, IntRange(0, INT32_MAX));
 static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 2000, IntRange(0, INT32_MAX));
 static IntOption
-opt_ccnr_state_change_time_inc("SLS", "increment rephasing distance after rephasing by", "TBD", 1, IntRange(0, INT32_MAX));
-static DoubleOption
-opt_ccnr_state_change_time_inc_inc("SLS", "increment rephasing increment distance by", "TBD", 1.0, DoubleRange(0, true, HUGE_VAL, true));
+opt_ccnr_state_change_time_inc("SLS", "ccnr-change-time-inc", "increment rephasing distance after rephasing by", 1, IntRange(0, INT32_MAX));
+static DoubleOption opt_ccnr_state_change_time_inc_inc("SLS",
+                                                       "ccnr-change-time-inc-inc",
+                                                       "increment rephasing increment distance by",
+                                                       1.0,
+                                                       DoubleRange(0, true, HUGE_VAL, true));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
