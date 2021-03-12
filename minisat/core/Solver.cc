@@ -758,7 +758,7 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                     TRACE(std::cout << "c LCM keep (simplified?) clause[" << cr << "]: " << c << std::endl);
 
                     if (saved_size != c.size()) {
-                        shareViaCallback(c); // share via IPASIR?
+                        shareViaCallback(c, c.lbd()); // share via IPASIR?
 
                         // print to proof
                         if (drup_file) {
@@ -2659,9 +2659,6 @@ lbool Solver::search(int &nof_conflicts)
             analyze(confl, learnt_clause, backtrack_level, lbd);
             TRACE(std::cout << "c retrieved learnt clause " << learnt_clause << std::endl);
 
-            // share via IPASIR?
-            shareViaCallback(learnt_clause);
-
             // check chrono backtrack condition
             if ((confl_to_chrono < 0 || confl_to_chrono <= (int64_t)conflicts) && chrono > -1 &&
                 (decisionLevel() - backtrack_level) >= chrono) {
@@ -2684,6 +2681,9 @@ lbool Solver::search(int &nof_conflicts)
                 lbd_queue.push(lbd);
                 global_lbd_sum += (lbd > 50 ? 50 : lbd);
             }
+
+            // share clause with interfaces (ipasir, hordesat)
+            shareViaCallback(learnt_clause, lbd);
 
             if (learnt_clause.size() == 1) {
                 uncheckedEnqueue(learnt_clause[0], 0);
