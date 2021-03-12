@@ -74,7 +74,14 @@ static DoubleOption opt_step_size(_cat, "step-size", "Initial step size", 0.40, 
 static DoubleOption opt_step_size_dec(_cat, "step-size-dec", "Step size decrement", 0.000001, DoubleRange(0, false, 1, false));
 static DoubleOption opt_min_step_size(_cat, "min-step-size", "Minimal step size", 0.06, DoubleRange(0, false, 1, false));
 static DoubleOption opt_var_decay(_cat, "var-decay", "The variable activity decay factor", 0.80, DoubleRange(0, false, 1, false));
+static IntOption
+opt_var_decay_conflicts(_cat, "var-decay-conflicts", "Bump var decay after X conflicts", 5000, IntRange(1, INT32_MAX));
 static DoubleOption opt_clause_decay(_cat, "cla-decay", "The clause activity decay factor", 0.999, DoubleRange(0, false, 1, false));
+static DoubleOption opt_lbd_avg_compare_limit(_cat,
+                                              "lbd-avg-compare-limit",
+                                              "Constant used to force restart (higher == less restarts)",
+                                              0.8,
+                                              DoubleRange(0, false, 1, false));
 static DoubleOption
 opt_random_var_freq(_cat,
                     "rnd-freq",
@@ -176,9 +183,12 @@ static DoubleOption opt_ccnr_up_time_ratio("SLS", "ccnr-up-time-ratio", "TBD", 0
 static IntOption opt_ccnr_ls_mems_num("SLS", "ccnr-ls-mems", "TBD", 50 * 1000 * 1000, IntRange(0, INT32_MAX));
 static IntOption opt_ccnr_state_change_time("SLS", "ccnr-change-time", "TBD", 2000, IntRange(0, INT32_MAX));
 static IntOption
-opt_ccnr_state_change_time_inc("SLS", "increment rephasing distance after rephasing by", "TBD", 1, IntRange(0, INT32_MAX));
-static DoubleOption
-opt_ccnr_state_change_time_inc_inc("SLS", "increment rephasing increment distance by", "TBD", 1.0, DoubleRange(0, true, HUGE_VAL, true));
+opt_ccnr_state_change_time_inc("SLS", "ccnr-change-time-inc", "increment rephasing distance after rephasing by", 1, IntRange(0, INT32_MAX));
+static DoubleOption opt_ccnr_state_change_time_inc_inc("SLS",
+                                                       "ccnr-change-time-inc-inc",
+                                                       "increment rephasing increment distance by",
+                                                       1.0,
+                                                       DoubleRange(0, true, HUGE_VAL, true));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
@@ -231,7 +241,8 @@ Solver::Solver()
   , step_size(opt_step_size)
   , step_size_dec(opt_step_size_dec)
   , min_step_size(opt_min_step_size)
-  , timer(5000)
+  , var_decay_timer(opt_var_decay_conflicts)
+  , var_decay_timer_init(opt_var_decay_conflicts)
   , var_decay(opt_var_decay)
   , clause_decay(opt_clause_decay)
   , random_var_freq(opt_random_var_freq)
@@ -317,6 +328,7 @@ Solver::Solver()
   , core_size_lim(opt_core_size_lim)
   , core_size_lim_inc(opt_core_size_lim_inc)
   , global_lbd_sum(0)
+  , lbd_avg_compare_limit(opt_lbd_avg_compare_limit)
   , lbd_queue(50)
   , next_T2_reduce(10000)
   , next_L_reduce(15000)
@@ -414,7 +426,8 @@ Solver::Solver()
 }
 
 
-Solver::~Solver() {
+Solver::~Solver()
+{
     if (onlineDratChecker) delete onlineDratChecker;
     onlineDratChecker = NULL;
 }
@@ -2564,7 +2577,8 @@ lbool Solver::search(int &nof_conflicts)
             this_confl = confl;
             // CONFLICT
             if (usesVSIDS()) {
-                if (--timer == 0 && var_decay < 0.95) timer = 5000, var_decay += 0.01;
+                if (--var_decay_timer == 0 && var_decay < 0.95)
+                    var_decay_timer = var_decay_timer_init, var_decay += 0.01;
             } else if (step_size > min_step_size)
                 step_size -= step_size_dec;
 
@@ -2722,7 +2736,7 @@ lbool Solver::search(int &nof_conflicts)
             if (!usesVSIDS())
                 restart = nof_conflicts <= 0;
             else if (!cached) {
-                restart = lbd_queue.full() && (lbd_queue.avg() * 0.8 > global_lbd_sum / conflicts_VSIDS);
+                restart = lbd_queue.full() && (lbd_queue.avg() * lbd_avg_compare_limit > global_lbd_sum / conflicts_VSIDS);
                 cached = true;
             }
             if (restart || !withinBudget()) {

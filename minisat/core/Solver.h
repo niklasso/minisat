@@ -236,7 +236,7 @@ class Solver
     double step_size;
     double step_size_dec;
     double min_step_size;
-    int timer;
+    int var_decay_timer, var_decay_timer_init;
     double var_decay;
     double clause_decay;
     double random_var_freq;
@@ -447,6 +447,7 @@ class Solver
     int core_size_lim;
     float core_size_lim_inc;
     float global_lbd_sum;
+    float lbd_avg_compare_limit;
     MyQueue<int> lbd_queue; // For computing moving averages of recent LBD values.
 
     uint64_t next_T2_reduce, next_L_reduce;
