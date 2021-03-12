@@ -462,7 +462,7 @@ class Solver
     void *termCallbackState;
     int (*termCallback)(void *state);
     void *learnCallbackState;
-    vec<int> learnCallbackBuffer;
+    vector<int> learnCallbackBuffer;
     int learnCallbackLimit;
     void (*learnCallback)(void *state, int *clause);
 
@@ -738,14 +738,14 @@ class Solver
     ClauseRingBuffer simplifyBuffer;
 
     // HordeSat Portfolio support
-    bool share_parallel;                                        // do send clauses for other parallel solvers
-    bool receiveClauses;                                        // do send clauses for other parallel solvers
-    int share_clause_max_size;                                  // max clause size for sharing
-    void (*learnedClsCallback)(const vec<Lit> &, void *issuer); // callback for clause learning
-    void *issuer;                                               // used as the callback parameter
-    int lastDecision;                                           // the last decision made by the solver
-    void addLearnedClause(const vec<Lit> &cls);                 // add a learned clause by hand
-    void diversify(int rank, int size);                         // set parameters based on position in set, and set size
+    bool share_parallel;                                           // do send clauses for other parallel solvers
+    bool receiveClauses;                                           // do send clauses for other parallel solvers
+    int share_clause_max_size;                                     // max clause size for sharing
+    void (*learnedClsCallback)(const vector<int> &, void *issuer); // callback for clause learning
+    void *issuer;                                                  // used as the callback parameter
+    int lastDecision;                                              // the last decision made by the solver
+    void addLearnedClause(const vec<Lit> &cls);                    // add a learned clause by hand
+    void diversify(int rank, int size); // set parameters based on position in set, and set size
 
 
     // in redundant
@@ -1041,7 +1041,7 @@ inline void Solver::setLearnCallback(void *state, int maxLength, void (*learn)(v
 {
     this->learnCallbackState = state;
     this->learnCallbackLimit = maxLength;
-    this->learnCallbackBuffer.growTo(1 + maxLength);
+    this->learnCallbackBuffer.resize(1 + maxLength);
     this->learnCallback = learn;
 }
 
@@ -1152,18 +1152,29 @@ template <class V> inline void Solver::shareViaCallback(const V &v, int lbd)
     if (lbd > core_lbd_cut) return;
     if (v.size() > share_clause_max_size) return;
 
+    bool filled_buffer = false;
+
     if (learnCallback != 0 && v.size() <= learnCallbackLimit) {
+        learnCallbackBuffer.resize(v.size() + 1);
         for (int i = 0; i < v.size(); i++) {
             Lit lit = v[i];
             learnCallbackBuffer[i] = sign(lit) ? -(var(lit) + 1) : (var(lit) + 1);
         }
         learnCallbackBuffer[v.size()] = 0;
+        filled_buffer = true;
         learnCallback(learnCallbackState, &(learnCallbackBuffer[0]));
     }
 
     /* share only limited clauses in parallel solving! */
     if (share_parallel && learnedClsCallback != 0 && (v.size() < 3 || lbd <= core_lbd_cut)) {
-        learnedClsCallback(learnt_clause, issuer);
+        learnCallbackBuffer.resize(v.size());
+        if (!filled_buffer) {
+            for (int i = 0; i < v.size(); i++) {
+                Lit lit = v[i];
+                learnCallbackBuffer[i] = sign(lit) ? -(var(lit) + 1) : (var(lit) + 1);
+            }
+        }
+        learnedClsCallback(learnCallbackBuffer, issuer);
     }
 }
 
