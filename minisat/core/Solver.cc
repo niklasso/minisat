@@ -3055,12 +3055,14 @@ lbool Solver::solve_()
         }
     }
 
-    // toggle back to VSIDS
-    if (!usesVSIDS()) toggle_decision_heuristic(true);
-    int init = VSIDS_props_init_limit;
-    while (status == l_Undef && init > 0 && withinBudget()) status = search(init);
-    // do not use VSIDS now
-    toggle_decision_heuristic(false);
+    // toggle back to VSIDS, in case we run the initialization here
+    if (solves == 1) {
+        if (!usesVSIDS()) toggle_decision_heuristic(true);
+        int init = VSIDS_props_init_limit;
+        while (status == l_Undef && init > 0 && withinBudget()) status = search(init);
+        // do not use VSIDS now
+        toggle_decision_heuristic(false);
+    }
 
     // Search:
     uint64_t curr_props = 0;
