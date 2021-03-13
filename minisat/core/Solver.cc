@@ -253,7 +253,7 @@ Solver::Solver()
   , random_seed(opt_random_seed)
   , ccmin_mode(opt_ccmin_mode)
   , phase_saving(opt_phase_saving)
-  , rnd_pol(false)
+  , invert_pol(false)
   , rnd_init_act(opt_rnd_init_act)
   , garbage_frac(opt_garbage_frac)
   , restart_first(opt_restart_first)
@@ -922,7 +922,7 @@ Var Solver::newVar(bool sign, bool dvar)
     seen.push(0);
     seen2.push(0);
     seen2.push(0);
-    polarity.push(sign);
+    polarity.push(invert_pol ? !sign : sign);
     decision.push();
     trail.capacity(v + 1);
     old_trail.capacity(v + 1);
