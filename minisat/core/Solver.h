@@ -741,6 +741,7 @@ class Solver
     bool share_parallel;                                           // do send clauses for other parallel solvers
     bool receiveClauses;                                           // do send clauses for other parallel solvers
     int share_clause_max_size;                                     // max clause size for sharing
+    uint64_t receivedCls;                                          // count number of received clauses
     void (*learnedClsCallback)(const vector<int> &, int glueValue, void *issuer); // callback for clause learning
     void (*consumeSharedCls)(void* issuer);                        // get shared clauses from parallel solving and use them
     void *issuer;                                                  // used as the callback parameter

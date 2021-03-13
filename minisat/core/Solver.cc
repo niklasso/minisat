@@ -388,6 +388,7 @@ Solver::Solver()
   , share_parallel(true)
   , receiveClauses(true)
   , share_clause_max_size(64)
+  , receivedCls(0)
   , learnedClsCallback(NULL)
   , consumeSharedCls(NULL)
   , issuer(NULL)
@@ -2579,6 +2580,7 @@ lbool Solver::search(int &nof_conflicts)
 
     // get clauses from parallel solving, if we want to receive
     if(consumeSharedCls != NULL && receiveClauses) consumeSharedCls(issuer);
+
     if (starts > state_change_time) {
         /* grow limit after each rephasing */
         state_change_time = state_change_time + state_change_time_inc;
@@ -2877,6 +2879,9 @@ void Solver::addLearnedClause(const vec<Lit> &cls)
     if (!receiveClauses) return;
 
     assert(cls.size() > 0 && "should we really share empty clauses?");
+    //TODO: implement filters here!
+
+    receivedCls ++;
 
     if (cls.size() == 1) {
         if (value(cls[0]) == l_False) {
