@@ -158,6 +158,8 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
     do_simp &= use_simplification;
     double simp_time = cpuTime();
 
+    const int pre_simplification_units = trail.size();
+
     if (do_simp) {
         // Assumptions must be temporarily frozen to run variable elimination:
         for (int i = 0; i < assumptions.size(); i++) {
@@ -184,6 +186,18 @@ lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
 
     simp_time = cpuTime() - simp_time;      // stop timer and record time consumed until now
     check_satisfiability_simplified = true; // only check SAT answer after the call to extendModel()
+
+    /* share units during initial call, only really useful in case preprocessing is used */
+    if (solves == 1) {
+        assert(decisionLevel() == 0);
+        add_tmp.clear();
+        add_tmp.push(lit_Undef);
+        for (int i = pre_simplification_units; i < trail.size(); ++i) {
+            add_tmp[0] = trail[i];
+            shareViaCallback(add_tmp, 1);
+        }
+        add_tmp.clear();
+    }
 
     if (result == l_True)
         result = Solver::solve_();
