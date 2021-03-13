@@ -2895,7 +2895,7 @@ void Solver::addLearnedClause(const vec<Lit> &cls)
             ok = false;
         } else {
             cancelUntil(0);
-            uncheckedEnqueue(cls[0], 0);
+            if (value(cls[0]) == l_Undef) uncheckedEnqueue(cls[0], 0);
         }
     } else {
         /* currently, we cannot tell much about the quality of the clause */
