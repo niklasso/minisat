@@ -389,6 +389,7 @@ Solver::Solver()
   , receiveClauses(true)
   , share_clause_max_size(64)
   , learnedClsCallback(NULL)
+  , consumeSharedCls(NULL)
   , issuer(NULL)
   , lastDecision(0)
 
@@ -2576,6 +2577,8 @@ lbool Solver::search(int &nof_conflicts)
     freeze_ls_restart_num--;
     bool can_call_ls = true;
 
+    // get clauses from parallel solving, if we want to receive
+    if(consumeSharedCls != NULL && receiveClauses) consumeSharedCls(issuer);
     if (starts > state_change_time) {
         /* grow limit after each rephasing */
         state_change_time = state_change_time + state_change_time_inc;
@@ -2605,6 +2608,8 @@ lbool Solver::search(int &nof_conflicts)
         curSimplify = (conflicts / nbconfbeforesimplify) + 1;
         nbconfbeforesimplify += incSimplify;
     }
+
+    if(!okay()) return l_False;
 
     // check whether we want to do inprocessing
     inprocessing();

@@ -742,6 +742,7 @@ class Solver
     bool receiveClauses;                                           // do send clauses for other parallel solvers
     int share_clause_max_size;                                     // max clause size for sharing
     void (*learnedClsCallback)(const vector<int> &, int glueValue, void *issuer); // callback for clause learning
+    void (*consumeSharedCls)(void* issuer);                        // get shared clauses from parallel solving and use them
     void *issuer;                                                  // used as the callback parameter
     int lastDecision;                                              // the last decision made by the solver
     void addLearnedClause(const vec<Lit> &cls);                    // add a learned clause by hand
