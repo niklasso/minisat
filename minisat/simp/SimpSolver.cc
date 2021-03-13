@@ -944,3 +944,31 @@ Lit SimpSolver::subsumes(Clause &c1, Clause &c2)
     }
     return ret;
 }
+
+void SimpSolver::addLearnedClause(const vec<Lit> &cls)
+{
+    /* do not receive clauses that contain eliminated variables */
+    for (int i = 0; i < cls.size(); ++i)
+        if (isEliminated(var(cls[i]))) return;
+    Solver::addLearnedClause(cls);
+}
+
+void SimpSolver::diversify(int rank, int size)
+{
+    /* rank ranges from 0 to size-1 */
+
+    /* keep first 2 configurations as is,
+       and disable simplification for last 2 configurations */
+    if (rank > 1 && rank >= size - 2) use_simplification = false;
+
+    /* allow higher grow value for last 2 configurations with simplfication */
+    if (rank > 1 && rank >= size - 4) grow = 8;
+
+    /* have a configuration allowed to simplify more on longer clauses */
+    if (rank > 1 && rank >= size - 5) clause_lim = 40;
+
+    Solver::diversify(rank, size);
+
+    /* in case we shall not*/
+    if (!use_simplification) eliminate(true);
+}
