@@ -2909,9 +2909,43 @@ void Solver::addLearnedClause(const vec<Lit> &cls)
 
 void Solver::diversify(int rank, int size)
 {
-    // set parameters based on position in set, and set size
-    // rank ranges from 0 to size - 1!
-    assert(false && "needs to be implemented");
+    /* rank ranges from 0 to size-1 */
+
+    /* keep first 2 configurations as is, and do not receive clause! */
+    if (rank == 0 || (rank == 1 && size > 2)) {
+        receiveClauses = false;
+    }
+    if (rank == 1) {
+        use_ccnr = false;
+        state_change_time = 1000000000;
+    }
+    if (rank < 2) return;
+
+    /* allow many combinations of configurations for large ranks! */
+    if (rank % 3 == 2) invert_pol = true;
+    if (rank % 5 == 2) restart = Restart(0);
+    if (rank % 5 == 3) restart = Restart(1);
+    if (rank % 7 == 3) core_lbd_cut = 4;
+    if (rank % 11 == 4) init_act = 2;
+    if (rank % 11 == 7) init_act = 3;
+    if (rank % 13 == 8) {
+        var_decay_timer = 100000;
+        var_decay_timer_init = 100000;
+    }
+    if (rank % 17 == 4) var_decay = 0.999;
+    if (rank % 19 == 6) {
+        inprocess_next_lim = 2000;
+        inprocess_learnt_level = 1;
+    }
+    if (rank % 19 == 9) {
+        inprocess_next_lim = 3000;
+        inprocess_learnt_level = 2;
+    }
+    if (rank % 23 == 5) chrono = 10;
+    if (rank % 23 == 6) chrono = 5;
+    if (rank % 29 == 6) state_change_time = 1000;
+    if (rank % 29 == 8) state_change_time = 3000;
+    if (rank % 29 == 10) state_change_time = 5000;
 }
 
 
