@@ -2586,7 +2586,7 @@ lbool Solver::search(int &nof_conflicts)
     bool can_call_ls = true;
 
     // get clauses from parallel solving, if we want to receive
-    if(consumeSharedCls != NULL && receiveClauses) consumeSharedCls(issuer);
+    if (consumeSharedCls != NULL && receiveClauses) consumeSharedCls(issuer);
 
     if (starts > state_change_time) {
         /* grow limit after each rephasing */
@@ -2618,7 +2618,7 @@ lbool Solver::search(int &nof_conflicts)
         nbconfbeforesimplify += incSimplify;
     }
 
-    if(!okay()) return l_False;
+    if (!okay()) return l_False;
 
     // check whether we want to do inprocessing
     inprocessing();
@@ -2886,9 +2886,9 @@ void Solver::addLearnedClause(const vec<Lit> &cls)
     if (!receiveClauses) return;
 
     assert(cls.size() > 0 && "should we really share empty clauses?");
-    //TODO: implement filters here!
+    // TODO: implement filters here!
 
-    receivedCls ++;
+    receivedCls++;
 
     if (cls.size() == 1) {
         if (value(cls[0]) == l_False) {
