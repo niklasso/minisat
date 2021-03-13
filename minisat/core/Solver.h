@@ -246,7 +246,7 @@ class Solver
     int ccmin_mode;      // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
     int phase_saving;    // Controls the level of phase saving (0=none, 1=limited, 2=full).
     bool invert_pol;     // Use inverse polarity for initialization
-    bool rnd_init_act;   // Initialize variable activities with a small random value.
+    int init_act;        // Initialize variable activities (0=no, 1=with a small random value, 2=1/v, 3=v).
     double garbage_frac; // The fraction of wasted memory allowed before a garbage collection is triggered.
 
     int restart_first;        // The initial restart limit. (default 100)
