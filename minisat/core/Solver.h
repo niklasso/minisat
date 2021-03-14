@@ -781,6 +781,8 @@ class Solver
     uint64_t switch_heristic_mod; // starts
     int last_switch_conflicts;
 
+    int sls_var_lim, sls_clause_lim;
+
     // informations
     CCNR::ls_solver ccnr;
     int freeze_ls_restart_num = 0;

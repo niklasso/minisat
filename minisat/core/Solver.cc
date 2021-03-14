@@ -192,6 +192,10 @@ static DoubleOption opt_ccnr_state_change_time_inc_inc("SLS",
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
+static IntOption
+opt_sls_var_lim("SLS", "sls-var-lim", "Do not use SLS, if input variables exceed the given value", -1, IntRange(-1, INT32_MAX));
+static IntOption
+opt_sls_clause_lim("SLS", "sls-clause-lim", "Do not use SLS, if SLS input clauses exceed the given value", -1, IntRange(-1, INT32_MAX));
 
 static IntOption
 opt_max_activity_bump_size(_cat, "max-act-bump", "Do not bump more than X vars per analysis", 100, IntRange(0, INT32_MAX));
@@ -417,6 +421,8 @@ Solver::Solver()
   , mediation_used(opt_ccnr_mediation_used)
   , switch_heristic_mod(opt_ccnr_mediation_used)
   , last_switch_conflicts(0)
+  , sls_var_lim(opt_sls_var_lim)
+  , sls_clause_lim(opt_sls_clause_lim)
 
   , initial_sls(opt_sls_initial)
 {
@@ -2996,6 +3002,11 @@ lbool Solver::solve_()
 
     add_tmp.clear();
 
+    /* allow to disable SLS for larger clauses */
+    if ((sls_var_lim != -1 && nVars() > sls_var_lim) || (sls_clause_lim != -1 && nClauses() > sls_clause_lim)) {
+        use_ccnr = false;
+    }
+
     /* do not start with SLS, in case we have assumptions, or solve incrementally */
     if (assumptions.size() == 0 && solves == 1 && initial_sls) {
         int fls_res = call_ls(false);
@@ -3418,6 +3429,13 @@ bool Solver::call_ls(bool use_up_build)
     ccnr = CCNR::ls_solver();
     int ls_var_nums = nVars();
     int ls_cls_nums = nClauses() + learnts_core.size() + learnts_tier2.size();
+
+    /* allow to disable SLS for larger clauses */
+    if ((sls_var_lim != -1 && nVars() > sls_var_lim) || (sls_clause_lim != -1 && ls_cls_nums > sls_clause_lim)) {
+        use_ccnr = false;
+        return false;
+    }
+
     if (trail_lim.size() > 0)
         ls_cls_nums += trail_lim[0];
     else
