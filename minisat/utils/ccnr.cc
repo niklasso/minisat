@@ -177,8 +177,8 @@ bool ls_solver::make_space()
 }
 void ls_solver::build_neighborhood()
 {
-    size_t j, v;
-    int c;
+    int i, j, count;
+    int v, c;
     vector<char> neighbor_flag(_num_vars + _additional_len);
     for (j = 0; j < neighbor_flag.size(); ++j) {
         neighbor_flag[j] = 0;
@@ -204,7 +204,7 @@ bool ls_solver::build_instance(string inst)
 {
     string line;
     istringstream iss;
-    size_t c, v;
+    int c, v, i;
     int cur_lit;
     bool lit_redundent, clause_tautology;
     string tempstr1, tempstr2;
@@ -299,7 +299,7 @@ bool ls_solver::local_search(const vector<char> *init_solution)
         for (int var_idx : _unsat_vars) ++conflict_ct[var_idx];
         if (_unsat_clauses.size() < _best_found_cost) {
             _best_found_cost = _unsat_clauses.size();
-            for (size_t k = 0; k < _num_vars + 1; ++k) {
+            for (int k = 0; k < _num_vars + 1; ++k) {
                 _best_solution[k] = _solution[k];
             }
             // _best_cost_time = get_runtime();
@@ -330,7 +330,7 @@ void ls_solver::clear_prev_data()
 }
 void ls_solver::initialize(const vector<char> *init_solution)
 {
-    size_t v, c;
+    int v, c;
     clear_prev_data();
     if (!init_solution) {
         // default random generation
@@ -376,7 +376,7 @@ void ls_solver::initialize(const vector<char> *init_solution)
 }
 void ls_solver::initialize_variable_datas()
 {
-    size_t v, c;
+    int v, c, i;
     variable *vp;
     // scores
     for (v = 1; v <= _num_vars; v++) {
@@ -409,18 +409,15 @@ void ls_solver::initialize_variable_datas()
     }
     // the virtual var 0
     vp = &(_vars[0]);
-    vp->score = 0;
-    vp->cc_value = 0;
-    vp->is_in_ccd_vars = 0;
-    vp->last_flip_step = 0;
+    vp->score = vp->cc_value = vp->is_in_ccd_vars = vp->last_flip_step = 0;
 }
 /*********************end initialize functions*********************************/
 /**********************pick variable*******************************************/
 int ls_solver::pick_var()
 {
-    size_t i;
-    int k, c, v;
-    int best_var = 0;
+    int i, k, c, v;
+    int best_var = 0, best_score;
+    lit *clause_c;
 
     // if(_random_gen.nextClosed() < _prob_p){
     // 	c = _unsat_clauses[_random_gen.next(_unsat_clauses.size())];
@@ -493,6 +490,10 @@ int ls_solver::pick_var()
 /************************flip and update functions*****************************/
 void ls_solver::flip(int flipv)
 {
+    int c, v;
+    lit *clause_c;
+    lit *p;
+    lit *q;
     _solution[flipv] = 1 - _solution[flipv];
     int org_flipv_score = _vars[flipv].score;
     _mems += _vars[flipv].literals.size();
@@ -618,7 +619,7 @@ void ls_solver::update_clause_weights()
 }
 void ls_solver::smooth_clause_weights()
 {
-    size_t v, c;
+    int v, c;
     for (v = 1; v <= _num_vars; v++) {
         _vars[v].score = 0;
     }
@@ -689,7 +690,7 @@ void ls_solver::print_solution(bool need_verify)
         cout << "s UNKNOWN" << endl;
     bool sat_flag = false;
     if (need_verify) {
-        for (size_t c = 0; c < _num_clauses; c++) {
+        for (int c = 0; c < _num_clauses; c++) {
             sat_flag = false;
             for (lit l : _clauses[c].literals) {
                 if (_solution[l.var_num] == l.sense) {
@@ -705,7 +706,7 @@ void ls_solver::print_solution(bool need_verify)
         cout << "c Verified." << endl;
     }
     cout << "v";
-    for (size_t v = 1; v <= _num_vars; v++) {
+    for (int v = 1; v <= _num_vars; v++) {
         cout << ' ';
         if (_solution[v] == 0) cout << '-';
         cout << v;

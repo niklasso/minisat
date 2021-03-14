@@ -25,7 +25,7 @@ namespace CCNR
 struct lit {
     unsigned char sense : 1; // is 1 for true literals, 0 for false literals.
     int clause_num : 31;     // clause num, begin with 0
-    size_t var_num;          // variable num, begin with 1
+    int var_num;             // variable num, begin with 1
     lit(int the_lit, int the_clause)
     {
         var_num = abs(the_lit);
@@ -118,8 +118,8 @@ class ls_solver
     string _inst_file;
     vector<variable> _vars;
     vector<clause> _clauses;
-    size_t _num_vars;
-    size_t _num_clauses;
+    int _num_vars;
+    int _num_clauses;
     int _additional_len;
     // data structure used
     vector<int> _unsat_clauses;
@@ -130,7 +130,7 @@ class ls_solver
     // solution information
     vector<char> _solution;
     vector<char> _best_solution;
-    size_t _best_found_cost;
+    int _best_found_cost;
     double _best_cost_time;
     long long _step;
     long long _mems;
@@ -150,7 +150,7 @@ class ls_solver
     float _swt_p; // w=w*p+ave_w*q
     float _swt_q;
     int _avg_clause_weight;
-    unsigned long long _delta_total_clause_weight;
+    long long _delta_total_clause_weight;
     // main functions
     void initialize(const vector<char> *init_solution = 0);
     void initialize_variable_datas();
