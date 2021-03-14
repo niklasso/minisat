@@ -118,7 +118,25 @@ Var SimpSolver::newVar(bool sign, bool dvar)
         touched.push(0);
         elim_heap.insert(v);
     }
+
+    // TODO: make sure to add new data structures also to reserveVars below!
+
     return v;
+}
+
+void SimpSolver::reserveVars(Var v)
+{
+    Solver::reserveVars(v);
+
+    frozen.capacity(v + 1);
+    eliminated.capacity(v + 1);
+
+    if (use_simplification) {
+        n_occ.capacity(v + 1);
+        n_occ.capacity(v + 1);
+        occurs.init(v);
+        touched.capacity(v + 1);
+    }
 }
 
 

@@ -62,6 +62,9 @@ template <class B, class Solver> static void parse_DIMACS_main(B &in, Solver &S)
                 // SATRACE'06 hack
                 // if (clauses > 4000000)
                 //     S.eliminate(true);
+
+                // reserve space for the given amount of variables
+                S.reserveVars(vars);
             } else {
                 printf("PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
             }

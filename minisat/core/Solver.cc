@@ -916,8 +916,42 @@ Var Solver::newVar(bool sign, bool dvar)
     var_iLevel_tmp.push(0);
     pathCs.push(0);
 
+    // TODO: make sure to add new data structures also to reserveVars below!
+
     setDecisionVar(v, dvar);
     return v;
+}
+
+void Solver::reserveVars(Var v)
+{
+    watches_bin.init(mkLit(v, false));
+    watches_bin.init(mkLit(v, true));
+    watches.init(mkLit(v, false));
+    watches.init(mkLit(v, true));
+    assigns.capacity(v + 1);
+    vardata.capacity(v + 1);
+    oldreasons.capacity(v + 1);
+    activity_CHB.capacity(v + 1);
+    activity_VSIDS.capacity(v + 1);
+    activity_distance.capacity(v + 1);
+
+    picked.capacity(v + 1);
+    conflicted.capacity(v + 1);
+    almost_conflicted.capacity(v + 1);
+#ifdef ANTI_EXPLORATION
+    canceled.capacity(v + 1);
+#endif
+
+    seen.capacity(v + 1);
+    seen2.capacity(2 * v + 1);
+    polarity.capacity(v + 1);
+    decision.capacity(v + 1);
+    trail.capacity(v + 1);
+    old_trail.capacity(v + 1);
+
+    var_iLevel.capacity(v + 1);
+    var_iLevel_tmp.capacity(v + 1);
+    pathCs.capacity(v + 1);
 }
 
 

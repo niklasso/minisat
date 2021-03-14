@@ -52,6 +52,7 @@ class SimpSolver : public Solver
     // Problem specification:
     //
     Var newVar(bool polarity = true, bool dvar = true);
+    void reserveVars(Var vars); // Reserve space for given amount of variables
     bool addClause(const vec<Lit> &ps);
     bool addEmptyClause();               // Add the empty clause to the solver.
     bool addClause(Lit p);               // Add a unit clause to the solver.
