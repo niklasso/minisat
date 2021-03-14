@@ -67,6 +67,11 @@ static Int64Option opt_max_simplify_step(_cat,
                                          "Do not perform more simplification steps than this. -1 means no limit.",
                                          40000000000,
                                          Int64Range(-1, INT64_MAX));
+static IntOption opt_max_simp_cls(_cat,
+                                  "max-simp-cls",
+                                  "If input has more clauses than the given number, disable simplification",
+                                  INT32_MAX,
+                                  IntRange(0, INT32_MAX));
 
 
 //=================================================================================================
@@ -81,6 +86,7 @@ SimpSolver::SimpSolver()
   , subsumption_lim(opt_subsumption_lim)
   , simp_garbage_frac(opt_simp_garbage_frac)
   , max_simp_steps(opt_max_simplify_step)
+  , nr_max_simp_cls(opt_max_simp_cls)
   , use_asymm(opt_use_asymm)
   , use_rcheck(opt_use_rcheck)
   , use_elim(opt_use_elim)
@@ -118,9 +124,29 @@ Var SimpSolver::newVar(bool sign, bool dvar)
         touched.push(0);
         elim_heap.insert(v);
     }
+
+    // TODO: make sure to add new data structures also to reserveVars below!
+
     return v;
 }
 
+void SimpSolver::reserveVars(Var v)
+{
+    Solver::reserveVars(v);
+
+    frozen.capacity(v + 1);
+    eliminated.capacity(v + 1);
+
+    if (use_simplification) {
+        n_occ.capacity(v + 1);
+        n_occ.capacity(v + 1);
+        occurs.init(v);
+        touched.capacity(v + 1);
+    }
+}
+
+
+int SimpSolver::max_simp_cls() { return nr_max_simp_cls; }
 
 lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
 {

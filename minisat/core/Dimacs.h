@@ -59,9 +59,12 @@ template <class B, class Solver> static void parse_DIMACS_main(B &in, Solver &S)
             if (eagerMatch(in, "p cnf")) {
                 vars = parseInt(in);
                 clauses = parseInt(in);
-                // SATRACE'06 hack
-                // if (clauses > 4000000)
-                //     S.eliminate(true);
+
+                // allow to actually disable simplification
+                if (clauses > S.max_simp_cls()) S.eliminate(true);
+
+                // reserve space for the given amount of variables
+                S.reserveVars(vars);
             } else {
                 printf("PARSE ERROR! Unexpected char: %c\n", *in), exit(3);
             }

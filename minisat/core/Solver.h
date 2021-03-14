@@ -149,6 +149,7 @@ class Solver
     // Problem specification:
     //
     Var newVar(bool polarity = true, bool dvar = true); // Add a new variable with parameters specifying variable mode.
+    void reserveVars(Var vars);                         // Reserve space for given amount of variables
 
     bool addClause(const vec<Lit> &ps);  // Add a clause to the solver.
     bool addEmptyClause();               // Add the empty clause, making the solver contradictory.
@@ -779,6 +780,8 @@ class Solver
 
     uint64_t switch_heristic_mod; // starts
     int last_switch_conflicts;
+
+    int sls_var_lim, sls_clause_lim;
 
     // informations
     CCNR::ls_solver ccnr;

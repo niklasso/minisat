@@ -187,11 +187,15 @@ opt_ccnr_state_change_time_inc("SLS", "ccnr-change-time-inc", "increment rephasi
 static DoubleOption opt_ccnr_state_change_time_inc_inc("SLS",
                                                        "ccnr-change-time-inc-inc",
                                                        "increment rephasing increment distance by",
-                                                       1.0,
+                                                       0.2,
                                                        DoubleRange(0, true, HUGE_VAL, true));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
 static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
+static IntOption
+opt_sls_var_lim("SLS", "sls-var-lim", "Do not use SLS, if input variables exceed the given value", -1, IntRange(-1, INT32_MAX));
+static IntOption
+opt_sls_clause_lim("SLS", "sls-clause-lim", "Do not use SLS, if SLS input clauses exceed the given value", -1, IntRange(-1, INT32_MAX));
 
 static IntOption
 opt_max_activity_bump_size(_cat, "max-act-bump", "Do not bump more than X vars per analysis", 100, IntRange(0, INT32_MAX));
@@ -417,6 +421,8 @@ Solver::Solver()
   , mediation_used(opt_ccnr_mediation_used)
   , switch_heristic_mod(opt_ccnr_mediation_used)
   , last_switch_conflicts(0)
+  , sls_var_lim(opt_sls_var_lim)
+  , sls_clause_lim(opt_sls_clause_lim)
 
   , initial_sls(opt_sls_initial)
 {
@@ -916,8 +922,42 @@ Var Solver::newVar(bool sign, bool dvar)
     var_iLevel_tmp.push(0);
     pathCs.push(0);
 
+    // TODO: make sure to add new data structures also to reserveVars below!
+
     setDecisionVar(v, dvar);
     return v;
+}
+
+void Solver::reserveVars(Var v)
+{
+    watches_bin.init(mkLit(v, false));
+    watches_bin.init(mkLit(v, true));
+    watches.init(mkLit(v, false));
+    watches.init(mkLit(v, true));
+    assigns.capacity(v + 1);
+    vardata.capacity(v + 1);
+    oldreasons.capacity(v + 1);
+    activity_CHB.capacity(v + 1);
+    activity_VSIDS.capacity(v + 1);
+    activity_distance.capacity(v + 1);
+
+    picked.capacity(v + 1);
+    conflicted.capacity(v + 1);
+    almost_conflicted.capacity(v + 1);
+#ifdef ANTI_EXPLORATION
+    canceled.capacity(v + 1);
+#endif
+
+    seen.capacity(v + 1);
+    seen2.capacity(2 * v + 1);
+    polarity.capacity(v + 1);
+    decision.capacity(v + 1);
+    trail.capacity(v + 1);
+    old_trail.capacity(v + 1);
+
+    var_iLevel.capacity(v + 1);
+    var_iLevel_tmp.capacity(v + 1);
+    pathCs.capacity(v + 1);
 }
 
 
@@ -2532,7 +2572,7 @@ lbool Solver::search(int &nof_conflicts)
     if (starts > state_change_time) {
         /* grow limit after each rephasing */
         state_change_time = state_change_time + state_change_time_inc;
-        state_change_time_inc *= state_change_time_inc_inc;
+        state_change_time_inc = state_change_time_inc *= state_change_time_inc_inc;
 
         /* actually rephase */
         if (rand() % 100 < 50)
@@ -2962,6 +3002,11 @@ lbool Solver::solve_()
 
     add_tmp.clear();
 
+    /* allow to disable SLS for larger clauses */
+    if ((sls_var_lim != -1 && nVars() > sls_var_lim) || (sls_clause_lim != -1 && nClauses() > sls_clause_lim)) {
+        use_ccnr = false;
+    }
+
     /* do not start with SLS, in case we have assumptions, or solve incrementally */
     if (assumptions.size() == 0 && solves == 1 && initial_sls) {
         int fls_res = call_ls(false);
@@ -3384,6 +3429,13 @@ bool Solver::call_ls(bool use_up_build)
     ccnr = CCNR::ls_solver();
     int ls_var_nums = nVars();
     int ls_cls_nums = nClauses() + learnts_core.size() + learnts_tier2.size();
+
+    /* allow to disable SLS for larger clauses */
+    if ((sls_var_lim != -1 && nVars() > sls_var_lim) || (sls_clause_lim != -1 && ls_cls_nums > sls_clause_lim)) {
+        use_ccnr = false;
+        return false;
+    }
+
     if (trail_lim.size() > 0)
         ls_cls_nums += trail_lim[0];
     else
