@@ -76,6 +76,8 @@ class SimpSolver : public Solver
     bool solve(Lit p, Lit q, Lit r, bool do_simp = true, bool turn_off_simp = false);
     bool eliminate(bool turn_off_elim = false); // Perform variable elimination based simplification.
 
+    int max_simp_cls(); // Return number of clauses when we do not perform simplification anymore
+
     bool eliminate_();
     void removeSatisfied();
 
@@ -107,6 +109,7 @@ class SimpSolver : public Solver
     double simp_garbage_frac; // A different limit for when to issue a GC during simplification (Also see 'garbage_frac').
     int64_t max_simp_steps;   // Simplification is stopped if the number of performed steps exceeds this value. -1 means
                               // no limit.
+    int nr_max_simp_cls;      // highest number of clauses to perform simplification
 
     bool use_asymm;  // Shrink clauses by asymmetric branching.
     bool use_rcheck; // Check if a clause is already implied. Prett costly, and subsumes subsumptions :)
