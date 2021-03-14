@@ -187,7 +187,7 @@ opt_ccnr_state_change_time_inc("SLS", "ccnr-change-time-inc", "increment rephasi
 static DoubleOption opt_ccnr_state_change_time_inc_inc("SLS",
                                                        "ccnr-change-time-inc-inc",
                                                        "increment rephasing increment distance by",
-                                                       1.0,
+                                                       0.2,
                                                        DoubleRange(0, true, HUGE_VAL, true));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
@@ -2572,7 +2572,7 @@ lbool Solver::search(int &nof_conflicts)
     if (starts > state_change_time) {
         /* grow limit after each rephasing */
         state_change_time = state_change_time + state_change_time_inc;
-        state_change_time_inc *= state_change_time_inc_inc;
+        state_change_time_inc = state_change_time_inc *= state_change_time_inc_inc;
 
         /* actually rephase */
         if (rand() % 100 < 50)
