@@ -179,7 +179,7 @@ class Solver
     //
     void setTermCallback(void *state, int (*termCallback)(void *));
     void setLearnCallback(void *state, int maxLength, void (*learn)(void *state, int *clause));
-    template <class V> void shareViaCallback(const V &v);
+    template <class V> void shareViaCallback(const V &v, int lbd = -1);
 
     // Convenience versions of 'toDimacs()':
     void toDimacs(const char *file);
@@ -245,8 +245,8 @@ class Solver
 
     int ccmin_mode;      // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
     int phase_saving;    // Controls the level of phase saving (0=none, 1=limited, 2=full).
-    bool rnd_pol;        // Use random polarities for branching heuristics.
-    bool rnd_init_act;   // Initialize variable activities with a small random value.
+    bool invert_pol;     // Use inverse polarity for initialization
+    int init_act;        // Initialize variable activities (0=no, 1=with a small random value, 2=1/v, 3=v).
     double garbage_frac; // The fraction of wasted memory allowed before a garbage collection is triggered.
 
     int restart_first;        // The initial restart limit. (default 100)
@@ -462,7 +462,7 @@ class Solver
     void *termCallbackState;
     int (*termCallback)(void *state);
     void *learnCallbackState;
-    vec<int> learnCallbackBuffer;
+    vector<int> learnCallbackBuffer;
     int learnCallbackLimit;
     void (*learnCallback)(void *state, int *clause);
 
@@ -736,6 +736,19 @@ class Solver
     vec<CRef> simp_reason_clause;
     void simpleAnalyze(CRef confl, vec<Lit> &out_learnt, vec<CRef> &reason_clause, bool True_confl);
     ClauseRingBuffer simplifyBuffer;
+
+    // HordeSat Portfolio support
+    bool share_parallel;       // do send clauses for other parallel solvers
+    bool receiveClauses;       // do send clauses for other parallel solvers
+    int share_clause_max_size; // max clause size for sharing
+    uint64_t receivedCls;      // count number of received clauses
+    void (*learnedClsCallback)(const vector<int> &, int glueValue, void *issuer); // callback for clause learning
+    void (*consumeSharedCls)(void *issuer);     // get shared clauses from parallel solving and use them
+    void *issuer;                               // used as the callback parameter
+    int lastDecision;                           // the last decision made by the solver
+    void addLearnedClause(const vec<Lit> &cls); // add a learned clause by hand
+    void diversify(int rank, int size);         // set parameters based on position in set, and set size
+
 
     // in redundant
     bool removed(CRef cr);
@@ -1030,7 +1043,7 @@ inline void Solver::setLearnCallback(void *state, int maxLength, void (*learn)(v
 {
     this->learnCallbackState = state;
     this->learnCallbackLimit = maxLength;
-    this->learnCallbackBuffer.growTo(1 + maxLength);
+    this->learnCallbackBuffer.resize(1 + maxLength);
     this->learnCallback = learn;
 }
 
@@ -1136,15 +1149,34 @@ template <class C> inline void Solver::simplifyLearnt(C &c)
     LCM_successful_tries = beforeSize == c.size() ? LCM_successful_tries : LCM_successful_tries + 1;
 }
 
-template <class V> inline void Solver::shareViaCallback(const V &v)
+template <class V> inline void Solver::shareViaCallback(const V &v, int lbd)
 {
+    if (lbd > core_lbd_cut) return;
+    if (v.size() > share_clause_max_size) return;
+
+    bool filled_buffer = false;
+
     if (learnCallback != 0 && v.size() <= learnCallbackLimit) {
+        learnCallbackBuffer.resize(v.size() + 1);
         for (int i = 0; i < v.size(); i++) {
             Lit lit = v[i];
             learnCallbackBuffer[i] = sign(lit) ? -(var(lit) + 1) : (var(lit) + 1);
         }
         learnCallbackBuffer[v.size()] = 0;
+        filled_buffer = true;
         learnCallback(learnCallbackState, &(learnCallbackBuffer[0]));
+    }
+
+    /* share only limited clauses in parallel solving! */
+    if (share_parallel && learnedClsCallback != 0 && (v.size() < 3 || lbd <= core_lbd_cut)) {
+        learnCallbackBuffer.resize(v.size());
+        if (!filled_buffer) {
+            for (int i = 0; i < v.size(); i++) {
+                Lit lit = v[i];
+                learnCallbackBuffer[i] = sign(lit) ? -(var(lit) + 1) : (var(lit) + 1);
+            }
+        }
+        learnedClsCallback(learnCallbackBuffer, lbd, issuer);
     }
 }
 

@@ -121,6 +121,10 @@ class SimpSolver : public Solver
     int asymm_lits;
     int eliminated_vars;
 
+    // HordeSat Portfolio support
+    void addLearnedClause(const vec<Lit> &cls); // add a learned clause by hand
+    void diversify(int rank, int size);         // set parameters based on position in set, and set size
+
     protected:
     // Helper structures:
     //

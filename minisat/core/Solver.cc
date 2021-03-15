@@ -94,7 +94,7 @@ static IntOption
 opt_ccmin_mode(_cat, "ccmin-mode", "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
 static IntOption
 opt_phase_saving(_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
-static BoolOption opt_rnd_init_act(_cat, "rnd-init", "Randomize the initial activity", false);
+static IntOption opt_init_act(_cat, "rnd-init", "Initial activity is 0:0, 1:random, 2:1000/v, 3:v", 0, IntRange(0, 3));
 static IntOption opt_restart_first(_cat, "rfirst", "The base restart interval", 100, IntRange(1, INT32_MAX));
 static DoubleOption opt_restart_inc(_cat, "rinc", "Restart interval increase factor", 2, DoubleRange(1, false, HUGE_VAL, false));
 static DoubleOption opt_garbage_frac(_cat,
@@ -253,8 +253,8 @@ Solver::Solver()
   , random_seed(opt_random_seed)
   , ccmin_mode(opt_ccmin_mode)
   , phase_saving(opt_phase_saving)
-  , rnd_pol(false)
-  , rnd_init_act(opt_rnd_init_act)
+  , invert_pol(false)
+  , init_act(opt_init_act)
   , garbage_frac(opt_garbage_frac)
   , restart_first(opt_restart_first)
   , restart_inc(opt_restart_inc)
@@ -384,6 +384,15 @@ Solver::Solver()
   , s_propagations(0)
   , nr_lcm_duplicates(0)
   , simplifyBuffer(opt_dup_buffer_size)
+
+  , share_parallel(true)
+  , receiveClauses(true)
+  , share_clause_max_size(64)
+  , receivedCls(0)
+  , learnedClsCallback(NULL)
+  , consumeSharedCls(NULL)
+  , issuer(NULL)
+  , lastDecision(0)
 
   // simplifyAll adjust occasion
   , curSimplify(1)
@@ -758,7 +767,7 @@ bool Solver::simplifyLearnt(vec<CRef> &target_learnts, bool is_tier2)
                     TRACE(std::cout << "c LCM keep (simplified?) clause[" << cr << "]: " << c << std::endl);
 
                     if (saved_size != c.size()) {
-                        shareViaCallback(c); // share via IPASIR?
+                        shareViaCallback(c, c.lbd()); // share via IPASIR?
 
                         // print to proof
                         if (drup_file) {
@@ -900,7 +909,14 @@ Var Solver::newVar(bool sign, bool dvar)
     vardata.push(mkVarData(CRef_Undef, 0));
     oldreasons.push(CRef_Undef);
     activity_CHB.push(0);
-    activity_VSIDS.push(rnd_init_act ? drand(random_seed) * 0.00001 : 0);
+    float new_activity = 0;
+    if (init_act == 1)
+        new_activity = drand(random_seed) * 0.00001;
+    else if (init_act == 2)
+        new_activity = 1000 / v;
+    else if (init_act == 3)
+        new_activity = v;
+    activity_VSIDS.push(new_activity);
     activity_distance.push(0);
 
     picked.push(0);
@@ -913,7 +929,7 @@ Var Solver::newVar(bool sign, bool dvar)
     seen.push(0);
     seen2.push(0);
     seen2.push(0);
-    polarity.push(sign);
+    polarity.push(invert_pol ? !sign : sign);
     decision.push();
     trail.capacity(v + 1);
     old_trail.capacity(v + 1);
@@ -2569,6 +2585,9 @@ lbool Solver::search(int &nof_conflicts)
     freeze_ls_restart_num--;
     bool can_call_ls = true;
 
+    // get clauses from parallel solving, if we want to receive
+    if (consumeSharedCls != NULL && receiveClauses) consumeSharedCls(issuer);
+
     if (starts > state_change_time) {
         /* grow limit after each rephasing */
         state_change_time = state_change_time + state_change_time_inc;
@@ -2598,6 +2617,8 @@ lbool Solver::search(int &nof_conflicts)
         curSimplify = (conflicts / nbconfbeforesimplify) + 1;
         nbconfbeforesimplify += incSimplify;
     }
+
+    if (!okay()) return l_False;
 
     // check whether we want to do inprocessing
     inprocessing();
@@ -2659,9 +2680,6 @@ lbool Solver::search(int &nof_conflicts)
             analyze(confl, learnt_clause, backtrack_level, lbd);
             TRACE(std::cout << "c retrieved learnt clause " << learnt_clause << std::endl);
 
-            // share via IPASIR?
-            shareViaCallback(learnt_clause);
-
             // check chrono backtrack condition
             if ((confl_to_chrono < 0 || confl_to_chrono <= (int64_t)conflicts) && chrono > -1 &&
                 (decisionLevel() - backtrack_level) >= chrono) {
@@ -2684,6 +2702,9 @@ lbool Solver::search(int &nof_conflicts)
                 lbd_queue.push(lbd);
                 global_lbd_sum += (lbd > 50 ? 50 : lbd);
             }
+
+            // share clause with interfaces (ipasir, hordesat)
+            shareViaCallback(learnt_clause, lbd);
 
             if (learnt_clause.size() == 1) {
                 uncheckedEnqueue(learnt_clause[0], 0);
@@ -2841,6 +2862,8 @@ lbool Solver::search(int &nof_conflicts)
                 if (next == lit_Undef)
                     // Model found:
                     return l_True;
+
+                lastDecision = var(next);
             }
 
             // Increase decision level and enqueue 'next'
@@ -2855,6 +2878,74 @@ lbool Solver::search(int &nof_conflicts)
 
     // store minimum of assumptions and current level, to forward assumptions again
     last_used_assumptions = assumptions.size() > decisionLevel() ? decisionLevel() : assumptions.size();
+}
+
+void Solver::addLearnedClause(const vec<Lit> &cls)
+{
+    /* allow to reject clause */
+    if (!receiveClauses) return;
+
+    assert(cls.size() > 0 && "should we really share empty clauses?");
+    // TODO: implement filters here!
+
+    receivedCls++;
+
+    if (cls.size() == 1) {
+        if (value(cls[0]) == l_False) {
+            ok = false;
+        } else {
+            cancelUntil(0);
+            if (value(cls[0]) == l_Undef) uncheckedEnqueue(cls[0], 0);
+        }
+    } else {
+        /* currently, we cannot tell much about the quality of the clause */
+        CRef cr = ca.alloc(cls, true);
+        learnts_local.push(cr);
+        assert((value(cls[0]) != l_False || value(cls[1]) != l_False) && "cannot watch falsified literals");
+        attachClause(cr);
+        claBumpActivity(ca[cr]);
+    }
+}
+
+void Solver::diversify(int rank, int size)
+{
+    /* rank ranges from 0 to size-1 */
+
+    /* keep first 2 configurations as is, and do not receive clause! */
+    if (rank == 0 || (rank == 1 && size > 2)) {
+        receiveClauses = false;
+    }
+    if (rank == 1) {
+        use_ccnr = false;
+        state_change_time = 1000000000;
+    }
+    if (rank < 2) return;
+
+    /* allow many combinations of configurations for large ranks! */
+    if (rank % 3 == 2) invert_pol = true;
+    if (rank % 5 == 2) restart = Restart(0);
+    if (rank % 5 == 3) restart = Restart(1);
+    if (rank % 7 == 3) core_lbd_cut = 4;
+    if (rank % 11 == 4) init_act = 2;
+    if (rank % 11 == 7) init_act = 3;
+    if (rank % 13 == 8) {
+        var_decay_timer = 100000;
+        var_decay_timer_init = 100000;
+    }
+    if (rank % 17 == 4) var_decay = 0.999;
+    if (rank % 19 == 6) {
+        inprocess_next_lim = 2000;
+        inprocess_learnt_level = 1;
+    }
+    if (rank % 19 == 9) {
+        inprocess_next_lim = 3000;
+        inprocess_learnt_level = 2;
+    }
+    if (rank % 23 == 5) chrono = 10;
+    if (rank % 23 == 6) chrono = 5;
+    if (rank % 29 == 6) state_change_time = 1000;
+    if (rank % 29 == 8) state_change_time = 3000;
+    if (rank % 29 == 10) state_change_time = 5000;
 }
 
 
@@ -3015,12 +3106,14 @@ lbool Solver::solve_()
         }
     }
 
-    // toggle back to VSIDS
-    if (!usesVSIDS()) toggle_decision_heuristic(true);
-    int init = VSIDS_props_init_limit;
-    while (status == l_Undef && init > 0 && withinBudget()) status = search(init);
-    // do not use VSIDS now
-    toggle_decision_heuristic(false);
+    // toggle back to VSIDS, in case we run the initialization here
+    if (solves == 1) {
+        if (!usesVSIDS()) toggle_decision_heuristic(true);
+        int init = VSIDS_props_init_limit;
+        while (status == l_Undef && init > 0 && withinBudget()) status = search(init);
+        // do not use VSIDS now
+        toggle_decision_heuristic(false);
+    }
 
     // Search:
     uint64_t curr_props = 0;
