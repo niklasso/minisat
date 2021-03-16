@@ -804,6 +804,7 @@ class Solver
     int ls_best_unsat_num = INT_MAX;
     bool solved_by_ls = false, initial_sls, use_sls_phase = true;
     int max_trail = 0;
+    bool called_initial_sls = false; // indicate, whether we called sls at all
 
 
     // Phases

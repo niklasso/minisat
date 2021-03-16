@@ -191,7 +191,7 @@ static DoubleOption opt_ccnr_state_change_time_inc_inc("SLS",
                                                        DoubleRange(0, true, HUGE_VAL, true));
 static BoolOption opt_ccnr_mediation_used("SLS", "ccnr-mediation", "TBD", false);
 static IntOption opt_ccnr_switch_heristic_mod("SLS", "ccnr-switch-heuristic", "TBD", 500, IntRange(0, INT32_MAX));
-static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", true);
+static BoolOption opt_sls_initial("SLS", "ccnr-initial", "run CCNR right at start", false);
 static IntOption
 opt_sls_var_lim("SLS", "sls-var-lim", "Do not use SLS, if input variables exceed the given value", -1, IntRange(-1, INT32_MAX));
 static IntOption
@@ -2589,6 +2589,9 @@ lbool Solver::search(int &nof_conflicts)
     if (consumeSharedCls != NULL && receiveClauses) consumeSharedCls(issuer);
 
     if (starts > state_change_time) {
+
+        if(!called_initial_sls) call_ls(false);
+
         /* grow limit after each rephasing */
         state_change_time = state_change_time + state_change_time_inc;
         state_change_time_inc = state_change_time_inc *= state_change_time_inc_inc;
@@ -3518,6 +3521,8 @@ void Solver::printStats()
 bool Solver::call_ls(bool use_up_build)
 {
     if (!use_ccnr) return false;
+
+    called_initial_sls = true;
 
     ccnr = CCNR::ls_solver();
     int ls_var_nums = nVars();
