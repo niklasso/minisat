@@ -2588,7 +2588,7 @@ lbool Solver::search(int &nof_conflicts)
     // get clauses from parallel solving, if we want to receive
     if (consumeSharedCls != NULL && receiveClauses) consumeSharedCls(issuer);
 
-    if (starts > state_change_time) {
+    if (solve_starts + starts > state_change_time) {
 
         if(!called_initial_sls) call_ls(false);
 
@@ -2778,7 +2778,7 @@ lbool Solver::search(int &nof_conflicts)
 
         } else {
             // NO CONFLICT
-            if (starts > state_change_time) {
+            if (solve_starts + starts > state_change_time) {
 
                 if (can_call_ls && freeze_ls_restart_num < 1 && mediation_used &&
                     (trail.size() > (int)(conflict_ratio * nVars()) || trail.size() > (int)(percent_ratio * max_trail)) //&& up_time_ratio * search_start_cpu_time > ls_used_time
@@ -3072,6 +3072,7 @@ lbool Solver::solve_()
 
     reset_old_trail();
     solves++;
+    solve_starts = starts;
     TRACE(std::cout << "c start " << solves << " solve call with " << clauses.size() << " clauses and " << nVars()
                     << " variables" << std::endl);
 
