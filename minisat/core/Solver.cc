@@ -1707,47 +1707,49 @@ CRef Solver::propagate()
                 old_trail_top = old_trail[old_trail_qhead];
                 old_reason = oldreasons[var(old_trail_top)];
             }
-            if (p == old_trail_top) {
-                while (old_trail_qhead < old_trail.size() - 1) {
-                    old_trail_qhead++;
-                    old_trail_top = old_trail[old_trail_qhead];
-                    old_reason = oldreasons[var(old_trail_top)];
-                    if (old_reason == CRef_Undef) {
-                        break;
-                    } else if (value(old_trail_top) == l_False) {
-                        const Clause &new_conflict = ca[old_reason];
-                        if (new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
-                            /* We will hit a conflict here, the clause is just not structured correctly yet,
-                               nor watched correctly. */
-                            reset_old_trail();
+            if(old_trail_top != lit_Undef) {
+                if (p == old_trail_top) {
+                    while (old_trail_qhead < old_trail.size() - 1) {
+                        old_trail_qhead++;
+                        old_trail_top = old_trail[old_trail_qhead];
+                        old_reason = oldreasons[var(old_trail_top)];
+                        if (old_reason == CRef_Undef) {
                             break;
+                        } else if (value(old_trail_top) == l_False) {
+                            const Clause &new_conflict = ca[old_reason];
+                            if (new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
+                                /* We will hit a conflict here, the clause is just not structured correctly yet,
+                                nor watched correctly. */
+                                reset_old_trail();
+                                break;
+                            }
+                            confl = old_reason;
+                            used_backup_lits++;
+                            TRACE(std::cout
+                                << "c prop: hit conflict during trail restoring, when trying to propagate literal "
+                                << old_trail_top << " with reason[" << old_reason << "] " << new_conflict << std::endl;);
+                            assert((new_conflict.size() == 2 || new_conflict[0] == old_trail_top) &&
+                                "asserting literal is at position 1");
+                            /* No need to touch watch lists, we will backtrack this level anyways! */
+                            goto propagation_out;
+                        } else if (value(old_trail_top) == l_Undef) {
+                            Clause &new_conflict = ca[old_reason];
+                            if (new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
+                                /* We will use this unit clause, the clause is just not structured correctly yet */
+                                reset_old_trail();
+                                break;
+                            }
+                            used_backup_lits++;
+                            TRACE(std::cout << "c prop: enqueue literal " << old_trail_top << " with reason[" << old_reason
+                                            << "] " << ca[old_reason] << std::endl;);
+                            assert((ca[old_reason].size() == 2 || ca[old_reason][0] == old_trail_top) &&
+                                "asserting literal is at position 1");
+                            uncheckedEnqueue(old_trail_top, decisionLevel(), old_reason);
                         }
-                        confl = old_reason;
-                        used_backup_lits++;
-                        TRACE(std::cout
-                              << "c prop: hit conflict during trail restoring, when trying to propagate literal "
-                              << old_trail_top << " with reason[" << old_reason << "] " << new_conflict << std::endl;);
-                        assert((new_conflict.size() == 2 || new_conflict[0] == old_trail_top) &&
-                               "asserting literal is at position 1");
-                        /* No need to touch watch lists, we will backtrack this level anyways! */
-                        goto propagation_out;
-                    } else if (value(old_trail_top) == l_Undef) {
-                        Clause &new_conflict = ca[old_reason];
-                        if (new_conflict.size() != 2 && new_conflict[0] != old_trail_top) {
-                            /* We will use this unit clause, the clause is just not structured correctly yet */
-                            reset_old_trail();
-                            break;
-                        }
-                        used_backup_lits++;
-                        TRACE(std::cout << "c prop: enqueue literal " << old_trail_top << " with reason[" << old_reason
-                                        << "] " << ca[old_reason] << std::endl;);
-                        assert((ca[old_reason].size() == 2 || ca[old_reason][0] == old_trail_top) &&
-                               "asserting literal is at position 1");
-                        uncheckedEnqueue(old_trail_top, decisionLevel(), old_reason);
                     }
+                } else if (var(p) == var(old_trail_top) || value(old_trail_top) == l_False) {
+                    reset_old_trail();
                 }
-            } else if (var(p) == var(old_trail_top) || value(old_trail_top) == l_False) {
-                reset_old_trail();
             }
         }
         /* end old trail reconstruction */
@@ -2588,7 +2590,7 @@ lbool Solver::search(int &nof_conflicts)
     // get clauses from parallel solving, if we want to receive
     if (consumeSharedCls != NULL && receiveClauses) consumeSharedCls(issuer);
 
-    if (starts > state_change_time) {
+    if (solve_starts + starts > state_change_time) {
 
         if(!called_initial_sls) call_ls(false);
 
@@ -2778,7 +2780,7 @@ lbool Solver::search(int &nof_conflicts)
 
         } else {
             // NO CONFLICT
-            if (starts > state_change_time) {
+            if (solve_starts + starts > state_change_time) {
 
                 if (can_call_ls && freeze_ls_restart_num < 1 && mediation_used &&
                     (trail.size() > (int)(conflict_ratio * nVars()) || trail.size() > (int)(percent_ratio * max_trail)) //&& up_time_ratio * search_start_cpu_time > ls_used_time
@@ -3072,6 +3074,7 @@ lbool Solver::solve_()
 
     reset_old_trail();
     solves++;
+    solve_starts = starts;
     TRACE(std::cout << "c start " << solves << " solve call with " << clauses.size() << " clauses and " << nVars()
                     << " variables" << std::endl);
 
