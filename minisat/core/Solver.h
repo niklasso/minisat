@@ -805,7 +805,7 @@ class Solver
     bool solved_by_ls = false, initial_sls, use_sls_phase = true;
     int max_trail = 0;
     bool called_initial_sls = false; // indicate, whether we called sls at all
-    int solve_starts = 0; // memorize how many restarts have been seen when starting another search
+    int solve_starts = 0;            // memorize how many restarts have been seen when starting another search
 
 
     // Phases

@@ -1707,7 +1707,7 @@ CRef Solver::propagate()
                 old_trail_top = old_trail[old_trail_qhead];
                 old_reason = oldreasons[var(old_trail_top)];
             }
-            if(old_trail_top != lit_Undef) {
+            if (old_trail_top != lit_Undef) {
                 if (p == old_trail_top) {
                     while (old_trail_qhead < old_trail.size() - 1) {
                         old_trail_qhead++;
@@ -1726,10 +1726,10 @@ CRef Solver::propagate()
                             confl = old_reason;
                             used_backup_lits++;
                             TRACE(std::cout
-                                << "c prop: hit conflict during trail restoring, when trying to propagate literal "
-                                << old_trail_top << " with reason[" << old_reason << "] " << new_conflict << std::endl;);
+                                  << "c prop: hit conflict during trail restoring, when trying to propagate literal "
+                                  << old_trail_top << " with reason[" << old_reason << "] " << new_conflict << std::endl;);
                             assert((new_conflict.size() == 2 || new_conflict[0] == old_trail_top) &&
-                                "asserting literal is at position 1");
+                                   "asserting literal is at position 1");
                             /* No need to touch watch lists, we will backtrack this level anyways! */
                             goto propagation_out;
                         } else if (value(old_trail_top) == l_Undef) {
@@ -1740,10 +1740,10 @@ CRef Solver::propagate()
                                 break;
                             }
                             used_backup_lits++;
-                            TRACE(std::cout << "c prop: enqueue literal " << old_trail_top << " with reason[" << old_reason
-                                            << "] " << ca[old_reason] << std::endl;);
+                            TRACE(std::cout << "c prop: enqueue literal " << old_trail_top << " with reason["
+                                            << old_reason << "] " << ca[old_reason] << std::endl;);
                             assert((ca[old_reason].size() == 2 || ca[old_reason][0] == old_trail_top) &&
-                                "asserting literal is at position 1");
+                                   "asserting literal is at position 1");
                             uncheckedEnqueue(old_trail_top, decisionLevel(), old_reason);
                         }
                     }
@@ -2592,7 +2592,7 @@ lbool Solver::search(int &nof_conflicts)
 
     if (solve_starts + starts > state_change_time) {
 
-        if(!called_initial_sls) call_ls(false);
+        if (!called_initial_sls) call_ls(false);
 
         /* grow limit after each rephasing */
         state_change_time = state_change_time + state_change_time_inc;
