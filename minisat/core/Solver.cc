@@ -2582,7 +2582,6 @@ lbool Solver::search(int &nof_conflicts)
 
     // make sure that all unassigned variables are in the heap
     assert(trail.size() + order_heap->size() >= full_heap_size);
-    assert(old_trail.size() == 0 && "When starting a search, we should not have stored literals ready");
 
     freeze_ls_restart_num--;
     bool can_call_ls = true;
