@@ -53,6 +53,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "core/Solver.h"
 #include "mtl/Sort.h"
 
+#include "utils/Options.h"
 #include "utils/System.h"
 #include "utils/ccnr.h"
 

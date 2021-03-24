@@ -62,7 +62,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Alg.h"
 #include "mtl/Heap.h"
 #include "mtl/Vec.h"
-#include "utils/Options.h"
 #include "utils/ccnr.h"
 
 
