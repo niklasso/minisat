@@ -2512,7 +2512,7 @@ void Solver::info_based_rephase()
                 if (usesVSIDS()) {
                     varBumpActivity(i, ccnr.conflict_ct[i + 1] * 100 / ccnr._step);
                 } else {
-                    conflicted[i] += max((long long int)1, ccnr.conflict_ct[i + 1] * 100 / ccnr._step);
+                    conflicted[i] += std::max((long long int)1, ccnr.conflict_ct[i + 1] * 100 / ccnr._step);
                 }
             }
         }
@@ -3617,12 +3617,12 @@ bool Solver::call_ls(bool use_up_build)
         int idx = qhead;
 
         int viewList_sz = t_sz - qhead;
-        vector<Lit> viewList(var_nums + 2);
+        std::vector<Lit> viewList(var_nums + 2);
         for (int i = qhead; i < t_sz; ++i) viewList[i] = trail[i];
 
         int undef_nums = 0;
-        vector<int> undef_vars(var_nums - t_sz + 2);
-        vector<int> idx_undef_vars(var_nums + 1, -1); // undef_vars' idx is not -1
+        std::vector<int> undef_vars(var_nums - t_sz + 2);
+        std::vector<int> idx_undef_vars(var_nums + 1, -1); // undef_vars' idx is not -1
         for (int i = 0; i < var_nums; ++i)
             if (value(i) == l_Undef) {
                 idx_undef_vars[i] = undef_nums;

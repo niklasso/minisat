@@ -1,6 +1,8 @@
 
 #include "ccnr.h"
+
 using namespace CCNR;
+using namespace std;
 
 
 //-------------------
