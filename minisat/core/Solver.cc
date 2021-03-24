@@ -177,6 +177,7 @@ static DoubleOption opt_core_size_lim_inc(_cat,
                                           DoubleRange(1, true, HUGE_VAL, false));
 
 static BoolOption opt_use_ccnr("SLS", "use-ccnr", "Use SLS engine CCNR", true);
+static BoolOption opt_allow_rephasing("SLS", "use-rephasing", "Use polarity rephasing", true);
 static IntOption opt_ccnr_restarts_gap("SLS", "ccnr-restart-gap", "TBD", 300, IntRange(0, INT32_MAX));
 static DoubleOption opt_ccnr_conflict_ratio("SLS", "ccnr-conflict-ratio", "TBD", 0.4, DoubleRange(0, true, 1, true));
 static DoubleOption opt_ccnr_percent_ratio("SLS", "ccnr-percent-ratio", "TBD", 0.9, DoubleRange(0, true, 1, true));
@@ -420,6 +421,7 @@ Solver::Solver()
 
   // for ccnr integration
   , use_ccnr(opt_use_ccnr)
+  , allow_rephasing(opt_allow_rephasing)
   , restarts_gap(opt_ccnr_restarts_gap)
   , conflict_ratio(opt_ccnr_conflict_ratio)
   , percent_ratio(opt_ccnr_percent_ratio)
@@ -2590,7 +2592,7 @@ lbool Solver::search(int &nof_conflicts)
     // get clauses from parallel solving, if we want to receive
     if (consumeSharedCls != NULL && receiveClauses) consumeSharedCls(issuer);
 
-    if (solve_starts + starts > state_change_time) {
+    if (allow_rephasing && solve_starts + starts > state_change_time) {
 
         if (!called_initial_sls) call_ls(false);
 
@@ -3098,6 +3100,9 @@ lbool Solver::solve_()
     }
 
     add_tmp.clear();
+
+    /* disable SLS in case of incremental solving */
+    if (assumptions.size() > 0) use_ccnr = false;
 
     /* allow to disable SLS for larger clauses */
     if ((sls_var_lim != -1 && nVars() > sls_var_lim) || (sls_clause_lim != -1 && nClauses() > sls_clause_lim)) {
