@@ -13,5 +13,5 @@ then
 	TMPDIR=$(readlink -e "${DEFAULT_MERGESAT_TMPDIR:-}")
 fi
 
-# call the solver without a special configuration, proof will be generated
-"$SOLVERDIR"/mergesat "$1" -verb=0 -drup-file="$TMPDIR"/proof.out
+# call the solver and disabling SLS and rephasing, no proof will be generated
+"$SOLVERDIR"/mergesat "$1" -verb=0 -no-use-ccnr -no-use-rephasing -drup-file="$TMPDIR"/proof.out
