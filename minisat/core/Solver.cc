@@ -1016,6 +1016,9 @@ bool Solver::addClause_(vec<Lit> &ps)
         }
     ps.shrink(i - j);
 
+    /* if there are new clauses, we cannot claim that SLS solved the formula anymore */
+    solved_by_ls = false;
+
     if (drup_file && i != j) {
 #ifdef BIN_DRUP
         binDRUP('a', ps, drup_file);
@@ -3101,8 +3104,8 @@ lbool Solver::solve_()
 
     add_tmp.clear();
 
-    /* disable SLS in case of incremental solving */
-    if (assumptions.size() > 0) use_ccnr = false;
+    /* disable a potential SLS solution in case of solving with assumptions */
+    if (assumptions.size() > 0) solved_by_ls = false;
 
     /* allow to disable SLS for larger clauses */
     if ((sls_var_lim != -1 && nVars() > sls_var_lim) || (sls_clause_lim != -1 && nClauses() > sls_clause_lim)) {
