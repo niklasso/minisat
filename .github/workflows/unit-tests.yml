@@ -1,0 +1,36 @@
+name: Run Unit Test on Linux and Mac OS
+
+on: [push]
+
+jobs:
+  Linux:
+
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: Install Packages
+      run: sudo apt-get install zlib1g-dev make cmake picosat
+
+    - uses: actions/checkout@v1
+
+    - name: Run mergesat release unit tests
+      run: make run-tests-r-all
+      
+    - name: Run mergesat debug unit tests
+      run: make run-tests-d-all
+
+  MacOS:
+
+    runs-on: macos-latest
+
+    steps:
+    - name: Install Packages
+      run: brew install libzip
+
+    - uses: actions/checkout@v1
+
+    - name: Run mergesat release unit tests
+      run: make run-tests-r-all
+      
+    - name: Run mergesat debug unit tests
+      run: make run-tests-d-all
