@@ -62,7 +62,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "mtl/Alg.h"
 #include "mtl/Heap.h"
 #include "mtl/Vec.h"
-#include "utils/Options.h"
 #include "utils/ccnr.h"
 
 
@@ -462,7 +461,7 @@ class Solver
     void *termCallbackState;
     int (*termCallback)(void *state);
     void *learnCallbackState;
-    vector<int> learnCallbackBuffer;
+    std::vector<int> learnCallbackBuffer;
     int learnCallbackLimit;
     void (*learnCallback)(void *state, int *clause);
 
@@ -742,7 +741,7 @@ class Solver
     bool receiveClauses;       // do send clauses for other parallel solvers
     int share_clause_max_size; // max clause size for sharing
     uint64_t receivedCls;      // count number of received clauses
-    void (*learnedClsCallback)(const vector<int> &, int glueValue, void *issuer); // callback for clause learning
+    void (*learnedClsCallback)(const std::vector<int> &, int glueValue, void *issuer); // callback for clause learning
     void (*consumeSharedCls)(void *issuer);     // get shared clauses from parallel solving and use them
     void *issuer;                               // used as the callback parameter
     int lastDecision;                           // the last decision made by the solver
@@ -776,7 +775,7 @@ class Solver
     void reset_old_trail();
 
     protected:
-    bool use_ccnr;
+    bool use_ccnr, allow_rephasing;
     //  to avoid the init_soln of two LS too near.
     int restarts_gap;
     //  if trail.size() over c*nVars or p*max_trail, call ls.

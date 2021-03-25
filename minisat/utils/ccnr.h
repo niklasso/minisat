@@ -14,7 +14,7 @@
 // these two h files are for timing under linux
 #include <sys/times.h>
 #include <unistd.h>
-using namespace std;
+
 //---------------------
 
 namespace CCNR
@@ -52,8 +52,8 @@ struct lit {
     bool operator!=(const struct lit &l) const { return !(*this == l); }
 };
 struct variable {
-    vector<lit> literals;
-    vector<int> neighbor_var_nums;
+    std::vector<lit> literals;
+    std::vector<int> neighbor_var_nums;
     long long score;
     long long last_flip_step;
     int unsat_appear;
@@ -61,7 +61,7 @@ struct variable {
     bool is_in_ccd_vars;
 };
 struct clause {
-    vector<lit> literals;
+    std::vector<lit> literals;
     int sat_count;
     int sat_var;
     long long weight;
@@ -107,29 +107,29 @@ class ls_solver
     public:
     ls_solver();
     bool parse_arguments(int argc, char **argv);
-    bool build_instance(string inst);
-    bool local_search(const vector<char> *init_solution = 0);
+    bool build_instance(std::string inst);
+    bool local_search(const std::vector<char> *init_solution = 0);
     void print_solution(bool need_verify = 0);
     void simple_print();
     int get_best_cost() { return _best_found_cost; }
     void run(int argc, char **argv);
     // private:
     // formula
-    string _inst_file;
-    vector<variable> _vars;
-    vector<clause> _clauses;
+    std::string _inst_file;
+    std::vector<variable> _vars;
+    std::vector<clause> _clauses;
     size_t _num_vars;
     size_t _num_clauses;
     int _additional_len;
     // data structure used
-    vector<int> _unsat_clauses;
-    vector<int> _index_in_unsat_clauses;
-    vector<int> _unsat_vars;
-    vector<int> _index_in_unsat_vars;
-    vector<int> _ccd_vars;
+    std::vector<int> _unsat_clauses;
+    std::vector<int> _index_in_unsat_clauses;
+    std::vector<int> _unsat_vars;
+    std::vector<int> _index_in_unsat_vars;
+    std::vector<int> _ccd_vars;
     // solution information
-    vector<char> _solution;
-    vector<char> _best_solution;
+    std::vector<char> _solution;
+    std::vector<char> _best_solution;
     size_t _best_found_cost;
     double _best_cost_time;
     long long _step;
@@ -152,7 +152,7 @@ class ls_solver
     int _avg_clause_weight;
     unsigned long long _delta_total_clause_weight;
     // main functions
-    void initialize(const vector<char> *init_solution = 0);
+    void initialize(const std::vector<char> *init_solution = 0);
     void initialize_variable_datas();
     void clear_prev_data();
     int pick_var();
@@ -170,7 +170,7 @@ class ls_solver
     //--------------------
     int _init_unsat_nums;
     float _prob_p;
-    vector<int> conflict_ct;
+    std::vector<int> conflict_ct;
     // struct tms _start_time;
     // double get_runtime() {
     // 	struct tms stop;

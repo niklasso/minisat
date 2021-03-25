@@ -10,7 +10,6 @@ Copyright (c) 2020, Norbert Manthey
 #include "mtl/Alg.h"
 #include "mtl/Heap.h"
 #include "mtl/Vec.h"
-#include "utils/Options.h"
 #include "utils/System.h"
 
 #include <vector>

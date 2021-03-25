@@ -1,0 +1,18 @@
+name: Build and Test MaxSat Solver
+
+on: [push]
+
+jobs:
+  Linux:
+
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Install Packages
+      run: sudo apt-get install zlib1g-dev make cmake picosat
+
+    - uses: actions/checkout@v1
+
+    - name: maxsat build
+      run: ./tools/ci/maxsat/UWrMaxSat/test-UWrMaxSat.sh
+

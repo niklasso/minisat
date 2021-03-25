@@ -53,6 +53,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "core/Solver.h"
 #include "mtl/Sort.h"
 
+#include "utils/Options.h"
 #include "utils/System.h"
 #include "utils/ccnr.h"
 
@@ -176,6 +177,7 @@ static DoubleOption opt_core_size_lim_inc(_cat,
                                           DoubleRange(1, true, HUGE_VAL, false));
 
 static BoolOption opt_use_ccnr("SLS", "use-ccnr", "Use SLS engine CCNR", true);
+static BoolOption opt_allow_rephasing("SLS", "use-rephasing", "Use polarity rephasing", true);
 static IntOption opt_ccnr_restarts_gap("SLS", "ccnr-restart-gap", "TBD", 300, IntRange(0, INT32_MAX));
 static DoubleOption opt_ccnr_conflict_ratio("SLS", "ccnr-conflict-ratio", "TBD", 0.4, DoubleRange(0, true, 1, true));
 static DoubleOption opt_ccnr_percent_ratio("SLS", "ccnr-percent-ratio", "TBD", 0.9, DoubleRange(0, true, 1, true));
@@ -419,6 +421,7 @@ Solver::Solver()
 
   // for ccnr integration
   , use_ccnr(opt_use_ccnr)
+  , allow_rephasing(opt_allow_rephasing)
   , restarts_gap(opt_ccnr_restarts_gap)
   , conflict_ratio(opt_ccnr_conflict_ratio)
   , percent_ratio(opt_ccnr_percent_ratio)
@@ -2512,7 +2515,7 @@ void Solver::info_based_rephase()
                 if (usesVSIDS()) {
                     varBumpActivity(i, ccnr.conflict_ct[i + 1] * 100 / ccnr._step);
                 } else {
-                    conflicted[i] += max((long long int)1, ccnr.conflict_ct[i + 1] * 100 / ccnr._step);
+                    conflicted[i] += std::max((long long int)1, ccnr.conflict_ct[i + 1] * 100 / ccnr._step);
                 }
             }
         }
@@ -2589,7 +2592,7 @@ lbool Solver::search(int &nof_conflicts)
     // get clauses from parallel solving, if we want to receive
     if (consumeSharedCls != NULL && receiveClauses) consumeSharedCls(issuer);
 
-    if (solve_starts + starts > state_change_time) {
+    if (allow_rephasing && solve_starts + starts > state_change_time) {
 
         if (!called_initial_sls) call_ls(false);
 
@@ -3097,6 +3100,9 @@ lbool Solver::solve_()
     }
 
     add_tmp.clear();
+
+    /* disable SLS in case of incremental solving */
+    if (assumptions.size() > 0) use_ccnr = false;
 
     /* allow to disable SLS for larger clauses */
     if ((sls_var_lim != -1 && nVars() > sls_var_lim) || (sls_clause_lim != -1 && nClauses() > sls_clause_lim)) {
@@ -3617,12 +3623,12 @@ bool Solver::call_ls(bool use_up_build)
         int idx = qhead;
 
         int viewList_sz = t_sz - qhead;
-        vector<Lit> viewList(var_nums + 2);
+        std::vector<Lit> viewList(var_nums + 2);
         for (int i = qhead; i < t_sz; ++i) viewList[i] = trail[i];
 
         int undef_nums = 0;
-        vector<int> undef_vars(var_nums - t_sz + 2);
-        vector<int> idx_undef_vars(var_nums + 1, -1); // undef_vars' idx is not -1
+        std::vector<int> undef_vars(var_nums - t_sz + 2);
+        std::vector<int> idx_undef_vars(var_nums + 1, -1); // undef_vars' idx is not -1
         for (int i = 0; i < var_nums; ++i)
             if (value(i) == l_Undef) {
                 idx_undef_vars[i] = undef_nums;
