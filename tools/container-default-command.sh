@@ -26,21 +26,6 @@ then
 fi
 
 
-# In case we cannot unzip the file ourselves, try a tool
-if [[ "${INPUT_CNF}" == *".xz" ]];
-then
-    BASE_INPUT=$(basename "$INPUT_CNF" .xz)
-    cp "$INPUT_CNF" /tmp/
-    unxz /tmp/"${BASE_INPUT}.xz"
-    INPUT_CNF=/tmp/"$BASE_INPUT"
-elif [[ "${INPUT_CNF}" == *".bz2" ]];
-then
-    BASE_INPUT=$(basename "$INPUT_CNF" .bz2)
-    cp "$INPUT_CNF" /tmp/
-    bunzip2 /tmp/"${BASE_INPUT}.bz2"
-    INPUT_CNF=/tmp/"$BASE_INPUT"
-fi
-
 # Final check wrt input file
 if [ ! -r "$INPUT_CNF" ]
 then
