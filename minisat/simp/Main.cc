@@ -134,6 +134,11 @@ int main(int argc, char **argv)
         StringOption drup_file("MAIN", "drup-file", "DRUP UNSAT proof ouput file.", "");
         StringOption pcs_file("MAIN", "pcs-file", "Print solver parameter configuration to this file.", "");
 
+        IntOption opt_diversify_rank("MAIN", "diversify-rank", "Select a diversification rank to quickly test another configuration",
+                                     INT32_MAX, IntRange(-1, INT32_MAX));
+        IntOption opt_diversify_size("MAIN", "diversify-size", "Select a diversification size to quickly test another configuration",
+                                     32, IntRange(1, INT32_MAX));
+
         parseOptions(argc, argv, true);
 
         if (!pcs_file.is_empty()) print_pcs_file(pcs_file);
@@ -196,6 +201,12 @@ int main(int argc, char **argv)
         if (S.verbosity > 0) {
             printf("c ============================[ Problem Statistics ]=============================\n");
             printf("c |                                                                             |\n");
+        }
+
+        if (opt_diversify_rank >= 0) {
+            printf("c |  Diversify with rank:  %12d size:  %12d                     |\n",
+                   opt_diversify_rank % opt_diversify_size, (int)opt_diversify_size);
+            S.diversify(opt_diversify_rank % opt_diversify_size, opt_diversify_size);
         }
 
         parse_DIMACS(in, S);
