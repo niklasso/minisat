@@ -10,6 +10,7 @@ TESTFUZZ=${RUNFUZZ:-1}
 TESTSTAREXEC=${RUNSTAREXEC:-1}
 TESTOPENWBO=${RUNOPENWBO:-1}
 TESTPIASIR=${RUNIPASIR:-1}
+TESTDIVERSIFY=${RUNDIVERSIFY:-0}
 
 IPASIR_TIMEOUT=${IPASIR_TIMEOUT:-3600}
 
@@ -34,9 +35,23 @@ if [ $TESTFUZZ -eq 1 ]; then
     ./prepare.sh
 
     # Perform a basic run, and forward its exit code
-    echo "Solve and check 100 formulas with a 5s timeout"
+    echo "Solve and check $FUZZ_ROUNDS formulas with a 5s timeout"
     ./fuzz-drat.sh $FUZZ_ROUNDS 5 || STATUS=$?
 
+    echo "Fuzz diversity rank configurations ..."
+    ./fuzz-check-configurations.sh || STATUS=$?
+
+    popd
+fi
+
+if [ $TESTDIVERSIFY -eq 1 ]; then
+    # Enter checker repository
+    pushd tools/checker
+
+    # Checkout and build required tools
+    ./prepare.sh
+
+    # Perform a basic run, and forward its exit code
     echo "Fuzz some pre-defined configurations ..."
     ./fuzz-check-configurations.sh || STATUS=$?
 
