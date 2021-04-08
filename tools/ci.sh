@@ -46,7 +46,9 @@ test_fuzzing ()
 }
 
 if [ $TESTFUZZ -eq 1 ]; then
+    echo "[$SECONDS s] start fuzzing"
     test_fuzzing
+    echo "[$SECONDS s] end fuzzing"
 fi
 
 test_diversify ()
@@ -65,7 +67,9 @@ test_diversify ()
 }
 
 if [ $TESTDIVERSIFY -eq 1 ]; then
+    echo "[$SECONDS s] start diverisfy testing"
     test_diversify
+    echo "[$SECONDS s] end diverisfy testing"
 fi
 
 # locate release library
@@ -106,7 +110,9 @@ test_starexec ()
 }
 
 if [ $TESTSTAREXEC -eq 1 ]; then
+    echo "[$SECONDS s] start starexec testing"
     test_starexec
+    echo "[$SECONDS s] end startexec testing"
 fi
 
 test_openwbo() {
@@ -150,7 +156,9 @@ test_openwbo() {
 
 # test openwbo with mergesat backend
 if [ $TESTOPENWBO -eq 1 ]; then
+    echo "[$SECONDS s] start openwbo testing"
     test_openwbo
+    echo "[$SECONDS s] end openwbo testing"
 fi
 
 test_ipasir() {
@@ -265,7 +273,9 @@ test_ipasir() {
 
 # test ipasir with mergesat backend
 if [ $TESTPIASIR -eq 1 ]; then
+    echo "[$SECONDS s] start ipasir testing"
     test_ipasir
+    echo "[$SECONDS s] end ipasir testing"
 fi
 
 # Forward exit status from fuzzing
