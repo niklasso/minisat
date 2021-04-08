@@ -27,7 +27,8 @@ CHECKERDIR=$(readlink -e tools/checker)
 
 STATUS=0
 
-if [ $TESTFUZZ -eq 1 ]; then
+test_fuzzing ()
+{
     # Enter checker repository
     pushd tools/checker
 
@@ -42,9 +43,14 @@ if [ $TESTFUZZ -eq 1 ]; then
     ./fuzz-check-configurations.sh || STATUS=$?
 
     popd
+}
+
+if [ $TESTFUZZ -eq 1 ]; then
+    test_fuzzing
 fi
 
-if [ $TESTDIVERSIFY -eq 1 ]; then
+test_diversify ()
+{
     # Enter checker repository
     pushd tools/checker
 
@@ -56,6 +62,10 @@ if [ $TESTDIVERSIFY -eq 1 ]; then
     ./fuzz-check-configurations.sh || STATUS=$?
 
     popd
+}
+
+if [ $TESTDIVERSIFY -eq 1 ]; then
+    test_diversify
 fi
 
 # locate release library
@@ -69,7 +79,9 @@ STATIC_LIB=$(readlink -e build/release/lib/libmergesat.a)
 MERGEZIP=$(ls MergeSAT*.zip | sort -V | tail -n 1)
 MERGEZIP=$(readlink -e $MERGEZIP)
 
-if [ $TESTSTAREXEC -eq 1 ]; then
+test_starexec ()
+{
+
     [ $CLEANUP -eq 0 ] || trap 'rm -rf $TMPD' EXIT
     TMPD=$(mktemp -d)
     cp "$MERGEZIP" "$TMPD"
@@ -91,6 +103,10 @@ if [ $TESTSTAREXEC -eq 1 ]; then
     done
     # finish starexec fuzzing
     popd
+}
+
+if [ $TESTSTAREXEC -eq 1 ]; then
+    test_starexec
 fi
 
 test_openwbo() {
