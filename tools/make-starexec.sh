@@ -118,6 +118,10 @@ then
 	exit 1
 fi
 
+GIT_DETAILED_VERSION="$(git describe)"
+[ -n "$GIT_DETAILED_VERSION" ] && GIT_DETAILED_VERSION="-${GIT_DETAILED_VERSION}"
+ZIP_NAME="MergeSAT${GIT_DETAILED_VERSION}.zip"
+
 RISSOPT=""
 SPARROWOPT=""
 # do we want to package Riss(for Coprocessor) or Sparrow as well?
@@ -164,8 +168,8 @@ popd
 echo "Note, sub-packages might come with different licenses!" > LICENSE
 
 # compress
-zip -r -y -9 MergeSAT.zip *
+zip -r -y -9 "$ZIP_NAME" *
 
 # jump back and move MergeSAT.zip here
 popd
-mv "$TMPD"/MergeSAT.zip .
+mv "$TMPD"/"$ZIP_NAME" .

@@ -10,6 +10,7 @@ TESTFUZZ=${RUNFUZZ:-1}
 TESTSTAREXEC=${RUNSTAREXEC:-1}
 TESTOPENWBO=${RUNOPENWBO:-1}
 TESTPIASIR=${RUNIPASIR:-1}
+TESTDIVERSIFY=${RUNDIVERSIFY:-0}
 
 IPASIR_TIMEOUT=${IPASIR_TIMEOUT:-3600}
 
@@ -26,7 +27,8 @@ CHECKERDIR=$(readlink -e tools/checker)
 
 STATUS=0
 
-if [ $TESTFUZZ -eq 1 ]; then
+test_fuzzing ()
+{
     # Enter checker repository
     pushd tools/checker
 
@@ -34,13 +36,40 @@ if [ $TESTFUZZ -eq 1 ]; then
     ./prepare.sh
 
     # Perform a basic run, and forward its exit code
-    echo "Solve and check 100 formulas with a 5s timeout"
+    echo "Solve and check $FUZZ_ROUNDS formulas with a 5s timeout"
     ./fuzz-drat.sh $FUZZ_ROUNDS 5 || STATUS=$?
 
+    echo "Fuzz diversity rank configurations ..."
+    ./fuzz-check-configurations.sh || STATUS=$?
+
+    popd
+}
+
+if [ $TESTFUZZ -eq 1 ]; then
+    echo "[$SECONDS s] start fuzzing"
+    test_fuzzing
+    echo "[$SECONDS s] end fuzzing"
+fi
+
+test_diversify ()
+{
+    # Enter checker repository
+    pushd tools/checker
+
+    # Checkout and build required tools
+    ./prepare.sh
+
+    # Perform a basic run, and forward its exit code
     echo "Fuzz some pre-defined configurations ..."
     ./fuzz-check-configurations.sh || STATUS=$?
 
     popd
+}
+
+if [ $TESTDIVERSIFY -eq 1 ]; then
+    echo "[$SECONDS s] start diverisfy testing"
+    test_diversify
+    echo "[$SECONDS s] end diverisfy testing"
 fi
 
 # locate release library
@@ -54,7 +83,9 @@ STATIC_LIB=$(readlink -e build/release/lib/libmergesat.a)
 MERGEZIP=$(ls MergeSAT*.zip | sort -V | tail -n 1)
 MERGEZIP=$(readlink -e $MERGEZIP)
 
-if [ $TESTSTAREXEC -eq 1 ]; then
+test_starexec ()
+{
+
     [ $CLEANUP -eq 0 ] || trap 'rm -rf $TMPD' EXIT
     TMPD=$(mktemp -d)
     cp "$MERGEZIP" "$TMPD"
@@ -76,6 +107,12 @@ if [ $TESTSTAREXEC -eq 1 ]; then
     done
     # finish starexec fuzzing
     popd
+}
+
+if [ $TESTSTAREXEC -eq 1 ]; then
+    echo "[$SECONDS s] start starexec testing"
+    test_starexec
+    echo "[$SECONDS s] end startexec testing"
 fi
 
 test_openwbo() {
@@ -119,7 +156,9 @@ test_openwbo() {
 
 # test openwbo with mergesat backend
 if [ $TESTOPENWBO -eq 1 ]; then
+    echo "[$SECONDS s] start openwbo testing"
     test_openwbo
+    echo "[$SECONDS s] end openwbo testing"
 fi
 
 test_ipasir() {
@@ -234,7 +273,9 @@ test_ipasir() {
 
 # test ipasir with mergesat backend
 if [ $TESTPIASIR -eq 1 ]; then
+    echo "[$SECONDS s] start ipasir testing"
     test_ipasir
+    echo "[$SECONDS s] end ipasir testing"
 fi
 
 # Forward exit status from fuzzing

@@ -1,0 +1,23 @@
+name: Check diversity configurations
+
+on: [push]
+
+jobs:
+  Linux:
+
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Install Packages
+      run: sudo apt-get install zlib1g-dev make cmake picosat
+
+    - uses: actions/checkout@v1
+
+    - name: run CI script
+      env:
+        RUNDIVERSIFY: 1
+        RUNFUZZ: 0
+        RUNSTAREXEC: 0
+        RUNIPASIR: 0
+        RUNOPENWBO: 0
+      run: ./tools/ci.sh

@@ -916,7 +916,7 @@ Var Solver::newVar(bool sign, bool dvar)
     if (init_act == 1)
         new_activity = drand(random_seed) * 0.00001;
     else if (init_act == 2)
-        new_activity = 1000 / v;
+        new_activity = 1000 / (v + 1);
     else if (init_act == 3)
         new_activity = v;
     activity_VSIDS.push(new_activity);
