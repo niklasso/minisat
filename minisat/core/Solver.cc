@@ -3501,7 +3501,6 @@ void Solver::reset_old_trail()
 void Solver::printStats()
 {
     double cpu_time = cpuTime();
-    double mem_used = memUsedPeak();
     printf("c restarts              : %" PRIu64 "\n", starts);
     printf("c conflicts             : %-12" PRIu64 "   (%.0f /sec)\n", conflicts, conflicts / cpu_time);
     printf("c decisions             : %-12" PRIu64 "   (%4.2f %% random) (%.0f /sec)\n", decisions,
@@ -3525,7 +3524,6 @@ void Solver::printStats()
     printf("c Stats:                : %lf solve, %lu steps, %lf simp, %lu steps, %d var, budget: %d\n", statistics.solveSeconds,
            statistics.solveSteps, statistics.simpSeconds, statistics.simpSteps, nVars(), withinBudget());
     printf("c backup trail: stored: %lu used successfully: %lu\n", backuped_trail_lits, used_backup_lits);
-    if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
     printf("c CPU time              : %g s\n", cpu_time);
 }
 

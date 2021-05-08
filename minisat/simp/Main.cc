@@ -47,7 +47,13 @@ using namespace MERGESAT_NSPACE;
 //=================================================================================================
 
 
-void printStats(Solver &solver) { solver.printStats(); }
+void printStats(Solver &solver)
+{
+    solver.printStats();
+    double mem_used = memUsedPeak();
+    /* access memory access functions as part of CLI files only */
+    if (mem_used != 0) printf("c Memory used           : %.2f MB\n", mem_used);
+}
 
 
 static Solver *solver;
