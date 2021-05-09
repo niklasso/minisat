@@ -51,6 +51,7 @@ template <class T> class RegionAllocator
     uint32_t sz;
     uint32_t cap;
     uint32_t wasted_;
+    AccessCounter &counter;
 
     void capacity(uint32_t min_cap);
 
@@ -60,7 +61,8 @@ template <class T> class RegionAllocator
     enum { Ref_Undef = UINT32_MAX };
     enum { Unit_Size = sizeof(uint32_t) };
 
-    explicit RegionAllocator(uint32_t start_cap = 1024 * 1024) : memory(NULL), sz(0), cap(0), wasted_(0)
+    explicit RegionAllocator(AccessCounter &_counter, uint32_t start_cap = 1024 * 1024)
+      : memory(NULL), sz(0), cap(0), wasted_(0), counter(_counter)
     {
         capacity(start_cap);
     }
@@ -80,11 +82,13 @@ template <class T> class RegionAllocator
     T &operator[](Ref r)
     {
         assert(r >= 0 && r < sz);
+        counter.c();
         return memory[r];
     }
     const T &operator[](Ref r) const
     {
         assert(r >= 0 && r < sz);
+        counter.c();
         return memory[r];
     }
 
@@ -115,6 +119,8 @@ template <class T> class RegionAllocator
         memory = NULL;
         sz = cap = wasted_ = 0;
     }
+
+    AccessCounter &get_counter() { return counter; }
 };
 
 template <class T> void RegionAllocator<T>::capacity(uint32_t min_cap)

@@ -452,6 +452,7 @@ class Solver
 
     uint64_t next_T2_reduce, next_L_reduce;
 
+    AccessCounter counter_access; // count stats
     ClauseAllocator ca;
 
     int64_t confl_to_chrono;

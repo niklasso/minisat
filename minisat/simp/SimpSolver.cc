@@ -96,7 +96,7 @@ SimpSolver::SimpSolver()
   , eliminated_vars(0)
   , elimorder(1)
   , use_simplification(true)
-  , occurs(ClauseDeleted(ca))
+  , occurs(ClauseDeleted(ca), counter_access)
   , elim_heap(ElimLt(n_occ))
   , bwdsub_assigns(0)
   , n_touched(0)
@@ -927,7 +927,7 @@ void SimpSolver::garbageCollect()
 {
     // Initialize the next region to a size corresponding to the estimated utilization degree. This
     // is not precise but should avoid some unnecessary reallocations for the new region:
-    ClauseAllocator to(ca.size() - ca.wasted());
+    ClauseAllocator to(counter_access, ca.size() - ca.wasted());
 
     to.extra_clause_field = ca.extra_clause_field; // NOTE: this is important to keep (or lose) the extra fields.
     relocAll(to);

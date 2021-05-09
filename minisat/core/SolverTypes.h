@@ -422,8 +422,11 @@ class ClauseAllocator : public RegionAllocator<uint32_t>
     public:
     bool extra_clause_field;
 
-    ClauseAllocator(uint32_t start_cap) : RegionAllocator<uint32_t>(start_cap), extra_clause_field(false) {}
-    ClauseAllocator() : extra_clause_field(false) {}
+    ClauseAllocator(AccessCounter &_counter, uint32_t start_cap)
+      : RegionAllocator<uint32_t>(_counter, start_cap), extra_clause_field(false)
+    {
+    }
+    ClauseAllocator(AccessCounter &_counter) : RegionAllocator<uint32_t>(_counter), extra_clause_field(false) {}
 
     void moveTo(ClauseAllocator &to)
     {
@@ -515,8 +518,10 @@ template <class Idx, class Vec, class Deleted> class OccLists
     vec<Idx> dirties;
     Deleted deleted;
 
+    AccessCounter &counter;
+
     public:
-    OccLists(const Deleted &d) : deleted(d) {}
+    OccLists(const Deleted &d, AccessCounter &_counter) : deleted(d), counter(_counter) {}
 
     void init(const Idx &idx)
     {
@@ -524,7 +529,11 @@ template <class Idx, class Vec, class Deleted> class OccLists
         dirty.growTo(toInt(idx) + 1, 0);
     }
     // Vec&  operator[](const Idx& idx){ return occs[toInt(idx)]; }
-    Vec &operator[](const Idx &idx) { return occs[toInt(idx)]; }
+    Vec &operator[](const Idx &idx)
+    {
+        counter.o();
+        return occs[toInt(idx)];
+    }
     Vec &lookup(const Idx &idx)
     {
         if (dirty[toInt(idx)]) clean(idx);
