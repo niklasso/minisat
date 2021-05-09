@@ -27,6 +27,21 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 namespace MERGESAT_NSPACE
 {
 
+class AccessCounter
+{
+    uint64_t clause_access, occurrence_access;
+
+    public:
+    AccessCounter() : clause_access(0), occurrence_access(0) {}
+
+    void o() { occurrence_access++; }
+    void c() { clause_access++; }
+
+    uint64_t occurrence() { return occurrence_access; }
+    uint64_t clause() { return clause_access; }
+    uint64_t sum() { return clause_access + occurrence_access; }
+};
+
 //=================================================================================================
 // Simple Region-based memory allocator:
 
