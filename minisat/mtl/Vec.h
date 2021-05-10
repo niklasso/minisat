@@ -138,6 +138,17 @@ template <class T> class vec
         cap = 0;
     }
 
+    void swap(vec<T> &dest)
+    {
+        T *_data = dest.data;
+        int _sz = dest.sz;
+        int _cap = dest.cap;
+        moveTo(dest);
+        this->data = _data;
+        this->sz = _sz;
+        this->cap = _cap;
+    }
+
     /// reverse the order of the literals in the clause. take care when the clause is currently watched!
     void reverse()
     {
