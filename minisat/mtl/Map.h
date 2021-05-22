@@ -79,8 +79,9 @@ template <class K, class D, class H = Hash<K>, class E = Equal<K>> class Map
     int size;
 
     // Don't allow copying (error prone):
-    Map<K, D, H, E> &operator=(Map<K, D, H, E> &other) { assert(0); }
-    Map(Map<K, D, H, E> &other) { assert(0); }
+    Map<K, D, H, E> &operator=(Map<K, D, H, E> &other) = delete;
+    Map(Map<K, D, H, E> &other) = delete;
+    Map(Map<K, D, H, E> &&other) = delete;
 
     bool checkCap(int new_size) const { return new_size > cap; }
 
