@@ -106,6 +106,11 @@ class Option
         getOptionList().push(this);
     }
 
+    // Don't allow copying (error prone):
+    Option &operator=(Option &other) = delete;
+    Option(const Option &other) = delete;
+    Option(Option &&other) = delete;
+
     public:
     virtual ~Option() {}
 
