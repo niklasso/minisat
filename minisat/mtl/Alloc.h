@@ -37,9 +37,9 @@ class AccessCounter
     void o() { occurrence_access++; }
     void c() { clause_access++; }
 
-    uint64_t occurrence() { return occurrence_access; }
-    uint64_t clause() { return clause_access; }
-    uint64_t sum() { return clause_access + occurrence_access; }
+    uint64_t occurrence() const { return occurrence_access; }
+    uint64_t clause() const { return clause_access; }
+    uint64_t sum() const { return clause_access + occurrence_access; }
 };
 
 //=================================================================================================

@@ -240,6 +240,7 @@ int main(int argc, char **argv)
         double simplified_time = cpuTime();
         if (S.verbosity > 0) {
             printf("c |  Simplification time:  %12.2f s                                       |\n", simplified_time - parsed_time);
+            printf("c |  Simplification steps: %12ld                                         |\n", S.counter_sum());
             printf("c |                                                                             |\n");
         }
 
