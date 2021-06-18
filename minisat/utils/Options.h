@@ -61,6 +61,7 @@ class Option
     const char *description;
     const char *category;
     const char *type_name;
+    bool tunable;
 
     Option *dependOnNonDefaultOf; // option that activates the current option
 
@@ -92,13 +93,14 @@ class Option
            const char *desc_,
            const char *cate_,
            const char *type_,
-           bool tunable = false,
+           bool _tunable = true,
            Option *dependOn = 0)
       : // push to this list, if present!
       name(name_)
       , description(desc_)
       , category(cate_)
       , type_name(type_)
+      , tunable(_tunable)
       , dependOnNonDefaultOf(dependOn)
     {
         getOptionList().push(this);
@@ -140,7 +142,7 @@ class Option
     /// print the option (besides debug, can be overwritten by specific types, useful for strings)
     virtual bool wouldPrintOption() const
     {
-        return description != 0 && 0 == strstr(description, "#NoAutoT") && 0 == strstr(category, "#NoAutoT");
+        return tunable && description != 0 && 0 == strstr(description, "#NoAutoT") && 0 == strstr(category, "#NoAutoT");
     }
 
     void printOptionsDependencies(FILE *pcsFile, int granularity)
@@ -228,7 +230,7 @@ class DoubleOption : public Option
                  const char *d,
                  double def = double(),
                  DoubleRange r = DoubleRange(-HUGE_VAL, false, HUGE_VAL, false),
-                 bool tunable = false,
+                 bool tunable = true,
                  Option *dependOn = 0)
       : Option(n, d, c, "<double>", tunable, dependOn), range(r), value(def), defaultValue(def)
     {
@@ -379,7 +381,7 @@ class IntOption : public Option
               const char *d,
               int32_t def = int32_t(),
               IntRange r = IntRange(INT32_MIN, INT32_MAX),
-              bool tunable = false,
+              bool tunable = true,
               Option *dependOn = 0)
       : Option(n, d, c, "<int32>", tunable, dependOn), range(r), value(def), defaultValue(def)
     {
@@ -593,7 +595,7 @@ class Int64Option : public Option
                 const char *d,
                 int64_t def = int64_t(),
                 Int64Range r = Int64Range(INT64_MIN, INT64_MAX),
-                bool tunable = false,
+                bool tunable = true,
                 Option *dependOn = 0)
       : Option(n, d, c, "<int64>", tunable, dependOn), range(r), value(def), defaultValue(def)
     {
@@ -937,7 +939,7 @@ class BoolOption : public Option
     bool defaultValue;
 
     public:
-    BoolOption(const char *c, const char *n, const char *d, bool v, bool tunable = false, Option *dependOn = 0)
+    BoolOption(const char *c, const char *n, const char *d, bool v, bool tunable = true, Option *dependOn = 0)
       : Option(n, d, c, "<bool>", tunable, dependOn), value(v), defaultValue(v)
     {
     }
