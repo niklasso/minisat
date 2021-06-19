@@ -161,8 +161,8 @@ static IntOption opt_inprocess_learnt_level(_cat,
                                             "Which clauses to consider for inprocessing (1=core only, 3=all learnts)",
                                             2,
                                             IntRange(1, INT32_MAX));
-static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false);
-static IntOption opt_checkProofOnline(_cat, "check-proof", "Check proof during run time", 0, IntRange(0, 10));
+static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false, false);
+static IntOption opt_checkProofOnline(_cat, "check-proof", "Check proof during run time", 0, IntRange(0, 10), false);
 static BoolOption
 opt_use_backuped_trail(_cat, "use-backup-trail", "Store trail during backtracking, and use it during propagation", true);
 static IntOption opt_core_size_lim(_cat,
