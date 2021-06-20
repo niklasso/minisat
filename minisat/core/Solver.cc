@@ -3556,6 +3556,8 @@ bool Solver::call_ls(bool use_up_build)
 
     ls_cls_nums += assumptions.size();
 
+    if (nVars() == 0 || ls_cls_nums == 0) return false;
+
     ccnr._num_vars = ls_var_nums;
     ccnr._num_clauses = ls_cls_nums;
     ccnr._max_mems = ls_mems_num;
