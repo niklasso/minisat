@@ -137,8 +137,8 @@ int main(int argc, char **argv)
         IntOption cpu_lim("MAIN", "cpu-lim", "Limit on CPU time allowed in seconds.\n", INT32_MAX, IntRange(0, INT32_MAX), false);
         IntOption mem_lim("MAIN", "mem-lim", "Limit on memory usage in megabytes.\n", INT32_MAX, IntRange(0, INT32_MAX), false);
         BoolOption drup("MAIN", "drup", "Generate DRUP UNSAT proof.", false, false);
-        StringOption drup_file("MAIN", "drup-file", "DRUP UNSAT proof ouput file.", "");
-        StringOption pcs_file("MAIN", "pcs-file", "Print solver parameter configuration to this file.", "");
+        StringOption drup_file("MAIN", "drup-file", "DRUP UNSAT proof ouput file.", "", false);
+        StringOption pcs_file("MAIN", "pcs-file", "Print solver parameter configuration to this file.", "", false);
 
         IntOption opt_diversify_rank("MAIN", "diversify-rank", "Select a diversification rank to quickly test another configuration",
                                      0, IntRange(-1, INT32_MAX));
@@ -240,6 +240,7 @@ int main(int argc, char **argv)
         double simplified_time = cpuTime();
         if (S.verbosity > 0) {
             printf("c |  Simplification time:  %12.2f s                                       |\n", simplified_time - parsed_time);
+            printf("c |  Simplification steps: %12ld                                         |\n", S.counter_sum());
             printf("c |                                                                             |\n");
         }
 

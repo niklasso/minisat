@@ -161,8 +161,8 @@ static IntOption opt_inprocess_learnt_level(_cat,
                                             "Which clauses to consider for inprocessing (1=core only, 3=all learnts)",
                                             2,
                                             IntRange(1, INT32_MAX));
-static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false);
-static IntOption opt_checkProofOnline(_cat, "check-proof", "Check proof during run time", 0, IntRange(0, 10));
+static BoolOption opt_check_sat(_cat, "check-sat", "Store duplicate of formula and check SAT answers", false, false);
+static IntOption opt_checkProofOnline(_cat, "check-proof", "Check proof during run time", 0, IntRange(0, 10), false);
 static BoolOption
 opt_use_backuped_trail(_cat, "use-backup-trail", "Store trail during backtracking, and use it during propagation", true);
 static IntOption opt_core_size_lim(_cat,
@@ -174,7 +174,7 @@ static DoubleOption opt_core_size_lim_inc(_cat,
                                           "core-size-lim-inc",
                                           "Percent to increase cycles between core clause reductions",
                                           0.1,
-                                          DoubleRange(1, true, HUGE_VAL, false));
+                                          DoubleRange(0.1, true, HUGE_VAL, false));
 
 static BoolOption opt_use_ccnr("SLS", "use-ccnr", "Use SLS engine CCNR", true);
 static BoolOption opt_allow_rephasing("SLS", "use-rephasing", "Use polarity rephasing", true);
@@ -310,8 +310,8 @@ Solver::Solver()
   , ok(true)
   , cla_inc(1)
   , var_inc(1)
-  , watches_bin(WatcherDeleted(ca))
-  , watches(WatcherDeleted(ca))
+  , watches_bin(WatcherDeleted(ca), counter_access)
+  , watches(WatcherDeleted(ca), counter_access)
   , qhead(0)
   , use_backuped_trail(opt_use_backuped_trail)
   , old_trail_qhead(0)
@@ -338,6 +338,10 @@ Solver::Solver()
   , lbd_queue(50)
   , next_T2_reduce(10000)
   , next_L_reduce(15000)
+
+  , counter_access()
+  , ca(counter_access, (uint32_t)(1024 * 1024))
+
   , confl_to_chrono(opt_conf_to_chrono)
   , chrono(opt_chrono)
 
@@ -3479,7 +3483,7 @@ void Solver::garbageCollect()
 {
     // Initialize the next region to a size corresponding to the estimated utilization degree. This
     // is not precise but should avoid some unnecessary reallocations for the new region:
-    ClauseAllocator to(ca.size() - ca.wasted());
+    ClauseAllocator to(counter_access, ca.size() - ca.wasted());
 
     relocAll(to);
     if (verbosity >= 2)
@@ -3524,6 +3528,8 @@ void Solver::printStats()
     printf("c Stats:                : %lf solve, %lu steps, %lf simp, %lu steps, %d var, budget: %d\n", statistics.solveSeconds,
            statistics.solveSteps, statistics.simpSeconds, statistics.simpSteps, nVars(), withinBudget());
     printf("c backup trail: stored: %lu used successfully: %lu\n", backuped_trail_lits, used_backup_lits);
+    printf("c accesses:               clauses: %lu occurrences: %lu sum: %lu\n", counter_access.clause(),
+           counter_access.occurrence(), counter_access.sum());
     printf("c CPU time              : %g s\n", cpu_time);
 }
 

@@ -34,8 +34,9 @@ class OnlineProofChecker
 {
     public:
     protected:
-    bool ok;          // indicate whether an empty clause has been in the input!
-    ProofStyle proof; // current format
+    bool ok;                      // indicate whether an empty clause has been in the input!
+    ProofStyle proof;             // current format
+    AccessCounter counter_access; // count stats
     ClauseAllocator ca;
     vec<CRef> clauses;
     vec<Lit> unitClauses; // store how many unit clauses have been seen already for a given literal (simply count per literal, use for propagation initialization!)
@@ -105,7 +106,7 @@ class OnlineProofChecker
 };
 
 inline OnlineProofChecker::OnlineProofChecker(ProofStyle proofStyle)
-  : ok(true), proof(proofStyle), watches(WatcherDeleted(ca)), qhead(0), verbose(10)
+  : ok(true), proof(proofStyle), ca(counter_access), watches(WatcherDeleted(ca), counter_access), qhead(0), verbose(10)
 {
 }
 

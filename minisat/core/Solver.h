@@ -452,6 +452,7 @@ class Solver
 
     uint64_t next_T2_reduce, next_L_reduce;
 
+    AccessCounter counter_access; // count stats
     ClauseAllocator ca;
 
     int64_t confl_to_chrono;
@@ -558,6 +559,7 @@ class Solver
     public:
     int level(Var x) const;
     bool withinBudget() const;
+    uint64_t counter_sum() const;
     virtual void printStats();
 
     protected:
@@ -952,6 +954,7 @@ inline bool Solver::withinBudget() const
            (propagation_budget < 0 || propagations < (uint64_t)propagation_budget) &&
            (termCallback == 0 || 0 == termCallback(termCallbackState));
 }
+inline uint64_t Solver::counter_sum() const { return counter_access.sum(); }
 
 // FIXME: after the introduction of asynchronous interrruptions the solve-versions that return a
 // pure bool do not give a safe interface. Either interrupts must be possible to turn off here, or
