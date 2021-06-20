@@ -723,7 +723,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
 
     systematic_branching_state = 1;
 
-    if (nVars() == 0) goto cleanup; // User disabling preprocessing.
+    if (nVars() == 0 || !use_simplification) goto cleanup; // User disabling preprocessing.
 
     // Get an initial number of clauses (more accurately).
     if (trail.size() != 0) removeSatisfied();
@@ -762,6 +762,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
 
         res = eliminate_();
         if (!res || n_vars_last == nFreeVars()) break;
+        if (asynch_interrupt || !isInSimpLimit()) break;
         iter++;
 
         int n_cls_now = nClauses();
