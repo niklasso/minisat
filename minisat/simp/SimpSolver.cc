@@ -746,6 +746,8 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     grow = grow ? grow * 2 : 8;
     for (; grow < 10000; grow *= 2) {
         // Rebuild elimination variable heap.
+        assert(elim_heap.capacity() >= nVars() && "all variables need to be accessible");
+
         for (int i = 0; i < clauses.size(); i++) {
             const Clause &c = ca[clauses[i]];
             for (int j = 0; j < c.size(); j++)
