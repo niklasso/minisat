@@ -41,8 +41,8 @@ using namespace MERGESAT_NSPACE;
 
 static const char *_cat = "SIMP";
 
-static BoolOption opt_use_asymm(_cat, "asymm", "Shrink clauses by asymmetric branching.", false);
-static BoolOption opt_use_rcheck(_cat, "rcheck", "Check if a clause is already implied. (costly)", false);
+static BoolOption opt_use_asymm(_cat, "asymm", "Shrink clauses by asymmetric branching.", false, false);
+static BoolOption opt_use_rcheck(_cat, "rcheck", "Check if a clause is already implied. (costly)", false, false);
 static BoolOption opt_use_elim(_cat, "elim", "Perform variable elimination.", true);
 static IntOption opt_grow(_cat, "grow", "Allow a variable elimination step to grow by a number of clauses.", 0);
 static IntOption opt_clause_lim(_cat,

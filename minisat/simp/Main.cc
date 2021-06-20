@@ -141,9 +141,9 @@ int main(int argc, char **argv)
         StringOption pcs_file("MAIN", "pcs-file", "Print solver parameter configuration to this file.", "", false);
 
         IntOption opt_diversify_rank("MAIN", "diversify-rank", "Select a diversification rank to quickly test another configuration",
-                                     0, IntRange(-1, INT32_MAX));
+                                     0, IntRange(-1, INT32_MAX), false);
         IntOption opt_diversify_size("MAIN", "diversify-size", "Select a diversification size to quickly test another configuration",
-                                     32, IntRange(1, INT32_MAX));
+                                     32, IntRange(1, INT32_MAX), false);
 
         parseOptions(argc, argv, true);
 
