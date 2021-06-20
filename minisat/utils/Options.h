@@ -308,10 +308,13 @@ class DoubleOption : public Option
         // always logarithmic
         double endValue = range.end == HUGE_VAL ? (defaultValue > 1000000.0 ? defaultValue : 1000000.0) : range.end - esub;
         if (granularity == 0) { // use interval
+            double printValue = value;
+            printValue = (printValue < range.begin + badd) ? range.begin + badd : printValue;
+            printValue = (printValue > endValue - esub) ? endValue - esub : printValue;
             if (range.begin + badd > 0 || range.end - esub < 0) {
-                fprintf(pcsFile, "%s  [%lf,%lf] [%lf]l   # %s\n", name, range.begin + badd, endValue, value, description);
+                fprintf(pcsFile, "%s  [%lf,%lf] [%lf]l   # %s\n", name, range.begin + badd, endValue - esub, printValue, description);
             } else {
-                fprintf(pcsFile, "%s  [%lf,%lf] [%lf]    # %s\n", name, range.begin + badd, endValue, value, description);
+                fprintf(pcsFile, "%s  [%lf,%lf] [%lf]    # %s\n", name, range.begin + badd, endValue - esub, printValue, description);
             }
         } else {                             // print linear distributed sampling for double option
             fprintf(pcsFile, "%s  {", name); // print name
