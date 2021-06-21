@@ -77,6 +77,7 @@ template <class Comp> class Heap
     Heap(const Comp &c) : lt(c) {}
 
     int size() const { return heap.size(); }
+    int capacity() const { return indices.size(); }
     bool empty() const { return heap.size() == 0; }
     bool inHeap(int n) const { return n < indices.size() && indices[n] >= 0; }
     int operator[](int index) const

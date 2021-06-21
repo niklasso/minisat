@@ -123,7 +123,7 @@ static IntOption opt_lcm_delay_inc(_cat,
                                    1000,
                                    IntRange(0, INT32_MAX));
 static IntOption
-opt_dup_buffer_size(_cat, "lcm-dup-buffer", "Number of clauses to keep for duplicate check", 16, IntRange(0, INT32_MAX));
+opt_dup_buffer_size(_cat, "lcm-dup-buffer", "Number of clauses to keep for duplicate check", 16, IntRange(0, 1024));
 static Int64Option
 opt_vsids_c(_cat, "vsids-c", "conflicts after which we want to switch back to VSIDS (0=off)", 12000000, Int64Range(0, INT64_MAX));
 static Int64Option
@@ -3555,6 +3555,8 @@ bool Solver::call_ls(bool use_up_build)
         ls_cls_nums += trail.size();
 
     ls_cls_nums += assumptions.size();
+
+    if (nVars() == 0 || ls_cls_nums == 0) return false;
 
     ccnr._num_vars = ls_var_nums;
     ccnr._num_clauses = ls_cls_nums;

@@ -235,6 +235,7 @@ class DoubleOption : public Option
       : Option(n, d, c, "<double>", tunable, dependOn), range(r), value(def), defaultValue(def)
     {
         // FIXME: set LC_NUMERIC to "C" to make sure that strtof/strtod parses decimal point correctly.
+        checkValueOrExit(value);
     }
 
     operator double(void) const { return value; }
@@ -250,6 +251,17 @@ class DoubleOption : public Option
 
     virtual void reset() { value = defaultValue; }
 
+    void checkValueOrExit(double tmp)
+    {
+        if (tmp >= range.end && (!range.end_inclusive || tmp != range.end)) {
+            fprintf(stderr, "ERROR! value <%lf> is too large for option \"%s\".\n", tmp, name);
+            exit(1);
+        } else if (tmp <= range.begin && (!range.begin_inclusive || tmp != range.begin)) {
+            fprintf(stderr, "ERROR! value <%lf> is too small for option \"%s\".\n", tmp, name);
+            exit(1);
+        }
+    }
+
     virtual bool parse(const char *str)
     {
         const char *span = str;
@@ -261,16 +273,8 @@ class DoubleOption : public Option
         char *end;
         double tmp = strtod(span, &end);
 
-        if (end == NULL)
-            return false;
-        else if (tmp >= range.end && (!range.end_inclusive || tmp != range.end)) {
-            fprintf(stderr, "ERROR! value <%s> is too large for option \"%s\".\n", span, name);
-            exit(1);
-        } else if (tmp <= range.begin && (!range.begin_inclusive || tmp != range.begin)) {
-            fprintf(stderr, "ERROR! value <%s> is too small for option \"%s\".\n", span, name);
-            exit(1);
-        }
-
+        if (end == NULL) return false;
+        checkValueOrExit(tmp);
         value = tmp;
         // fprintf(stderr, "READ VALUE: %g\n", value);
 
@@ -308,10 +312,13 @@ class DoubleOption : public Option
         // always logarithmic
         double endValue = range.end == HUGE_VAL ? (defaultValue > 1000000.0 ? defaultValue : 1000000.0) : range.end - esub;
         if (granularity == 0) { // use interval
+            double printValue = value;
+            printValue = (printValue < range.begin + badd) ? range.begin + badd : printValue;
+            printValue = (printValue > endValue - esub) ? endValue - esub : printValue;
             if (range.begin + badd > 0 || range.end - esub < 0) {
-                fprintf(pcsFile, "%s  [%lf,%lf] [%lf]l   # %s\n", name, range.begin + badd, endValue, value, description);
+                fprintf(pcsFile, "%s  [%lf,%lf] [%lf]l   # %s\n", name, range.begin + badd, endValue - esub, printValue, description);
             } else {
-                fprintf(pcsFile, "%s  [%lf,%lf] [%lf]    # %s\n", name, range.begin + badd, endValue, value, description);
+                fprintf(pcsFile, "%s  [%lf,%lf] [%lf]    # %s\n", name, range.begin + badd, endValue - esub, printValue, description);
             }
         } else {                             // print linear distributed sampling for double option
             fprintf(pcsFile, "%s  {", name); // print name
@@ -385,6 +392,7 @@ class IntOption : public Option
               Option *dependOn = 0)
       : Option(n, d, c, "<int32>", tunable, dependOn), range(r), value(def), defaultValue(def)
     {
+        checkValueOrExit(value);
     }
 
     operator int32_t(void) const { return value; }
@@ -400,6 +408,17 @@ class IntOption : public Option
 
     virtual void reset() { value = defaultValue; }
 
+    void checkValueOrExit(int32_t tmp)
+    {
+        if (tmp > range.end) {
+            fprintf(stderr, "ERROR! value <%d> is too large for option \"%s\".\n", tmp, name);
+            exit(1);
+        } else if (tmp < range.begin) {
+            fprintf(stderr, "ERROR! value <%d> is too small for option \"%s\".\n", tmp, name);
+            exit(1);
+        }
+    }
+
     virtual bool parse(const char *str)
     {
         const char *span = str;
@@ -411,15 +430,8 @@ class IntOption : public Option
         char *end;
         int32_t tmp = strtol(span, &end, 10);
 
-        if (end == NULL)
-            return false;
-        else if (tmp > range.end) {
-            fprintf(stderr, "ERROR! value <%s> is too large for option \"%s\".\n", span, name);
-            exit(1);
-        } else if (tmp < range.begin) {
-            fprintf(stderr, "ERROR! value <%s> is too small for option \"%s\".\n", span, name);
-            exit(1);
-        }
+        if (end == NULL) return false;
+        checkValueOrExit(tmp);
 
         value = tmp;
 
@@ -599,6 +611,7 @@ class Int64Option : public Option
                 Option *dependOn = 0)
       : Option(n, d, c, "<int64>", tunable, dependOn), range(r), value(def), defaultValue(def)
     {
+        checkValueOrExit(value);
     }
 
     operator int64_t(void) const { return value; }
@@ -614,6 +627,17 @@ class Int64Option : public Option
 
     virtual void reset() { value = defaultValue; }
 
+    void checkValueOrExit(int64_t tmp)
+    {
+        if (tmp > range.end) {
+            fprintf(stderr, "ERROR! value <%ld> is too large for option \"%s\".\n", tmp, name);
+            exit(1);
+        } else if (tmp < range.begin) {
+            fprintf(stderr, "ERROR! value <%ld> is too small for option \"%s\".\n", tmp, name);
+            exit(1);
+        }
+    }
+
     virtual bool parse(const char *str)
     {
         const char *span = str;
@@ -623,15 +647,8 @@ class Int64Option : public Option
         char *end;
         int64_t tmp = strtoll(span, &end, 10);
 
-        if (end == NULL)
-            return false;
-        else if (tmp > range.end) {
-            fprintf(stderr, "ERROR! value <%s> is too large for option \"%s\".\n", span, name);
-            exit(1);
-        } else if (tmp < range.begin) {
-            fprintf(stderr, "ERROR! value <%s> is too small for option \"%s\".\n", span, name);
-            exit(1);
-        }
+        if (end == NULL) return false;
+        checkValueOrExit(tmp);
 
         value = tmp;
 

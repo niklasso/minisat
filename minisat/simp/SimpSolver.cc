@@ -41,8 +41,8 @@ using namespace MERGESAT_NSPACE;
 
 static const char *_cat = "SIMP";
 
-static BoolOption opt_use_asymm(_cat, "asymm", "Shrink clauses by asymmetric branching.", false);
-static BoolOption opt_use_rcheck(_cat, "rcheck", "Check if a clause is already implied. (costly)", false);
+static BoolOption opt_use_asymm(_cat, "asymm", "Shrink clauses by asymmetric branching.", false, false);
+static BoolOption opt_use_rcheck(_cat, "rcheck", "Check if a clause is already implied. (costly)", false, false);
 static BoolOption opt_use_elim(_cat, "elim", "Perform variable elimination.", true);
 static IntOption opt_grow(_cat, "grow", "Allow a variable elimination step to grow by a number of clauses.", 0);
 static IntOption opt_clause_lim(_cat,
@@ -723,7 +723,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
 
     systematic_branching_state = 1;
 
-    if (nVars() == 0) goto cleanup; // User disabling preprocessing.
+    if (nVars() == 0 || !use_simplification) goto cleanup; // User disabling preprocessing.
 
     // Get an initial number of clauses (more accurately).
     if (trail.size() != 0) removeSatisfied();
@@ -746,6 +746,8 @@ bool SimpSolver::eliminate(bool turn_off_elim)
     grow = grow ? grow * 2 : 8;
     for (; grow < 10000; grow *= 2) {
         // Rebuild elimination variable heap.
+        assert(elim_heap.capacity() >= nVars() && "all variables need to be accessible");
+
         for (int i = 0; i < clauses.size(); i++) {
             const Clause &c = ca[clauses[i]];
             for (int j = 0; j < c.size(); j++)
@@ -760,6 +762,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
 
         res = eliminate_();
         if (!res || n_vars_last == nFreeVars()) break;
+        if (asynch_interrupt || !isInSimpLimit()) break;
         iter++;
 
         int n_cls_now = nClauses();
