@@ -1,0 +1,18 @@
+MergeSat (EDA-AI version), Norbert Manthey, Johannes Fichte, 2021
+
+This package contains tools to solve CNF formulas with MergeSat.
+
+## Quick Start
+
+The following steps allow to solve a CNF INPUT_FILE:
+
+```
+./build.sh                               # run once
+./binary/run_config*.sh "$INPUT_FILE"    # run selected configuration on CNF
+```
+
+## MergeSat in the EDA AI package
+
+This package contains several configurations of the MergeSat solver. Each
+configuration package wlil select a single one. Hence, the instructions in this
+README file are generic, especially the step to solve the CNF.
