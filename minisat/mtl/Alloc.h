@@ -120,6 +120,8 @@ template <class T> class RegionAllocator
         sz = cap = wasted_ = 0;
     }
 
+    void clear() { sz = wasted_ = 0; }
+
     AccessCounter &get_counter() { return counter; }
 };
 
