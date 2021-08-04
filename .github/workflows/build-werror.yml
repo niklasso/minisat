@@ -1,0 +1,42 @@
+name: Build for Warnings on Linux and Mac OS
+
+on:
+  push:
+    branches:
+      - '**'
+
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  Linux:
+
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: Install Packages
+      run: sudo apt-get install zlib1g-dev make cmake picosat
+
+    - uses: actions/checkout@v1
+
+    - name: mergesat build
+      run: make d r sh lr ld lsh r CXX_EXTRA_FLAGS="-Werror -Wno-sign-compare" LD_EXTRA_FLAGS=-Werror
+
+    - name: run CI script
+      env:
+        RUNOPENWBO: 0
+      run: ./tools/ci.sh
+
+  MacOS:
+
+    runs-on: macos-latest
+
+    steps:
+    - name: Install Packages
+      run: brew install libzip
+
+    - uses: actions/checkout@v1
+
+    - name: mergesat build
+      run: make d r sh lr ld lsh r CXX_EXTRA_FLAGS="-Werror -Wno-sign-compare" LD_EXTRA_FLAGS=-Werror
