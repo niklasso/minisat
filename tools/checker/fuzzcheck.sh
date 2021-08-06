@@ -39,7 +39,7 @@ do
   # control whether algorithm should sleep
   seed=`grep 'c seed' $cnf|head -1|awk '{print $NF}'`
   head="`awk '/p cnf /{print $3, $4}' $cnf`"
-  # printf "%d %16d          %6d    %6d               \r" "$i" "$seed" $head
+  [ -n "${VERBOSE_FUZZING:-}" ] && printf "%d %16d          %6d    %6d               \r" "$i" "$seed" $head
   i=`expr $i + 1`
   rm -f $sol
 
