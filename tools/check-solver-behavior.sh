@@ -10,6 +10,9 @@ INPUT="$1"
 SOLVER1="$2"
 SOLVER2="$3"
 
+# allow tools to run for about 2 minutes
+timeout=180
+
 usage ()
 {
     $0 input 'solver1 + params' 'solver2 + parames'
@@ -25,12 +28,12 @@ trap 'rm -rf $TMPD' EXIT
 TMPD=$(mktemp -d)
 
 
-echo "Run solver 1 ..."
-$SOLVER1 "$INPUT" > "$TMPD"/out1.log 2> "$TMPD"/err1.log
+echo "Run solver 1 (with timeout $timeout s) ..."
+timeout -k $((timeout+2)) "$timeout" $SOLVER1 "$INPUT" > "$TMPD"/out1.log 2> "$TMPD"/err1.log
 STATUS1=$?
 
-echo "Run solver 2 ..."
-$SOLVER2 "$INPUT" > "$TMPD"/out2.log 2> "$TMPD"/err2.log
+echo "Run solver 2 (with timeout $timeout s) ..."
+timeout -k $((timeout+2)) "$timeout" $SOLVER2 "$INPUT" > "$TMPD"/out2.log 2> "$TMPD"/err2.log
 STATUS2=$?
 
 echo "Evaluate ..."
@@ -42,6 +45,22 @@ DEC2=$(awk '/c decisions/ {print $4}' "$TMPD"/out2.log)
 
 
 STATUS=0
+
+# Check for mutual timeout first!
+if [ "$STATUS1" -eq 124 ] && [ "$STATUS2" -eq 124 ]; then
+    echo "Both timeout, ignore"
+    exit "$STATUS"
+fi
+
+if [ "$STATUS1" -eq 124 ] && [ "$STATUS2" -ne 124 ]; then
+    echo "Solver 1 hit timeout, solver 2 did not"
+    STATUS=1
+fi
+
+if [ "$STATUS1" -ne 124 ] && [ "$STATUS2" -eq 124 ]; then
+    echo "Solver 2 hit timeout, solver 2 did not"
+    STATUS=1
+fi
 
 if [ "$CON1" != "$CON2" ]
 then
