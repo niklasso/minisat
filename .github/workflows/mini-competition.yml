@@ -1,6 +1,13 @@
 name: Run Mini-Competition Benchmark on Linux
 
-on: [push]
+on:
+  push:
+    branches:
+      - '**'
+
+  pull_request:
+    branches:
+      - '**'
 
 jobs:
   Linux:
