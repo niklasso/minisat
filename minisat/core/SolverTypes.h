@@ -124,9 +124,10 @@ inline std::ostream &operator<<(std::ostream &out, const Lit &val)
 //       does enough constant propagation to produce sensible code, and this appears to be somewhat
 //       fragile unfortunately.
 
-#define l_True (lbool((uint8_t)0)) // gcc does not do constant propagation if these are real constants.
-#define l_False (lbool((uint8_t)1))
-#define l_Undef (lbool((uint8_t)2))
+// gcc does not do constant propagation if these are real constants.
+#define l_True (::MERGESAT_NSPACE::lbool((uint8_t)0))
+#define l_False (::MERGESAT_NSPACE::lbool((uint8_t)1))
+#define l_Undef (::MERGESAT_NSPACE::lbool((uint8_t)2))
 
 class lbool
 {
