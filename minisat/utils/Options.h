@@ -630,10 +630,10 @@ class Int64Option : public Option
     void checkValueOrExit(int64_t tmp)
     {
         if (tmp > range.end) {
-            fprintf(stderr, "ERROR! value <%ld> is too large for option \"%s\".\n", tmp, name);
+            fprintf(stderr, "ERROR! value <%" PRId64 "> is too large for option \"%s\".\n", tmp, name);
             exit(1);
         } else if (tmp < range.begin) {
-            fprintf(stderr, "ERROR! value <%ld> is too small for option \"%s\".\n", tmp, name);
+            fprintf(stderr, "ERROR! value <%" PRId64 "> is too small for option \"%s\".\n", tmp, name);
             exit(1);
         }
     }
@@ -734,23 +734,25 @@ class Int64Option : public Option
                 if (i != 0) {
                     fprintf(pcsFile, ",");
                 }
-                fprintf(pcsFile, "%ld", values[i]);
+                fprintf(pcsFile, "%" PRId64, values[i]);
             }
-            fprintf(pcsFile, "} [%ld]    # %s\n", value, description);
+            fprintf(pcsFile, "} [%" PRId64 "]    # %s\n", value, description);
         } else {
             if ((range.end - range.begin <= 16 && range.end - range.begin > 0 && range.end != INT32_MAX) ||
                 (range.begin <= 0 && range.end >= 0)) {
                 if (range.end - range.begin <= 16 && range.end - range.begin > 0) { // print all values if the difference is really small
-                    fprintf(pcsFile, "%s  {%ld", name, range.begin);
+                    fprintf(pcsFile, "%s  {%" PRId64, name, range.begin);
                     for (int64_t i = range.begin + 1; i <= range.end; ++i) {
-                        fprintf(pcsFile, ",%ld", i);
+                        fprintf(pcsFile, ",%" PRId64, i);
                     }
-                    fprintf(pcsFile, "} [%ld]    # %s\n", value, description);
+                    fprintf(pcsFile, "} [%" PRId64 "]    # %s\n", value, description);
                 } else {
-                    fprintf(pcsFile, "%s  [%ld,%ld] [%ld]i    # %s\n", name, range.begin, range.end, value, description);
+                    fprintf(pcsFile, "%s  [%" PRId64 ",%" PRId64 "] [%" PRId64 "]i    # %s\n", name, range.begin,
+                            range.end, value, description);
                 }
             } else {
-                fprintf(pcsFile, "%s  [%ld,%ld] [%ld]il   # %s\n", name, range.begin, range.end, value, description);
+                fprintf(pcsFile, "%s  [%" PRId64 ",%" PRId64 "] [%" PRId64 "]il   # %s\n", name, range.begin, range.end,
+                        value, description);
             }
         }
     }
@@ -768,8 +770,8 @@ class Int64Option : public Option
             for (size_t i = 0; i < values.size(); ++i) {
                 if (values[i] == defaultValue) {
                     continue;
-                }                                         // do not print default value
-                snprintf(buffer, size, "%ld", values[i]); // convert value
+                }                                              // do not print default value
+                snprintf(buffer, size, "%" PRId64, values[i]); // convert value
                 const int sl = strlen(buffer);
                 size = size - strlen(buffer) - 1; // store new size
                 if (i + 1 < values.size() && values[i + 1] != defaultValue) {
@@ -782,8 +784,8 @@ class Int64Option : public Option
             for (int64_t i = range.begin; i <= range.end; ++i) {
                 if (i == defaultValue) {
                     continue;
-                }                                 // do not print default value
-                snprintf(buffer, size, "%ld", i); // convert value
+                }                                      // do not print default value
+                snprintf(buffer, size, "%" PRId64, i); // convert value
                 const int sl = strlen(buffer);
                 size = size - strlen(buffer) - 1; // store new size
                 if (i != range.end && i + 1 != defaultValue) {

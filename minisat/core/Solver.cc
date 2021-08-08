@@ -2618,7 +2618,7 @@ lbool Solver::search(int &nof_conflicts)
     // simplify
     //
     if (lcm && conflicts >= curSimplify * nbconfbeforesimplify) {
-        TRACE(printf("c ### simplifyAll on conflict : %ld\n", conflicts);)
+        TRACE(printf("c ### simplifyAll on conflict : %" PRId64 "\n", conflicts);)
         if (verbosity >= 1)
             printf("c schedule LCM with: nbClauses: %d, nbLearnts_core: %d, nbLearnts_tier2: %d, nbLearnts_local: %d, "
                    "nbLearnts: %d\n",
@@ -2659,7 +2659,7 @@ lbool Solver::search(int &nof_conflicts)
 
             conflicts++;
             nof_conflicts--;
-            TRACE(printf("c hit conflict %ld\n", conflicts);)
+            TRACE(printf("c hit conflict %" PRId64 "\n", conflicts);)
             if (conflicts == 100000 && learnts_core.size() < 100) core_lbd_cut = 5;
             ConflictData data = FindConflictLevel(confl);
             if (data.nHighestLevel == 0) return l_False;
@@ -3295,7 +3295,7 @@ bool Solver::inprocessing()
         int Z = 0, i, j, k, l = -1, p;
 
         if (verbosity > 0)
-            printf("c inprocessing simplify at try %ld, next limit: %ld\n", inprocess_attempts, inprocess_next_lim);
+            printf("c inprocessing simplify at try %" PRId64 ", next limit: %" PRId64 "\n", inprocess_attempts, inprocess_next_lim);
         // fill occurrence data structure
         O.resize(2 * nVars());
 
@@ -3520,16 +3520,16 @@ void Solver::printStats()
            starts, restart.partialRestarts, restart.savedDecisions, restart.savedPropagations,
            ((double)restart.savedPropagations * 100.0) / (double)propagations);
     printf("c polarity              : %d pos, %d neg\n", posMissingInSome, negMissingInSome);
-    printf("c LCM                   : %lu runs, %lu Ctried, %lu Cshrinked (%lu known duplicates), %lu Ldeleted, %lu "
-           "Lrev-deleted\n",
+    printf("c LCM                   : %" PRIu64 " runs, %" PRIu64 " Ctried, %" PRIu64 " Cshrinked (%" PRIu64
+           " known duplicates), %" PRIu64 " Ldeleted, %" PRIu64 " Lrev-deleted\n",
            nbSimplifyAll, LCM_total_tries, LCM_successful_tries, nr_lcm_duplicates, LCM_dropped_lits, LCM_dropped_reverse);
-    printf("c Inprocessing          : %lu subsumed, %lu dropped lits, %lu attempts, %lu mems\n", inprocessing_C,
-           inprocessing_L, inprocessings, inprocess_mems);
-    printf("c Stats:                : %lf solve, %lu steps, %lf simp, %lu steps, %d var, budget: %d\n", statistics.solveSeconds,
-           statistics.solveSteps, statistics.simpSeconds, statistics.simpSteps, nVars(), withinBudget());
-    printf("c backup trail: stored: %lu used successfully: %lu\n", backuped_trail_lits, used_backup_lits);
-    printf("c accesses:               clauses: %lu occurrences: %lu sum: %lu\n", counter_access.clause(),
-           counter_access.occurrence(), counter_access.sum());
+    printf("c Inprocessing          : %" PRIu64 " subsumed, %" PRIu64 " dropped lits, %" PRIu64 " attempts, %" PRIu64 " mems\n",
+           inprocessing_C, inprocessing_L, inprocessings, inprocess_mems);
+    printf("c Stats:                : %lf solve, %" PRIu64 " steps, %lf simp, %" PRIu64 " steps, %d var, budget: %d\n",
+           statistics.solveSeconds, statistics.solveSteps, statistics.simpSeconds, statistics.simpSteps, nVars(), withinBudget());
+    printf("c backup trail: stored: %" PRIu64 " used successfully: %" PRIu64 "\n", backuped_trail_lits, used_backup_lits);
+    printf("c accesses:               clauses: %" PRIu64 " occurrences: %" PRIu64 " sum: %" PRIu64 "\n",
+           counter_access.clause(), counter_access.occurrence(), counter_access.sum());
     printf("c CPU time              : %g s\n", cpu_time);
 }
 
