@@ -77,7 +77,7 @@ static void parse_DIMACS_main(B& in, Solver& S, bool strictp = false) {
 // Inserts problem into solver.
 //
 template<class Solver>
-static void parse_DIMACS(gzFile input_stream, Solver& S, bool strictp = false) {
+static void parse_DIMACS(FILE* input_stream, Solver& S, bool strictp = false) {
     StreamBuffer in(input_stream);
     parse_DIMACS_main(in, S, strictp); }
 

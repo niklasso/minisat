@@ -28,18 +28,6 @@ else()
 endif()
 set(MINISAT_SOVERSION ${MINISAT_SOMAJOR})
 
-# Reference specific library paths used during linking for install
-if (POLICY CMP0042)
-  # Enable `MACOSX_RPATH` by default.
-  cmake_policy(SET CMP0042 NEW)
-endif()
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-#--------------------------------------------------------------------------------------------------
-# Dependencies:
-
-find_package(ZLIB)
-include_directories(${ZLIB_INCLUDE_DIR})
 include_directories(${PROJECT_SOURCE_DIR})
 
 #--------------------------------------------------------------------------------------------------
@@ -181,8 +169,13 @@ set(MINISAT_LIB_SOURCES
     minisat/core/Solver.cc
     minisat/simp/SimpSolver.cc)
 
+<<<<<<< HEAD
 add_library(minisat ${MINISAT_LIB_SOURCES})
 target_link_libraries(minisat ${ZLIB_LIBRARY})
+=======
+add_library(minisat-lib-static STATIC ${MINISAT_LIB_SOURCES})
+add_library(minisat-lib-shared SHARED ${MINISAT_LIB_SOURCES})
+>>>>>>> 8f42813 (Removing zlib dependency from minisat)
 
 add_executable(minisat_core minisat/core/Main.cc)
 add_executable(minisat_simp minisat/simp/Main.cc)

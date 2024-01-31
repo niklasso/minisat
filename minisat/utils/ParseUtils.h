@@ -24,8 +24,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <zlib.h>
-
 #include "minisat/mtl/XAlloc.h"
 
 namespace Minisat {
@@ -36,7 +34,7 @@ namespace Minisat {
 
 
 class StreamBuffer {
-    gzFile         in;
+    FILE*          in;
     unsigned char* buf;
     int            pos;
     int            size;
@@ -46,10 +44,10 @@ class StreamBuffer {
     void assureLookahead() {
         if (pos >= size) {
             pos  = 0;
-            size = gzread(in, buf, buffer_size); } }
+            size = fread(buf, 1, buffer_size, in); } }
 
 public:
-    explicit StreamBuffer(gzFile i) : in(i), pos(0), size(0){
+    explicit StreamBuffer(FILE* i) : in(i), pos(0), size(0){
         buf = (unsigned char*)xrealloc(NULL, buffer_size);
         assureLookahead();
     }
