@@ -158,10 +158,9 @@ configure_file(
     IMMEDIATE @ONLY
 )
 
-add_custom_target(uninstall
+add_custom_target(uninstall-minisat
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake
 )
-
 
 #--------------------------------------------------------------------------------------------------
 # Build Targets:
@@ -173,7 +172,6 @@ set(MINISAT_LIB_SOURCES
     minisat/simp/SimpSolver.cc)
 
 add_library(minisat ${MINISAT_LIB_SOURCES})
-target_link_libraries(minisat ${ZLIB_LIBRARY})
 
 add_executable(minisat_core minisat/core/Main.cc)
 add_executable(minisat_simp minisat/simp/Main.cc)
