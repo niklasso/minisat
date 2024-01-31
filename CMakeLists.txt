@@ -172,17 +172,11 @@ set(MINISAT_LIB_SOURCES
     minisat/core/Solver.cc
     minisat/simp/SimpSolver.cc)
 
-<<<<<<< HEAD
 add_library(minisat ${MINISAT_LIB_SOURCES})
 target_link_libraries(minisat ${ZLIB_LIBRARY})
-=======
-add_library(minisat-lib-static STATIC ${MINISAT_LIB_SOURCES})
-add_library(minisat-lib-shared SHARED ${MINISAT_LIB_SOURCES})
->>>>>>> 8f42813 (Removing zlib dependency from minisat)
 
 add_executable(minisat_core minisat/core/Main.cc)
 add_executable(minisat_simp minisat/simp/Main.cc)
-
 
 target_link_libraries(minisat_core minisat)
 target_link_libraries(minisat_simp minisat)
