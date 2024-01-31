@@ -86,7 +86,7 @@ int main(int argc, char** argv)
         if (mem_lim != 0) limitMemory(mem_lim);
 
         if (argc == 1)
-            printf("Reading from standard input... Use '--help' for help.\n");
+            printf("c Reading from standard input... Use '--help' for help.\n");
 
         gzFile in = (argc == 1) ? gzdopen(0, "rb") : gzopen(argv[1], "rb");
         if (in == NULL)
@@ -125,7 +125,7 @@ int main(int argc, char** argv)
                 printf("Solved by simplification\n");
                 S.printStats();
                 printf("\n"); }
-            printf("UNSATISFIABLE\n");
+            printf("s UNSATISFIABLE\n");
             exit(20);
         }
 
@@ -143,19 +143,14 @@ int main(int argc, char** argv)
         if (S.verbosity > 0){
             S.printStats();
             printf("\n"); }
-        printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
-        if (res != NULL){
-            if (ret == l_True){
-                fprintf(res, "SAT\n");
-                for (int i = 0; i < S.nVars(); i++)
-                    if (S.model[i] != l_Undef)
-                        fprintf(res, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
-                fprintf(res, " 0\n");
-            }else if (ret == l_False)
-                fprintf(res, "UNSAT\n");
-            else
-                fprintf(res, "INDET\n");
-            fclose(res);
+        printf(ret == l_True ? "s SATISFIABLE\n" : ret == l_False ? "s UNSATISFIABLE\n" : "s INDETERMINATE\n");
+        if (ret == l_True){
+            printf("v ");
+            for (int i = 0; i < S.nVars(); i++)
+                if (S.model[i] != l_Undef)
+                    printf("%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
+
+            printf("0 \n");
         }
 
 #ifdef NDEBUG
@@ -165,7 +160,7 @@ int main(int argc, char** argv)
 #endif
     } catch (OutOfMemoryException&){
         printf("===============================================================================\n");
-        printf("INDETERMINATE\n");
+        printf("s INDETERMINATE\n");
         exit(0);
     }
 }

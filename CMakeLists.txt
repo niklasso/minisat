@@ -1,6 +1,11 @@
-cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.3 FATAL_ERROR)
 
 project(minisat)
+
+if(POLICY CMP0048)
+    #policy for VERSION in cmake 3.0
+    cmake_policy(SET CMP0048 OLD)
+endif()
 
 #--------------------------------------------------------------------------------------------------
 # Configurable options:
@@ -35,8 +40,7 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 find_package(ZLIB)
 include_directories(${ZLIB_INCLUDE_DIR})
-include_directories(${minisat_SOURCE_DIR})
-include (GenerateExportHeader)
+include_directories(${PROJECT_SOURCE_DIR})
 
 #--------------------------------------------------------------------------------------------------
 # Compile flags:
@@ -194,58 +198,3 @@ set_target_properties(minisat
     SOVERSION ${MINISAT_SOVERSION})
 
 set_target_properties(minisat_simp       PROPERTIES OUTPUT_NAME "minisat")
-
-#--------------------------------------------------------------------------------------------------
-# Installation targets:
-
-install(TARGETS minisat minisat_core minisat_simp
-        EXPORT ${MINISAT_EXPORT_NAME}
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
-
-install(DIRECTORY minisat/mtl minisat/utils minisat/core minisat/simp
-        DESTINATION include/minisat
-        FILES_MATCHING PATTERN "*.h")
-
-# Setup for export
-set(MINISAT_TARGETS_FILENAME "minisatTargets.cmake")
-set(MINISAT_CONFIG_FILENAME "minisatConfig.cmake")
-
-# Export targets
-export(
-    TARGETS minisat
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/${MINISAT_TARGETS_FILENAME}"
-)
-
-# Create minisatConfig file
-set(EXPORT_TYPE "Build-tree")
-set(CONF_INCLUDE_DIRS "${minisat_SOURCE_DIR}/")
-configure_file(minisatConfig.cmake.in
-    "${CMAKE_CURRENT_BINARY_DIR}/${MINISAT_CONFIG_FILENAME}" @ONLY
-)
-
-# Export this package to the CMake user package registry
-# Now the user can just use find_package(minisat) on their system
-export(PACKAGE minisat)
-
-set(DEF_INSTALL_CMAKE_DIR lib/cmake/minisat)
-set(MINISAT_INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH
-    "Installation directory for minisat CMake files")
-
-# Create minisatConfig file
-set(EXPORT_TYPE "installed")
-configure_file(minisatConfig.cmake.in
-   "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/${MINISAT_CONFIG_FILENAME}" @ONLY
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/${MINISAT_CONFIG_FILENAME}"
-    DESTINATION "${MINISAT_INSTALL_CMAKE_DIR}"
-)
-
-# Install the export set for use with the install-tree
-install(
-    EXPORT ${MINISAT_EXPORT_NAME}
-    DESTINATION "${MINISAT_INSTALL_CMAKE_DIR}"
-)
