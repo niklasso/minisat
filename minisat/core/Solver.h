@@ -146,6 +146,11 @@ public:
     int       learntsize_adjust_start_confl;
     double    learntsize_adjust_inc;
 
+    int* d_clauseIndex = nullptr;   // device buffer of clause offsets
+    int* d_literals    = nullptr;   // device buffer of all literals
+    int* d_results = nullptr;    // per‑clause result flag
+    bool gpu_buffers_allocated = false;
+
     // Statistics: (read-only member variable)
     //
     uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts;

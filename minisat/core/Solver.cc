@@ -19,12 +19,15 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 **************************************************************************************************/
 
 #include <math.h>
+#include <vector>
+#include <iostream>
 
 #include "minisat/mtl/Alg.h"
 #include "minisat/mtl/Sort.h"
 #include "minisat/utils/System.h"
 #include "minisat/core/Solver.h"
-
+#include "gpu/gpu_propagate.h"
+#include <cuda_runtime.h>
 using namespace Minisat;
 
 //=================================================================================================
@@ -46,6 +49,16 @@ static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interv
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_min_learnts_lim   (_cat, "min-learnts", "Minimum learnt clause limit",  0, IntRange(0, INT32_MAX));
 
+
+#define cudaCheck(msg) \
+  do { \
+    cudaError_t __err = cudaGetLastError(); \
+    if (__err != cudaSuccess) { \
+      fprintf(stderr, "CUDA ERROR (%s): %s at %s:%d\n", \
+              msg, cudaGetErrorString(__err), __FILE__, __LINE__); \
+      exit(1); \
+    } \
+  } while(0)
 
 //=================================================================================================
 // Constructor/Destructor:
@@ -101,11 +114,30 @@ Solver::Solver() :
   , conflict_budget    (-1)
   , propagation_budget (-1)
   , asynch_interrupt   (false)
-{}
+{
+
+    int m = clauses.size();
+    int L = 0;
+    for (int i = 0; i < m; i++)
+        L += ca[clauses[i]].size();
+
+    cudaMalloc(&d_clauseIndex, (m + 1) * sizeof(int));
+    cudaMalloc(&d_literals,    L     * sizeof(int));
+    cudaMalloc(&d_results, m * sizeof(int));
+
+
+
+}
 
 
 Solver::~Solver()
-{
+{   
+    if (gpu_buffers_allocated) {
+    cudaFree(d_clauseIndex);
+    cudaFree(d_literals);
+    cudaFree(d_results);
+    }
+
 }
 
 
@@ -503,65 +535,196 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
 |    Post-conditions:
 |      * the propagation queue is empty, even if there was a conflict.
 |________________________________________________________________________________________________@*/
-CRef Solver::propagate()
-{
-    CRef    confl     = CRef_Undef;
-    int     num_props = 0;
+// CRef Solver::propagate()
+// {
+// In Solver::propagate(), replace the very top of the function with:
 
-    while (qhead < trail.size()){
-        Lit            p   = trail[qhead++];     // 'p' is enqueued fact to propagate.
-        vec<Watcher>&  ws  = watches.lookup(p);
-        Watcher        *i, *j, *end;
-        num_props++;
+CRef Solver::propagate() {
+    CRef confl     = CRef_Undef;
+    int  num_props = 0;
 
-        for (i = j = (Watcher*)ws, end = i + ws.size();  i != end;){
-            // Try to avoid inspecting the clause:
-            Lit blocker = i->blocker;
-            if (value(blocker) == l_True){
-                *j++ = *i++; continue; }
+    // —————————————————————————————————————————————————————————————
+    // 1) On first entry, build & upload the flat arrays (only if m>0)
+    int m = clauses.size();
+    if (m > 0 && !gpu_buffers_allocated) {
+        // Count total literals
+        int L = 0;
+        for (int cid = 0; cid < m; cid++)
+            L += ca[ clauses[cid] ].size();
 
-            // Make sure the false literal is data[1]:
-            CRef     cr        = i->cref;
-            Clause&  c         = ca[cr];
-            Lit      false_lit = ~p;
-            if (c[0] == false_lit)
-                c[0] = c[1], c[1] = false_lit;
-            assert(c[1] == false_lit);
-            i++;
+        // Allocate device buffers
+        cudaMalloc(&d_clauseIndex, (m+1)*sizeof(int)); cudaCheck("cudaMalloc idx");
+        cudaMalloc(&d_literals,    L    *sizeof(int)); cudaCheck("cudaMalloc lits");
+        cudaMalloc(&d_results,     m    *sizeof(int)); cudaCheck("cudaMalloc res");
 
-            // If 0th watch is true, then clause is already satisfied.
-            Lit     first = c[0];
-            Watcher w     = Watcher(cr, first);
-            if (first != blocker && value(first) == l_True){
-                *j++ = w; continue; }
-
-            // Look for new watch:
-            for (int k = 2; k < c.size(); k++)
-                if (value(c[k]) != l_False){
-                    c[1] = c[k]; c[k] = false_lit;
-                    watches[~c[1]].push(w);
-                    goto NextClause; }
-
-            // Did not find watch -- clause is unit under assignment:
-            *j++ = w;
-            if (value(first) == l_False){
-                confl = cr;
-                qhead = trail.size();
-                // Copy the remaining watches:
-                while (i < end)
-                    *j++ = *i++;
-            }else
-                uncheckedEnqueue(first, cr);
-
-        NextClause:;
+        // Build host‑side flat arrays
+        std::vector<int> h_clauseIndex(m+1);
+        std::vector<int> h_literals; h_literals.reserve(L);
+        int offset = 0;
+        for (int cid = 0; cid < m; cid++) {
+            CRef cr = clauses[cid];
+            const Clause& c = ca[cr];
+            h_clauseIndex[cid] = offset;
+            for (int j = 0; j < c.size(); j++)
+                h_literals.push_back(c[j].x);
+            offset += c.size();
         }
-        ws.shrink(i - j);
-    }
-    propagations += num_props;
-    simpDB_props -= num_props;
+        h_clauseIndex[m] = offset;
 
+        // Upload once
+        cudaMemcpy(d_clauseIndex, h_clauseIndex.data(), (m+1)*sizeof(int),
+                   cudaMemcpyHostToDevice); cudaCheck("Memcpy idx→GPU");
+        cudaMemcpy(d_literals,    h_literals.data(),    L   *sizeof(int),
+                   cudaMemcpyHostToDevice); cudaCheck("Memcpy lits→GPU");
+
+        gpu_buffers_allocated = true;
+    }
+
+    // —————————————————————————————————————————————————————————————
+    // 2) Launch GPU kernel only if there is something to do
+    if (m > 0) {
+        int threads = 256;
+        int blocks  = (m + threads - 1) / threads;
+        fprintf(stderr, "[GPU] launch kernel grid=(%d) block=(%d)\n", blocks, threads);
+
+        launch_gpu_propagate(
+            d_clauseIndex,
+            d_literals,
+            m,
+            d_results,
+            threads,
+            blocks
+        );
+        cudaCheck("launch_gpu_propagate");
+        cudaDeviceSynchronize(); cudaCheck("cudaDeviceSynchronize");
+    }
+
+    // —————————————————————————————————————————————————————————————
+    // 3) If we did launch, copy back results; otherwise skip
+    std::vector<int> h_results;
+    if (m > 0) {
+        h_results.resize(m);
+        cudaMemcpy(h_results.data(), d_results, m*sizeof(int),
+                   cudaMemcpyDeviceToHost);
+        cudaCheck("Memcpy results→host");
+
+        // debug peek
+        if (m >= 2)
+          fprintf(stderr,
+                  "[GPU] clause‑0 result: %d, clause‑1 result: %d\n",
+                  h_results[0], h_results[1]);
+    }
+
+    // —————————————————————————————————————————————————————————————
+    // 4) Fallback to CPU only for those clauses the GPU marked “0”
+    for (int cid = 0; cid < m; cid++) {
+        if (h_results[cid] == 0) {
+            num_props++;
+            CRef cr   = clauses[cid];
+            Clause& c = ca[cr];
+
+            // Standard 2‑watch logic…
+            Lit l0 = c[0], l1 = c[1];
+            // if either watch is already satisfied, skip
+            if (value(l0) == l_True || value(l1) == l_True)
+                continue;
+
+            // ensure c[1] is the false literal
+            if (value(l0) == l_False) {
+                std::swap(c[0], c[1]);
+                l0 = c[0]; l1 = c[1];
+            }
+
+            // try to find a replacement among the rest
+            bool found = false;
+            for (int k = 2; k < c.size(); k++) {
+                if (value(c[k]) != l_False) {
+                    // install new watch
+                    c[1] = c[k];
+                    c[k] = l1;
+                    watches[~c[1]].push(Watcher(cr, l0));
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                // unit or conflict
+                if (value(l0) == l_False) {
+                    confl = cr;
+                } else {
+                    uncheckedEnqueue(l0, cr);
+                }
+            }
+        }
+    }
+
+    propagations += num_props;
+    simpDB_props  -= num_props;
     return confl;
 }
+
+//     // ————————— GPU propagation offload —————————
+//     int m = clauses.size();
+//     int threads = 256;
+//     int blocks  = (m + threads - 1) / threads;
+
+//     CRef    confl     = CRef_Undef;
+//     int     num_props = 0;
+//     while (qhead < trail.size()){
+//         Lit            p   = trail[qhead++];     // 'p' is enqueued fact to propagate.
+//         vec<Watcher>&  ws  = watches.lookup(p);
+//         Watcher        *i, *j, *end;
+//         num_props++;
+
+//         for (i = j = (Watcher*)ws, end = i + ws.size();  i != end;){
+//             // Try to avoid inspecting the clause:
+//             Lit blocker = i->blocker;
+//             if (value(blocker) == l_True){
+//                 *j++ = *i++; continue; }
+
+//             // Make sure the false literal is data[1]:
+//             CRef     cr        = i->cref;
+//             Clause&  c         = ca[cr];
+//             Lit      false_lit = ~p;
+//             if (c[0] == false_lit)
+//                 c[0] = c[1], c[1] = false_lit;
+//             assert(c[1] == false_lit);
+//             i++;
+
+//             // If 0th watch is true, then clause is already satisfied.
+//             Lit     first = c[0];
+//             Watcher w     = Watcher(cr, first);
+//             if (first != blocker && value(first) == l_True){
+//                 *j++ = w; continue; }
+
+//             // Look for new watch:
+//             for (int k = 2; k < c.size(); k++)
+//                 if (value(c[k]) != l_False){
+//                     c[1] = c[k]; c[k] = false_lit;
+//                     watches[~c[1]].push(w);
+//                     goto NextClause; }
+
+//             // Did not find watch -- clause is unit under assignment:
+//             *j++ = w;
+//             if (value(first) == l_False){
+//                 confl = cr;
+//                 qhead = trail.size();
+//                 // Copy the remaining watches:
+//                 while (i < end)
+//                     *j++ = *i++;
+//             }else
+//                 uncheckedEnqueue(first, cr);
+
+//         NextClause:;
+//         }
+//         ws.shrink(i - j);
+//     }
+//     propagations += num_props;
+//     simpDB_props -= num_props;
+
+//     return confl;
+// }
 
 
 /*_________________________________________________________________________________________________
@@ -844,6 +1007,31 @@ lbool Solver::solve_()
 
     solves++;
 
+    int m = clauses.size();
+    int L = 0;
+    for (int cid = 0; cid < m; cid++) {
+        CRef cr = clauses[cid];
+        L += ca[cr].size();
+    }
+
+
+    std::vector<int> h_clauseIndex(m+1);
+    std::vector<int> h_literals; h_literals.reserve(L);
+    // fill h_clauseIndex & h_literals …
+
+    // **now** we know m>0, so safe to allocate & upload:
+    cudaMalloc(&d_clauseIndex, (m+1)*sizeof(int));   cudaCheck("malloc idx");
+    cudaMalloc(&d_literals,    L     *sizeof(int));   cudaCheck("malloc lits");
+    cudaMalloc(&d_results,     m     *sizeof(int));   cudaCheck("malloc res");
+    cudaMemcpy(d_clauseIndex, h_clauseIndex.data(), (m+1)*sizeof(int),
+                cudaMemcpyHostToDevice);              cudaCheck("memcpy idx");
+    cudaMemcpy(d_literals,    h_literals.data(),    L*sizeof(int),
+                cudaMemcpyHostToDevice);              cudaCheck("memcpy lits");
+
+    // mark that GPU is ready
+    gpu_buffers_allocated = true;
+
+    // 3) Now proceed with search as before
     max_learnts = nClauses() * learntsize_factor;
     if (max_learnts < min_learnts_lim)
         max_learnts = min_learnts_lim;
