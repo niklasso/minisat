@@ -18,9 +18,7 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **************************************************************************************************/
 
-#include <errno.h>
-#include <zlib.h>
-
+#include <cerrno>
 #include "minisat/utils/System.h"
 #include "minisat/utils/ParseUtils.h"
 #include "minisat/utils/Options.h"
@@ -54,9 +52,9 @@ static void SIGINT_exit(int) {
 int main(int argc, char** argv)
 {
     try {
-        setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input may be either in plain or gzipped DIMACS.\n");
+        setUsageHelp("USAGE: %s [options] <input-file> <result-output-file>\n\n  where input is DIMACS.\n");
         setX86FPUPrecision();
-        
+
         // Extra options:
         //
         IntOption    verb   ("MAIN", "verb",   "Verbosity level (0=silent, 1=some, 2=more).", 1, IntRange(0, 2));
@@ -68,14 +66,14 @@ int main(int argc, char** argv)
         BoolOption   strictp("MAIN", "strict", "Validate DIMACS header during parsing.", false);
 
         parseOptions(argc, argv, true);
-        
+
         SimpSolver  S;
         double      initial_time = cpuTime();
 
         if (!pre) S.eliminate(true);
 
         S.verbosity = verb;
-        
+
         solver = &S;
         // Use signal handlers that forcibly quit until the solver will be able to respond to
         // interrupts:
@@ -86,24 +84,24 @@ int main(int argc, char** argv)
         if (mem_lim != 0) limitMemory(mem_lim);
 
         if (argc == 1)
-            printf("Reading from standard input... Use '--help' for help.\n");
+            printf("c Reading from standard input... Use '--help' for help.\n");
 
-        gzFile in = (argc == 1) ? gzdopen(0, "rb") : gzopen(argv[1], "rb");
+        FILE* in = (argc == 1) ? fdopen(0, "rb") : fopen(argv[1], "rb");
         if (in == NULL)
             printf("ERROR! Could not open file: %s\n", argc == 1 ? "<stdin>" : argv[1]), exit(1);
-        
+
         if (S.verbosity > 0){
             printf("============================[ Problem Statistics ]=============================\n");
             printf("|                                                                             |\n"); }
-        
+
         parse_DIMACS(in, S, (bool)strictp);
-        gzclose(in);
+        fclose(in);
         FILE* res = (argc >= 3) ? fopen(argv[2], "wb") : NULL;
 
         if (S.verbosity > 0){
             printf("|  Number of variables:  %12d                                         |\n", S.nVars());
             printf("|  Number of clauses:    %12d                                         |\n", S.nClauses()); }
-        
+
         double parsed_time = cpuTime();
         if (S.verbosity > 0)
             printf("|  Parse time:           %12.2f s                                       |\n", parsed_time - initial_time);
@@ -125,7 +123,7 @@ int main(int argc, char** argv)
                 printf("Solved by simplification\n");
                 S.printStats();
                 printf("\n"); }
-            printf("UNSATISFIABLE\n");
+            printf("s UNSATISFIABLE\n");
             exit(20);
         }
 
@@ -143,19 +141,14 @@ int main(int argc, char** argv)
         if (S.verbosity > 0){
             S.printStats();
             printf("\n"); }
-        printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
-        if (res != NULL){
-            if (ret == l_True){
-                fprintf(res, "SAT\n");
-                for (int i = 0; i < S.nVars(); i++)
-                    if (S.model[i] != l_Undef)
-                        fprintf(res, "%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
-                fprintf(res, " 0\n");
-            }else if (ret == l_False)
-                fprintf(res, "UNSAT\n");
-            else
-                fprintf(res, "INDET\n");
-            fclose(res);
+        printf(ret == l_True ? "s SATISFIABLE\n" : ret == l_False ? "s UNSATISFIABLE\n" : "s INDETERMINATE\n");
+        if (ret == l_True){
+            printf("v ");
+            for (int i = 0; i < S.nVars(); i++)
+                if (S.model[i] != l_Undef)
+                    printf("%s%s%d", (i==0)?"":" ", (S.model[i]==l_True)?"":"-", i+1);
+
+            printf(" 0\n");
         }
 
 #ifdef NDEBUG
@@ -165,7 +158,7 @@ int main(int argc, char** argv)
 #endif
     } catch (OutOfMemoryException&){
         printf("===============================================================================\n");
-        printf("INDETERMINATE\n");
+        printf("s INDETERMINATE\n");
         exit(0);
     }
 }
