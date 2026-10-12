@@ -77,7 +77,7 @@ double Minisat::memUsed() {
     struct rusage ru;
     getrusage(RUSAGE_SELF, &ru);
     return (double)ru.ru_maxrss / 1024; }
-double Minisat::memUsedPeak() { return memUsed(); }
+double Minisat::memUsedPeak(bool /*strictlyPeak*/) { return memUsed(); }
 
 
 #elif defined(__APPLE__)
@@ -87,17 +87,17 @@ double Minisat::memUsed() {
     malloc_statistics_t t;
     malloc_zone_statistics(NULL, &t);
     return (double)t.max_size_in_use / (1024*1024); }
-double Minisat::memUsedPeak() { return memUsed(); }
+double Minisat::memUsedPeak(bool /*strictlyPeak*/) { return memUsed(); }
 
 #else
-double Minisat::memUsed()     { return 0; }
-double Minisat::memUsedPeak() { return 0; }
+double Minisat::memUsed() { return 0; }
+double Minisat::memUsedPeak(bool /*strictlyPeak*/) { return 0; }
 #endif
 
 
 void Minisat::setX86FPUPrecision()
 {
-#if defined(__linux__) && defined(_FPU_EXTENDED) && defined(_FPU_DOUBLE) && defined(_FPU_GETCW)
+#if defined(__GLIBC__) && defined(_FPU_EXTENDED) && defined(_FPU_DOUBLE) && defined(_FPU_GETCW)
     // Only correct FPU precision on Linux architectures that needs and supports it:
     fpu_control_t oldcw, newcw;
     _FPU_GETCW(oldcw); newcw = (oldcw & ~_FPU_EXTENDED) | _FPU_DOUBLE; _FPU_SETCW(newcw);

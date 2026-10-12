@@ -53,6 +53,7 @@ class SimpSolver : public Solver {
     // Variable mode:
     // 
     void    setFrozen (Var v, bool b); // If a variable is frozen it will not be eliminated.
+    void    add_observed_var(Var v);   // An observed variable is never eliminated; one already eliminated cannot be observed.
     bool    isEliminated(Var v) const;
 
     // Alternative freeze interface (may replace 'setFrozen()'):
@@ -179,7 +180,7 @@ inline bool SimpSolver::isEliminated (Var v) const { return eliminated[v]; }
 inline void SimpSolver::updateElimHeap(Var v) {
     assert(use_simplification);
     // if (!frozen[v] && !isEliminated(v) && value(v) == l_Undef)
-    if (elim_heap.inHeap(v) || (!frozen[v] && !isEliminated(v) && value(v) == l_Undef))
+    if (elim_heap.inHeap(v) || (!frozen[v] && !observed[v] && !isEliminated(v) && value(v) == l_Undef))
         elim_heap.update(v); }
 
 

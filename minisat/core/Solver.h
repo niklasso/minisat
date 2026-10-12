@@ -27,12 +27,25 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "minisat/mtl/IntMap.h"
 #include "minisat/utils/Options.h"
 #include "minisat/core/SolverTypes.h"
+#include "minisat/core/ExternalPropagator.h"
 
 
 namespace Minisat {
 
 //=================================================================================================
 // Solver -- the main class:
+
+// Something outside the solver that can call time on a search in progress.
+//
+// terminate() is polled from the search loop, on every conflict and every
+// restart, so it must be cheap and must not throw. Returning true stops the
+// search the same way exhausting a budget does: solveLimited() answers
+// l_Undef, and nothing is left behind that the next solve would inherit.
+class Terminator {
+public:
+    virtual ~Terminator() {}
+    virtual bool terminate() = 0;
+};
 
 class Solver {
 public:
@@ -111,6 +124,30 @@ public:
     void    interrupt();          // Trigger a (potentially asynchronous) interruption of the solver.
     void    clearInterrupt();     // Clear interrupt indicator flag.
 
+    // An embedder's own reason to stop, polled wherever the budgets above are.
+    //
+    // The budgets here count work, which is what a SAT solver can measure for
+    // itself. A caller bounding something else -- wall clock, its own memory
+    // ceiling, a user's cancellation -- knows when it has run out and the
+    // solver does not, so let it say so rather than making it guess a conflict
+    // count. Cleared by passing NULL; the solver does not own it, and it must
+    // outlive the solve.
+    void    connectTerminator(Terminator* t);
+
+    // External propagation (IPASIR-UP; see ExternalPropagator.h for the callbacks):
+    //
+    // A propagator is connected between solves, and stays connected across them until it is
+    // disconnected; the solver does not own it. Only the variables it observes are reported to
+    // it. Without a propagator, or with one that observes nothing, the search is unchanged.
+    void    connect_external_propagator   (ExternalPropagator* p); // At most one at a time.
+    void    disconnect_external_propagator();                      // Forgets every observed variable too.
+    virtual void add_observed_var         (Var v);                 // Report 'v' to the propagator from now on.
+    void    remove_observed_var           (Var v);                 // Stop reporting 'v'.
+    void    reset_observed_vars           ();                      // Stop reporting anything. Not during a solve.
+    bool    is_observed                   (Var v) const;
+    bool    is_decision                   (Lit p) const;           // Is 'p' assigned by a decision of the current search?
+    void    force_backtrack               (int level);             // From cb_decide or cb_check_found_model only.
+
     // Memory managment:
     //
     virtual void garbageCollect();
@@ -150,6 +187,7 @@ public:
     //
     uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts;
     uint64_t dec_vars, num_clauses, num_learnts, clauses_literals, learnts_literals, max_literals, tot_literals;
+    uint64_t ext_notifications, ext_propagations, ext_reasons, ext_clauses, ext_conflicts, ext_decisions, ext_checks;
 
 protected:
 
@@ -235,6 +273,21 @@ protected:
     int64_t             conflict_budget;    // -1 means no budget.
     int64_t             propagation_budget; // -1 means no budget.
     bool                asynch_interrupt;
+    Terminator*         terminator;         // NULL means nobody is asking.
+
+    // External propagation:
+    //
+    ExternalPropagator* propagator;         // NULL means none is connected.
+    VMap<char>          observed;           // Whether the propagator is told about a variable.
+    vec<Var>            observed_vars;      // The same set as a list, for what is per-variable work.
+    int                 notified;           // How much of 'trail' the propagator has been told about.
+    int                 notified_level;     // How many decision levels it has been told about.
+    vec<Lit>            notify_fixed;       // Root assignments observed after 'notified' passed them.
+    bool                in_explanation;     // Reading a reason inside conflict analysis.
+    bool                backtrack_allowed;  // Inside cb_decide or cb_check_found_model.
+    bool                ext_rejected;       // A model was rejected without a clause; the solve gives up.
+    vec<Lit>            ext_lits;           // Temporaries: notifications, models, and clauses read in.
+    vec<Lit>            ext_clause;
 
     // Main internal methods:
     //
@@ -253,6 +306,23 @@ protected:
     void     reduceDB         ();                                                      // Reduce the set of learnt clauses.
     void     removeSatisfied  (vec<CRef>& cs);                                         // Shrink 'cs' to contain only non-satisfied clauses.
     void     rebuildOrderHeap ();
+
+    // External propagation:
+    //
+    bool     propagatorActive  () const;                    // Connected and not lazy: told everything, asked everything.
+    void     notifyAssignments ();                          // Report what the propagator has not yet heard of.
+    void     notifyAssignments_();
+    CRef     propagateExternal ();                          // Exchange with the propagator until neither side has news.
+    CRef     addExternalClause (vec<Lit>& ps, bool learnt); // Integrate a clause arriving mid-search.
+    void     readReason        (Lit p, vec<Lit>& out);      // Ask for the reason of an implied literal.
+    void     readExternalClause(vec<Lit>& out);             // Read the clause cb_has_external_clause announced.
+    CRef     explain           (Var x);                     // Turn a lazy reason into a clause.
+    CRef     reasonClause      (Var x);                     // 'reason(x)', explaining it first if it is lazy.
+    Lit      decideExternal    ();                          // Ask the propagator for a decision.
+    Lit      pickObservedLit   ();                          // An unassigned observed variable, if any.
+    Lit      polarityFor       (Var v);                     // The phase the heuristic would give 'v'.
+    lbool    checkModelExternal(CRef& confl);               // Let the propagator judge a complete assignment.
+    void     requireExternal   (bool cond, const char* what) const; // A broken contract is fatal.
 
     // Maintaining Variable/Clause activity:
     //
@@ -342,8 +412,20 @@ inline bool     Solver::addClause       (Lit p, Lit q, Lit r)   { add_tmp.clear(
 inline bool     Solver::addClause       (Lit p, Lit q, Lit r, Lit s){ add_tmp.clear(); add_tmp.push(p); add_tmp.push(q); add_tmp.push(r); add_tmp.push(s); return addClause_(add_tmp); }
 
 inline bool     Solver::isRemoved       (CRef cr)         const { return ca[cr].mark() == 1; }
-inline bool     Solver::locked          (const Clause& c) const { return value(c[0]) == l_True && reason(var(c[0])) != CRef_Undef && ca.lea(reason(var(c[0]))) == &c; }
-inline void     Solver::newDecisionLevel()                      { trail_lim.push(trail.size()); }
+inline bool     Solver::locked          (const Clause& c) const {
+    CRef r = reason(var(c[0]));
+    return value(c[0]) == l_True && r != CRef_Undef && r != CRef_Lazy && ca.lea(r) == &c; }
+inline void     Solver::newDecisionLevel()                      {
+    if (propagatorActive()) notifyAssignments();
+    trail_lim.push(trail.size());
+    if (propagatorActive()){
+        notified_level = decisionLevel();
+        propagator->notify_new_decision_level(); } }
+
+inline bool     Solver::propagatorActive()                const { return propagator != NULL && !propagator->is_lazy; }
+inline void     Solver::notifyAssignments()                     { if (notified < trail.size() || notify_fixed.size() > 0) notifyAssignments_(); }
+inline CRef     Solver::reasonClause    (Var x)                 { CRef r = reason(x); return r == CRef_Lazy ? explain(x) : r; }
+inline bool     Solver::is_observed     (Var v)           const { return observed[v] != 0; }
 
 inline int      Solver::decisionLevel ()      const   { return trail_lim.size(); }
 inline uint32_t Solver::abstractLevel (Var x) const   { return 1 << (level(x) & 31); }
@@ -371,8 +453,10 @@ inline void     Solver::setPropBudget(int64_t x){ propagation_budget = propagati
 inline void     Solver::interrupt(){ asynch_interrupt = true; }
 inline void     Solver::clearInterrupt(){ asynch_interrupt = false; }
 inline void     Solver::budgetOff(){ conflict_budget = propagation_budget = -1; }
+inline void     Solver::connectTerminator(Terminator* t){ terminator = t; }
 inline bool     Solver::withinBudget() const {
     return !asynch_interrupt &&
+           (terminator == NULL || !terminator->terminate()) &&
            (conflict_budget    < 0 || conflicts < (uint64_t)conflict_budget) &&
            (propagation_budget < 0 || propagations < (uint64_t)propagation_budget); }
 

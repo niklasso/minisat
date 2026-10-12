@@ -19,6 +19,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 **************************************************************************************************/
 
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "minisat/mtl/Alg.h"
 #include "minisat/mtl/Sort.h"
@@ -83,6 +85,7 @@ Solver::Solver() :
     //
   , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
   , dec_vars(0), num_clauses(0), num_learnts(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
+  , ext_notifications(0), ext_propagations(0), ext_reasons(0), ext_clauses(0), ext_conflicts(0), ext_decisions(0), ext_checks(0)
 
   , watches            (WatcherDeleted(ca))
   , order_heap         (VarOrderLt(activity))
@@ -101,6 +104,16 @@ Solver::Solver() :
   , conflict_budget    (-1)
   , propagation_budget (-1)
   , asynch_interrupt   (false)
+  , terminator         (NULL)
+
+    // External propagation:
+    //
+  , propagator         (NULL)
+  , notified           (0)
+  , notified_level     (0)
+  , in_explanation     (false)
+  , backtrack_allowed  (false)
+  , ext_rejected       (false)
 {}
 
 
@@ -133,6 +146,7 @@ Var Solver::newVar(lbool upol, bool dvar)
     seen     .insert(v, 0);
     polarity .insert(v, true);
     user_pol .insert(v, upol);
+    observed .insert(v, 0);
     decision .reserve(v);
     trail    .capacity(v+1);
     setDecisionVar(v, dvar);
@@ -144,6 +158,8 @@ Var Solver::newVar(lbool upol, bool dvar)
 // releases of the same variable).
 void Solver::releaseVar(Lit l)
 {
+    if (observed[var(l)])
+        remove_observed_var(var(l));
     if (value(l) == l_Undef){
         addClause(l);
         released_vars.push(var(l));
@@ -239,6 +255,13 @@ void Solver::cancelUntil(int level) {
         qhead = trail_lim[level];
         trail.shrink(trail.size() - trail_lim[level]);
         trail_lim.shrink(trail_lim.size() - level);
+
+        // Whatever was undone and never reported stays unreported; the propagator hears only of
+        // levels it was told were opened.
+        if (notified > trail.size()) notified = trail.size();
+        if (propagator != NULL && level < notified_level){
+            notified_level = level;
+            propagator->notify_backtrack(level); }
     } }
 
 
@@ -264,15 +287,19 @@ Lit Solver::pickBranchLit()
         }else
             next = order_heap.removeMin();
 
-    // Choose polarity based on different polarity modes (global or per-variable):
-    if (next == var_Undef)
-        return lit_Undef;
-    else if (user_pol[next] != l_Undef)
-        return mkLit(next, user_pol[next] == l_True);
+    return next == var_Undef ? lit_Undef : polarityFor(next);
+}
+
+
+// Choose polarity based on different polarity modes (global or per-variable):
+Lit Solver::polarityFor(Var v)
+{
+    if (user_pol[v] != l_Undef)
+        return mkLit(v, user_pol[v] == l_True);
     else if (rnd_pol)
-        return mkLit(next, drand(random_seed) < 0.5);
+        return mkLit(v, drand(random_seed) < 0.5);
     else
-        return mkLit(next, polarity[next]);
+        return mkLit(v, polarity[v]);
 }
 
 
@@ -323,12 +350,14 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
             }
         }
         
-        // Select next clause to look at:
+        // Select next clause to look at. The UIP's reason is never read, so a lazy one is left
+        // unexplained:
         while (!seen[var(trail[index--])]);
         p     = trail[index+1];
-        confl = reason(var(p));
         seen[var(p)] = 0;
         pathC--;
+        if (pathC > 0)
+            confl = reasonClause(var(p));
 
     }while (pathC > 0);
     out_learnt[0] = ~p;
@@ -349,7 +378,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
             if (reason(x) == CRef_Undef)
                 out_learnt[j++] = out_learnt[i];
             else{
-                Clause& c = ca[reason(var(out_learnt[i]))];
+                Clause& c = ca[reasonClause(x)];
                 for (int k = 1; k < c.size(); k++)
                     if (!seen[var(c[k])] && level(var(c[k])) > 0){
                         out_learnt[j++] = out_learnt[i];
@@ -391,7 +420,7 @@ bool Solver::litRedundant(Lit p)
     assert(seen[var(p)] == seen_undef || seen[var(p)] == seen_source);
     assert(reason(var(p)) != CRef_Undef);
 
-    Clause*               c     = &ca[reason(var(p))];
+    Clause*               c     = &ca[reasonClause(var(p))];
     vec<ShrinkStackElem>& stack = analyze_stack;
     stack.clear();
 
@@ -416,11 +445,11 @@ bool Solver::litRedundant(Lit p)
                 return false;
             }
 
-            // Recursively check 'l':
+            // Recursively check 'l'. Explaining it may move clause memory, so 'c' is taken after:
             stack.push(ShrinkStackElem(i, p));
             i  = 0;
             p  = l;
-            c  = &ca[reason(var(p))];
+            c  = &ca[reasonClause(var(p))];
         }else{
             // Finished with current element 'p' and reason 'c':
             if (seen[var(p)] == seen_undef){
@@ -434,7 +463,7 @@ bool Solver::litRedundant(Lit p)
             // Continue with top element on stack:
             i  = stack.last().i;
             p  = stack.last().l;
-            c  = &ca[reason(var(p))];
+            c  = &ca[reasonClause(var(p))];
 
             stack.pop();
         }
@@ -470,7 +499,7 @@ void Solver::analyzeFinal(Lit p, LSet& out_conflict)
                 assert(level(x) > 0);
                 out_conflict.insert(~trail[i]);
             }else{
-                Clause& c = ca[reason(x)];
+                Clause& c = ca[reasonClause(x)];
                 for (int j = 1; j < c.size(); j++)
                     if (level(var(c[j])) > 0)
                         seen[var(c[j])] = 1;
@@ -661,11 +690,14 @@ bool Solver::simplify()
             seen[released_vars[i]] = 1;
         }
 
-        int i, j;
+        // The notification cursor moves with the entries it counts:
+        int i, j, kept_notified = 0;
         for (i = j = 0; i < trail.size(); i++)
-            if (seen[var(trail[i])] == 0)
-                trail[j++] = trail[i];
+            if (seen[var(trail[i])] == 0){
+                if (i < notified) kept_notified++;
+                trail[j++] = trail[i]; }
         trail.shrink(i - j);
+        notified = kept_notified;
         //printf("trail.size()= %d, qhead = %d\n", trail.size(), qhead);
         qhead = trail.size();
 
@@ -705,10 +737,16 @@ lbool Solver::search(int nof_conflicts)
     int         backtrack_level;
     int         conflictC = 0;
     vec<Lit>    learnt_clause;
+    CRef        ext_confl = CRef_Undef; // A conflict raised while the propagator judged a model.
     starts++;
 
     for (;;){
-        CRef confl = propagate();
+        CRef confl = ext_confl != CRef_Undef ? ext_confl : propagate();
+        ext_confl  = CRef_Undef;
+        if (confl == CRef_Undef && propagatorActive()){
+            confl = propagateExternal();
+            if (!ok) return l_False;
+        }
         if (confl != CRef_Undef){
             // CONFLICT
             conflicts++; conflictC++;
@@ -775,14 +813,44 @@ lbool Solver::search(int nof_conflicts)
                 }
             }
 
+            if (next == lit_Undef && propagatorActive()){
+                // The propagator's own decision, if it has one; if it backtracked instead, the
+                // search goes back to propagating, and redoes the assumptions if it must:
+                next = decideExternal();
+                if (next == lit_Error) continue;
+            }
+
             if (next == lit_Undef){
                 // New variable decision:
                 decisions++;
                 next = pickBranchLit();
 
-                if (next == lit_Undef)
-                    // Model found:
-                    return l_True;
+                // A model has to settle every variable the propagator observes, decision
+                // variable or not:
+                if (next == lit_Undef && propagator != NULL)
+                    next = pickObservedLit();
+
+                if (next == lit_Undef){
+                    // Model found -- if the propagator agrees:
+                    if (propagator == NULL)
+                        return l_True;
+                    lbool verdict = checkModelExternal(ext_confl);
+                    if (!ok)
+                        return l_False;
+                    if (verdict == l_True)
+                        return l_True;
+                    if (verdict == l_False){
+                        ext_rejected = true;
+                        return l_Undef; }
+                    continue;
+                }
+
+                if (propagatorActive() && propagator->advises_polarity && observed[var(next)]){
+                    Lit advised = propagator->cb_decide_polarity(next);
+                    requireExternal(advised == next || advised == ~next,
+                                    "cb_decide_polarity() returned a literal of another variable");
+                    next = advised;
+                }
             }
 
             // Increase decision level and enqueue 'next'
@@ -851,6 +919,7 @@ lbool Solver::solve_()
     learntsize_adjust_confl   = learntsize_adjust_start_confl;
     learntsize_adjust_cnt     = (int)learntsize_adjust_confl;
     lbool   status            = l_Undef;
+    ext_rejected              = false;
 
     if (verbosity >= 1){
         printf("============================[ Search Statistics ]==============================\n");
@@ -861,7 +930,7 @@ lbool Solver::solve_()
 
     // Search:
     int curr_restarts = 0;
-    while (status == l_Undef){
+    while (status == l_Undef && !ext_rejected){
         double rest_base = luby_restart ? luby(restart_inc, curr_restarts) : pow(restart_inc, curr_restarts);
         status = search(rest_base * restart_first);
         if (!withinBudget()) break;
@@ -909,6 +978,462 @@ bool Solver::implies(const vec<Lit>& assumps, vec<Lit>& out)
     cancelUntil(0);
     return ret;
 }
+
+//=================================================================================================
+// External propagation:
+//
+// The propagator never sees the inside of BCP: propagate() is untouched, and the solver speaks to
+// the propagator only once BCP has reached a fixpoint (propagateExternal), when it is about to
+// decide (decideExternal), when every variable is assigned (checkModelExternal), and when
+// conflict analysis needs the reason for a literal the propagator implied (explain). Assignments
+// are reported in batches, from a cursor into the trail, so each costs one test of 'observed'.
+// With no propagator connected, each of those places costs a NULL test, and nothing else.
+
+
+void Solver::requireExternal(bool cond, const char* what) const
+{
+    if (cond) return;
+    fprintf(stderr, "minisat: external propagator: %s\n", what);
+    abort();
+}
+
+
+void Solver::connect_external_propagator(ExternalPropagator* p)
+{
+    requireExternal(p != NULL, "connect_external_propagator() needs a propagator");
+    requireExternal(propagator == NULL, "connect_external_propagator() while one is connected");
+    cancelUntil(0);
+    propagator     = p;
+    // Root assignments of variables it goes on to observe are reported too:
+    notified       = 0;
+    notified_level = 0;
+    notify_fixed.clear();
+}
+
+
+void Solver::disconnect_external_propagator()
+{
+    if (propagator == NULL) return;
+    reset_observed_vars();
+    propagator = NULL;
+}
+
+
+void Solver::reset_observed_vars()
+{
+    requireExternal(!in_explanation, "reset_observed_vars() while a reason is being read");
+    // Lazy reasons can only mention observed variables, and all of them are above the root:
+    cancelUntil(0);
+    for (int i = 0; i < observed_vars.size(); i++)
+        observed[observed_vars[i]] = 0;
+    observed_vars.clear();
+    notify_fixed.clear();
+}
+
+
+void Solver::add_observed_var(Var v)
+{
+    requireExternal(propagator != NULL, "add_observed_var() without a connected propagator");
+    requireExternal(!in_explanation, "add_observed_var() while a reason is being read");
+    requireExternal(v >= 0 && v < nVars(), "add_observed_var() of a variable that does not exist");
+    if (observed[v]) return;
+    observed[v] = 1;
+    observed_vars.push(v);
+
+    if (value(v) == l_Undef || propagator->is_lazy) return;
+
+    // Already assigned. If the cursor has not reached it, it is reported in its place:
+    int lvl   = level(v);
+    int begin = lvl == 0 ? 0 : trail_lim[lvl - 1];
+    int end   = lvl == decisionLevel() ? trail.size() : trail_lim[lvl];
+    if (notified <= begin) return;
+    for (int i = notified; i < end; i++)
+        if (var(trail[i]) == v) return;
+
+    // Otherwise the propagator has missed it, and it has to hear of it on the level it belongs
+    // to. Above the root, the assignment is undone, to be made and reported again; at the root,
+    // it stands for good, and is reported as soon as the search is back there:
+    if (lvl > 0)
+        cancelUntil(lvl - 1);
+    else{
+        cancelUntil(0);
+        notify_fixed.push(mkLit(v, value(v) == l_False));
+    }
+}
+
+
+void Solver::remove_observed_var(Var v)
+{
+    requireExternal(!in_explanation, "remove_observed_var() while a reason is being read");
+    if (!observed[v]) return;
+
+    // An implication the propagator has yet to explain may rest on 'v'. Undo it, and everything
+    // after it, before the propagator stops answering for 'v':
+    if (value(v) != l_Undef && level(v) > 0)
+        cancelUntil(level(v) - 1);
+
+    observed[v] = 0;
+    for (int i = 0; i < observed_vars.size(); i++)
+        if (observed_vars[i] == v){
+            observed_vars[i] = observed_vars.last();
+            observed_vars.pop();
+            break; }
+    for (int i = 0; i < notify_fixed.size(); i++)
+        if (var(notify_fixed[i]) == v){
+            notify_fixed[i] = notify_fixed.last();
+            notify_fixed.pop();
+            break; }
+}
+
+
+bool Solver::is_decision(Lit p) const
+{
+    Var v = var(p);
+    return value(v) != l_Undef && level(v) > 0 && reason(v) == CRef_Undef;
+}
+
+
+void Solver::force_backtrack(int level)
+{
+    requireExternal(backtrack_allowed, "force_backtrack() outside cb_decide() and cb_check_found_model()");
+    requireExternal(level >= 0 && level < decisionLevel(), "force_backtrack() to a level that is not below the current one");
+    cancelUntil(level);
+}
+
+
+void Solver::notifyAssignments_()
+{
+    assert(propagatorActive());
+    // Root assignments observed late come first; the search is at the root while they wait:
+    assert(notify_fixed.size() == 0 || decisionLevel() == 0);
+    ext_lits.clear();
+    for (int i = 0; i < notify_fixed.size(); i++)
+        ext_lits.push(notify_fixed[i]);
+    notify_fixed.clear();
+
+    for (; notified < trail.size(); notified++)
+        if (observed[var(trail[notified])])
+            ext_lits.push(trail[notified]);
+
+    if (ext_lits.size() > 0){
+        ext_notifications++;
+        propagator->notify_assignment(ext_lits);
+    }
+}
+
+
+void Solver::readExternalClause(vec<Lit>& out)
+{
+    out.clear();
+    for (Lit q = propagator->cb_add_external_clause_lit(); q != lit_Undef; q = propagator->cb_add_external_clause_lit()){
+        requireExternal(var(q) >= 0 && var(q) < nVars() && observed[var(q)],
+                        "an external clause has a literal that is not observed");
+        out.push(q);
+    }
+    ext_clauses++;
+}
+
+
+void Solver::readReason(Lit p, vec<Lit>& out)
+{
+    out.clear();
+    bool has_p = false;
+    for (Lit q = propagator->cb_add_reason_clause_lit(p); q != lit_Undef; q = propagator->cb_add_reason_clause_lit(p)){
+        requireExternal(var(q) >= 0 && var(q) < nVars() && observed[var(q)],
+                        "a reason clause has a literal that is not observed");
+        has_p |= q == p;
+        out.push(q);
+    }
+    requireExternal(has_p, "a reason clause lacks the literal it explains");
+    ext_reasons++;
+}
+
+
+/*_________________________________________________________________________________________________
+|
+|  addExternalClause : (ps : vec<Lit>&) (learnt : bool)  ->  [CRef]
+|
+|  Description:
+|    Integrate a clause the propagator hands over in the middle of the search. Only the root
+|    assignment simplifies it; whatever it is above the root -- satisfied, unit, or falsified on
+|    a lower level than the current one -- it is attached, and acted on:
+|
+|      * falsified, with two literals on its highest level: the search backtracks to that level,
+|        and the clause is returned, as the conflict to analyze;
+|      * falsified, with one literal on its highest level: it would have implied that literal on
+|        the level below, so the search backtracks there and implies it;
+|      * one literal unassigned and the rest false: that literal is implied, on this level;
+|      * one literal, under the root: it is asserted at the root.
+|
+|    Sets 'ok' to false if the clause is falsified at the root. 'ps' is changed.
+|________________________________________________________________________________________________@*/
+CRef Solver::addExternalClause(vec<Lit>& ps, bool learnt)
+{
+    sort(ps);
+    Lit p; int i, j;
+    for (i = j = 0, p = lit_Undef; i < ps.size(); i++){
+        bool root = value(ps[i]) != l_Undef && level(var(ps[i])) == 0;
+        if ((root && value(ps[i]) == l_True) || ps[i] == ~p)
+            return CRef_Undef;
+        else if (!(root && value(ps[i]) == l_False) && ps[i] != p)
+            ps[j++] = p = ps[i];
+    }
+    ps.shrink(i - j);
+
+    if (ps.size() == 0){
+        ok = false;
+        return CRef_Undef; }
+
+    if (ps.size() == 1){
+        cancelUntil(0);
+        uncheckedEnqueue(ps[0]);
+        return CRef_Undef; }
+
+    // Watch the best two literals: true or unassigned ones, then false ones, latest first.
+    for (int k = 0; k < 2; k++){
+        int best = k;
+        for (int m = k + 1; m < ps.size(); m++){
+            int rank_m    = value(ps[m])    == l_False ? level(var(ps[m]))    : INT32_MAX;
+            int rank_best = value(ps[best]) == l_False ? level(var(ps[best])) : INT32_MAX;
+            if (rank_m > rank_best) best = m;
+        }
+        Lit tmp = ps[k]; ps[k] = ps[best]; ps[best] = tmp;
+    }
+
+    CRef cr = ca.alloc(ps, learnt);
+    if (learnt){
+        learnts.push(cr);
+        claBumpActivity(ca[cr]);
+    }else
+        clauses.push(cr);
+    attachClause(cr);
+
+    Lit first = ps[0], second = ps[1];
+    if (value(first) == l_True || value(second) != l_False)
+        return CRef_Undef;
+
+    if (value(first) == l_Undef){
+        uncheckedEnqueue(first, cr);
+        return CRef_Undef; }
+
+    int first_level = level(var(first)), second_level = level(var(second));
+    if (first_level > second_level){
+        cancelUntil(second_level);
+        uncheckedEnqueue(first, cr);
+        return CRef_Undef; }
+
+    ext_conflicts++;
+    cancelUntil(first_level);
+    return cr;
+}
+
+
+/*_________________________________________________________________________________________________
+|
+|  propagateExternal : [void]  ->  [CRef]
+|
+|  Description:
+|    Called at a BCP fixpoint. Report the new assignments, take the propagator's implications,
+|    propagating each before asking for the next, then take its clauses; repeat while it has
+|    clauses to give, since those may enable more implications. Returns a conflicting clause, on
+|    the level the search is now at, or CRef_Undef. Sets 'ok' to false if the propagator has
+|    made the formula unsatisfiable at the root.
+|________________________________________________________________________________________________@*/
+CRef Solver::propagateExternal()
+{
+    for (;;){
+        notifyAssignments();
+
+        for (Lit p = propagator->cb_propagate(); p != lit_Undef; p = propagator->cb_propagate()){
+            requireExternal(var(p) >= 0 && var(p) < nVars() && observed[var(p)],
+                            "cb_propagate() returned a literal that is not observed");
+            ext_propagations++;
+            if (value(p) == l_True)
+                continue;
+
+            if (value(p) == l_False){
+                // Implied, yet false: its reason is falsified, and is a conflict.
+                readReason(p, ext_clause);
+                CRef confl = addExternalClause(ext_clause, propagator->are_reasons_forgettable);
+                if (!ok || confl != CRef_Undef) return confl;
+            }else if (decisionLevel() == 0){
+                // Nothing would ever ask for a root implication's reason. Read it now, while it
+                // can still be checked, and keep the literal as a fact:
+                readReason(p, ext_clause);
+                for (int k = 0; k < ext_clause.size(); k++)
+                    requireExternal(ext_clause[k] == p || value(ext_clause[k]) == l_False,
+                                    "a reason clause has a literal that is not false");
+                uncheckedEnqueue(p);
+            }else
+                uncheckedEnqueue(p, CRef_Lazy);
+
+            CRef confl = propagate();
+            if (confl != CRef_Undef) return confl;
+            notifyAssignments();
+        }
+
+        bool added = false, forgettable = false;
+        while (propagator->cb_has_external_clause(forgettable)){
+            readExternalClause(ext_clause);
+            added = true;
+            CRef confl = addExternalClause(ext_clause, forgettable);
+            if (!ok || confl != CRef_Undef) return confl;
+            confl = propagate();
+            if (confl != CRef_Undef) return confl;
+            notifyAssignments();
+            forgettable = false;
+        }
+        if (!added)
+            return CRef_Undef;
+    }
+}
+
+
+/*_________________________________________________________________________________________________
+|
+|  explain : (x : Var)  ->  [CRef]
+|
+|  Description:
+|    Ask the propagator for the reason it implied 'x', and make it the clause that 'reason(x)'
+|    refers to: the true literal of 'x' first, the latest other literal second, where
+|    attachClause() wants the watches. Every other literal must be false, and assigned no later
+|    than 'x' -- on its level at the latest, since trail positions are not recorded. Duplicates
+|    and literals false at the root are dropped.
+|
+|    'x' keeps the level it was implied on, which may be above the one its reason gives it:
+|    analysis stays sound, and only backjumps less far than it might.
+|________________________________________________________________________________________________@*/
+CRef Solver::explain(Var x)
+{
+    assert(reason(x) == CRef_Lazy);
+    Lit p = mkLit(x, value(x) == l_False);
+
+    in_explanation = true;
+    readReason(p, ext_clause);
+    in_explanation = false;
+
+    vec<Lit>& c = ext_clause;
+    sort(c);
+    Lit prev; int i, j;
+    for (i = j = 0, prev = lit_Undef; i < c.size(); i++){
+        Lit q = c[i];
+        if (q == prev || q == p) continue;
+        prev = q;
+        requireExternal(var(q) != x && value(q) == l_False && level(var(q)) <= level(x),
+                        "a reason clause has a literal that is not false before the one it explains");
+        if (level(var(q)) > 0)
+            c[j++] = q;
+    }
+    c.shrink(i - j);
+
+    c.push(p);
+    Lit tmp = c[0]; c[0] = p; c[c.size() - 1] = tmp;
+    for (int k = 2; k < c.size(); k++)
+        if (level(var(c[k])) > level(var(c[1]))){
+            tmp = c[1]; c[1] = c[k]; c[k] = tmp; }
+
+    if (c.size() == 1){
+        // The theory holds 'p' outright, yet it stands on the level it was implied on. Analysis
+        // reads a one-literal reason, which resolves nothing away; it is never attached, and is
+        // collected once 'p' is unassigned.
+        CRef cr = ca.alloc(c, true);
+        vardata[x].reason = cr;
+        return cr;
+    }
+
+    CRef cr = ca.alloc(c, propagator->are_reasons_forgettable);
+    if (ca[cr].learnt()) learnts.push(cr);
+    else                 clauses.push(cr);
+    attachClause(cr);
+    vardata[x].reason = cr;
+    return cr;
+}
+
+
+// The propagator's decision, lit_Undef if it leaves the choice to the solver, or lit_Error if it
+// backtracked or observed a variable it had missed, in which case the search must propagate
+// before it decides anything; what it returned then is not used.
+Lit Solver::decideExternal()
+{
+    notifyAssignments();
+    int level_before = decisionLevel(), trail_before = trail.size();
+
+    backtrack_allowed = true;
+    Lit p = propagator->cb_decide();
+    backtrack_allowed = false;
+
+    if (decisionLevel() != level_before || trail.size() != trail_before)
+        return lit_Error;
+    if (p == lit_Undef)
+        return lit_Undef;
+    requireExternal(var(p) >= 0 && var(p) < nVars() && observed[var(p)],
+                    "cb_decide() returned a literal that is not observed");
+    requireExternal(value(p) == l_Undef, "cb_decide() returned a literal that is already assigned");
+    ext_decisions++;
+    return p;
+}
+
+
+Lit Solver::pickObservedLit()
+{
+    for (int i = 0; i < observed_vars.size(); i++)
+        if (value(observed_vars[i]) == l_Undef)
+            return polarityFor(observed_vars[i]);
+    return lit_Undef;
+}
+
+
+/*_________________________________________________________________________________________________
+|
+|  checkModelExternal : (confl : CRef&)  ->  [lbool]
+|
+|  Description:
+|    Every variable is assigned. Returns l_True if the propagator accepts the assignment, l_False
+|    if it rejects it without a clause to say why, and l_Undef if the search has to go on: the
+|    propagator backtracked, observed something new, or gave a clause that changes the trail --
+|    'confl' is set if that clause is falsified, and the search is already on its level.
+|
+|    Clauses the assignment satisfies leave it complete, and it is judged again.
+|________________________________________________________________________________________________@*/
+lbool Solver::checkModelExternal(CRef& confl)
+{
+    confl = CRef_Undef;
+    for (;;){
+        if (propagatorActive())
+            notifyAssignments();
+
+        ext_lits.clear();
+        for (int i = 0; i < observed_vars.size(); i++){
+            Var v = observed_vars[i];
+            assert(value(v) != l_Undef);
+            ext_lits.push(mkLit(v, value(v) == l_False));
+        }
+
+        int level_before = decisionLevel(), trail_before = trail.size(), observed_before = observed_vars.size();
+        backtrack_allowed = true;
+        bool accepted = propagator->cb_check_found_model(ext_lits);
+        backtrack_allowed = false;
+        ext_checks++;
+
+        if (decisionLevel() != level_before || trail.size() != trail_before || observed_vars.size() != observed_before)
+            return l_Undef;
+        if (accepted)
+            return l_True;
+
+        bool added = false, forgettable = false;
+        while (propagator->cb_has_external_clause(forgettable)){
+            readExternalClause(ext_clause);
+            added = true;
+            confl = addExternalClause(ext_clause, forgettable);
+            if (!ok || confl != CRef_Undef || decisionLevel() != level_before || trail.size() != trail_before)
+                return l_Undef;
+            forgettable = false;
+        }
+        if (!added)
+            return l_False;
+    }
+}
+
 
 //=================================================================================================
 // Writing CNF to DIMACS:
@@ -992,11 +1517,18 @@ void Solver::printStats() const
 {
     double cpu_time = cpuTime();
     double mem_used = memUsedPeak();
-    printf("restarts              : %"PRIu64"\n", starts);
-    printf("conflicts             : %-12"PRIu64"   (%.0f /sec)\n", conflicts   , conflicts   /cpu_time);
-    printf("decisions             : %-12"PRIu64"   (%4.2f %% random) (%.0f /sec)\n", decisions, (float)rnd_decisions*100 / (float)decisions, decisions   /cpu_time);
-    printf("propagations          : %-12"PRIu64"   (%.0f /sec)\n", propagations, propagations/cpu_time);
-    printf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
+    printf("restarts              : %" PRIu64 "\n", starts);
+    printf("conflicts             : %-12" PRIu64 "   (%.0f /sec)\n", conflicts   , conflicts   /cpu_time);
+    printf("decisions             : %-12" PRIu64 "   (%4.2f %% random) (%.0f /sec)\n", decisions, (float)rnd_decisions*100 / (float)decisions, decisions   /cpu_time);
+    printf("propagations          : %-12" PRIu64 "   (%.0f /sec)\n", propagations, propagations/cpu_time);
+    printf("conflict literals     : %-12" PRIu64 "   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
+    if (ext_notifications + ext_propagations + ext_clauses + ext_decisions + ext_checks > 0){
+        printf("external notifications: %-12" PRIu64 "\n", ext_notifications);
+        printf("external propagations : %-12" PRIu64 "   (%" PRIu64 " reasons read)\n", ext_propagations, ext_reasons);
+        printf("external clauses      : %-12" PRIu64 "   (%" PRIu64 " conflicts)\n", ext_clauses, ext_conflicts);
+        printf("external decisions    : %-12" PRIu64 "\n", ext_decisions);
+        printf("external model checks : %-12" PRIu64 "\n", ext_checks);
+    }
     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
     printf("CPU time              : %g s\n", cpu_time);
 }
@@ -1025,7 +1557,7 @@ void Solver::relocAll(ClauseAllocator& to)
 
         // Note: it is not safe to call 'locked()' on a relocated clause. This is why we keep
         // 'dangling' reasons here. It is safe and does not hurt.
-        if (reason(v) != CRef_Undef && (ca[reason(v)].reloced() || locked(ca[reason(v)]))){
+        if (reason(v) != CRef_Undef && reason(v) != CRef_Lazy && (ca[reason(v)].reloced() || locked(ca[reason(v)]))){
             assert(!isRemoved(reason(v)));
             ca.reloc(vardata[v].reason, to);
         }

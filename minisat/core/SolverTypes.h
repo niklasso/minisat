@@ -52,7 +52,7 @@ struct Lit {
     int     x;
 
     // Use this as a constructor:
-    friend Lit mkLit(Var var, bool sign = false);
+    friend Lit mkLit(Var var, bool sign);
 
     bool operator == (Lit p) const { return x == p.x; }
     bool operator != (Lit p) const { return x != p.x; }
@@ -60,7 +60,7 @@ struct Lit {
 };
 
 
-inline  Lit  mkLit     (Var var, bool sign) { Lit p; p.x = var + var + (int)sign; return p; }
+inline  Lit  mkLit     (Var var, bool sign = false) { Lit p; p.x = var + var + (int)sign; return p; }
 inline  Lit  operator ~(Lit p)              { Lit q; q.x = p.x ^ 1; return q; }
 inline  Lit  operator ^(Lit p, bool b)      { Lit q; q.x = p.x ^ (unsigned int)b; return q; }
 inline  bool sign      (Lit p)              { return p.x & 1; }
@@ -223,6 +223,10 @@ public:
 // ClauseAllocator -- a simple class for allocating memory for clauses:
 
 const CRef CRef_Undef = RegionAllocator<uint32_t>::Ref_Undef;
+// The reason of a literal an external propagator implied, until conflict analysis asks for it.
+// Never a real reference: the smallest clause takes two units, so one starting here would end
+// past 2^32, and RegionAllocator::alloc() throws on that overflow.
+const CRef CRef_Lazy  = RegionAllocator<uint32_t>::Ref_Undef - 1;
 class ClauseAllocator
 {
     RegionAllocator<uint32_t> ra;

@@ -103,6 +103,13 @@ void SimpSolver::releaseVar(Lit l)
 }
 
 
+void SimpSolver::add_observed_var(Var v)
+{
+    requireExternal(v >= 0 && v < nVars() && !isEliminated(v), "add_observed_var() of an eliminated variable");
+    Solver::add_observed_var(v);
+}
+
+
 lbool SimpSolver::solve_(bool do_simp, bool turn_off_simp)
 {
     vec<Var> extra_frozen;
@@ -638,7 +645,7 @@ bool SimpSolver::eliminate(bool turn_off_elim)
 
             // At this point, the variable may have been set by assymetric branching, so check it
             // again. Also, don't eliminate frozen variables:
-            if (use_elim && value(elim) == l_Undef && !frozen[elim] && !eliminateVar(elim)){
+            if (use_elim && value(elim) == l_Undef && !frozen[elim] && !observed[elim] && !eliminateVar(elim)){
                 ok = false; goto cleanup; }
 
             checkGarbage(simp_garbage_frac);
